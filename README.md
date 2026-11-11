@@ -83,6 +83,13 @@ g1/
   docs/                  界面截图
 ```
 
+## 导出
+
+```bash
+# 把一个标准的完整数据导成 Excel（6 个工作表：概况/参数/检项/限值表/维度/限值行）
+.venv/bin/python g1/service/tools/export_standard.py gb3103-3 输出.xlsx
+```
+
 ## 清空数据
 
 ```bash

@@ -42,14 +42,14 @@ def table(tid, name, item_code, dims, value_form="absolute", nominal=None):
             "value_form": value_form, "nominal_param": nominal, "dims": dims, "rows": []}
 
 
-D_GRADE = {"code": "grade", "kind": "enum"}
-D_MAT = {"code": "material", "kind": "enum"}
-D_H = {"code": "h_nom", "kind": "range"}
+D_GRADE = {"code": "grade", "kind": "enum", "values": ["A", "C"]}
+D_MAT = {"code": "material", "kind": "enum", "values": ["非不锈钢", "不锈钢"]}
+D_H = {"code": "h_nom", "kind": "range", "values": [[0, 4], [4, 20]]}
 
 
 def t_d1():
     t = table("T-D1", "通孔直径 d₁ 公差（H13/H14/H15）", "d1",
-              [D_GRADE, D_H, {"code": "d1_nom", "kind": "range"}],
+              [D_GRADE, D_H, {"code": "d1_nom", "kind": "range", "values": [list(b) for b in BINS]}],
               value_form="deviation", nominal="d1_nom")
     plan = {"A": {True: "H13", False: "H14"}, "C": {True: "H14", False: "H15"}}
     for grade in ("A", "C"):
@@ -65,7 +65,7 @@ def t_d1():
 
 def t_d2():
     t = table("T-D2", "外径 d₂ 公差（h14/h15/h16）", "d2",
-              [D_GRADE, D_H, {"code": "d2_nom", "kind": "range"}],
+              [D_GRADE, D_H, {"code": "d2_nom", "kind": "range", "values": [list(b) for b in BINS]}],
               value_form="deviation", nominal="d2_nom")
     plan = {"A": {True: "h14", False: "h15"}, "C": {True: "h16", False: "h16"}}
     for grade in ("A", "C"):
@@ -82,7 +82,7 @@ def t_d2():
 def t_h():
     a = [0.05, 0.1, 0.2, 0.3, 0.6, 1, 1.2]
     c = [0.1, 0.2, 0.3, 0.6, 1, 1.2, 1.6]
-    t = table("T-H", "厚度 h 公差", "h", [D_GRADE, D_H],
+    t = table("T-H", "厚度 h 公差", "h", [D_GRADE, {"code": "h_nom", "kind": "range", "values": [list(b) for b in HBINS]}],
               value_form="deviation", nominal="h_nom")
     for grade, vals in (("A", a), ("C", c)):
         for (lo, hi), v in zip(HBINS, vals):
@@ -92,7 +92,8 @@ def t_h():
 
 
 def t_h1():
-    t = table("T-H1", "孔部高度 h₁ 下限", "h1", [D_GRADE, D_H])
+    t = table("T-H1", "孔部高度 h₁ 下限", "h1",
+              [D_GRADE, {"code": "h_nom", "kind": "range", "values": [list(b) for b in HBINS]}])
     for (lo, hi), expr in zip(HSPLIT, ("0.5*h_nom", "0.3*h_nom")):
         t["rows"].append({"key": {"grade": "A", "h_nom": [lo, hi]}, "lower_expr": expr})
     t["rows"].append({"key": {"grade": "C", "h_nom": [0, 20]}, "na": True, "note": "C 级未规定"})
@@ -110,7 +111,8 @@ def t_e():
 
 def t_dh():
     vals = [0.025, 0.05, 0.1, 0.15, 0.2, 0.3, 0.4]
-    t = table("T-DH", "同一部位厚度不均匀度 Δh", "dh", [D_GRADE, D_H])
+    t = table("T-DH", "同一部位厚度不均匀度 Δh", "dh",
+              [D_GRADE, {"code": "h_nom", "kind": "range", "values": [list(b) for b in HBINS]}])
     for (lo, hi), v in zip(HBINS, vals):
         t["rows"].append({"key": {"grade": "A", "h_nom": [lo, hi]}, "lower": 0.0, "upper": v})
     t["rows"].append({"key": {"grade": "C", "h_nom": [0, 20]}, "na": True, "note": "C 级不要求"})
@@ -119,7 +121,7 @@ def t_dh():
 
 def t_t1():
     t = table("T-T1", "同轴度 t₁（2IT12/2IT13/2IT15/2IT16）", "t1",
-              [D_GRADE, {"code": "d2_nom", "kind": "range"}])
+              [D_GRADE, {"code": "d2_nom", "kind": "range", "values": [list(b) for b in BINS]}])
     for grade in ("A", "C"):
         for (a, b) in BINS:
             if grade == "A":
@@ -135,7 +137,8 @@ def t_t1():
 def t_t2():
     plain = [0.1, 0.15, 0.2, 0.3, 0.4, 0.6, 1.0]
     steel = [0.15, 0.22, 0.3, 0.45, 0.6, 0.9, 1.5]
-    t = table("T-T2", "平面度 t₂", "t2", [D_GRADE, D_MAT, D_H])
+    t = table("T-T2", "平面度 t₂", "t2",
+              [D_GRADE, D_MAT, {"code": "h_nom", "kind": "range", "values": [list(b) for b in HBINS]}])
     for mat, vals in (("非不锈钢", plain), ("不锈钢", steel)):
         for (lo, hi), v in zip(HBINS, vals):
             t["rows"].append({"key": {"grade": "A", "material": mat, "h_nom": [lo, hi]},
