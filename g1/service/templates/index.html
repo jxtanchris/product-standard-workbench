@@ -1696,13 +1696,14 @@ function renderJob(){
   const tb = $('#atbody');
   const offCount = j.items.filter(it => !it.selected).length;
   $('#offN').textContent = offCount;
-  $('#showFiltered').checked = false;
+  const wantOff = new URLSearchParams(location.search).get('filtered') === '1';
+  $('#showFiltered').checked = wantOff;
   $('#showFiltered').onchange = e => {
     $('#atbody').classList.toggle('show-off', e.target.checked);
   };
-  tb.classList.remove('show-off');
+  tb.classList.toggle('show-off', wantOff);
   tb.innerHTML = j.items.map((it, i) => `
-    <tr data-i="${i}" class="${it.selected ? '' : 'off'}">
+    <tr data-i="${i}" class="${it.selected ? '' : 'off'}" data-evi="${esc(it.evidence || '')}">
       <td><input type="checkbox" class="chk sel" ${it.selected ? 'checked' : ''}></td>
       <td><input type="text" class="cl" value="${esc(it.clause)}"></td>
       <td><input type="text" class="ti" value="${esc(it.title)}"></td>
@@ -1711,13 +1712,25 @@ function renderJob(){
       <td style="text-align:center"><input type="checkbox" class="chk ms" ${it.measurable ? 'checked' : ''}></td>
       <td class="evi" title="${esc(it.evidence)}">${it.selected
           ? esc(clip(it.evidence, 72))
-          : `<span style="color:#b26a00">✕ ${esc(it.reason || '未通过判定')}</span>`}</td>
+          : `<span style="color:#b26a00">✕ ${esc(it.reason || '未通过判定')}</span>
+             <span class="muted" style="font-size:11px"> · 勾选左侧即可加回</span>`}</td>
       <td style="text-align:center;color:var(--muted)">${it.page || '—'}</td>
       <td><button class="rowdel" title="删除">×</button></td>
     </tr>`).join('');
 
   tb.oninput = syncItems;
-  tb.onchange = syncItems;
+  tb.onchange = e => {
+    const chk = e.target.closest('.sel');
+    if(chk){
+      const tr = chk.closest('tr');
+      if(chk.checked && tr.classList.contains('off')){
+        tr.classList.remove('off');
+        const cell = tr.querySelector('.evi');
+        cell.innerHTML = esc(clip(tr.dataset.evi || '', 72));
+      }
+    }
+    syncItems();
+  };
   tb.onclick = e => {
     if(!e.target.classList.contains('rowdel')) return;
     const tr = e.target.closest('tr');
