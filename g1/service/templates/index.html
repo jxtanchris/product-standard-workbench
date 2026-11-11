@@ -556,8 +556,20 @@
         <div style="grid-column:3/5"><div class="lbl">新表名称</div><input type="text" id="sName" placeholder="例如 平面度 t₂（按 h 分档）"></div>
         <div style="grid-column:3/5"><div class="lbl">服务检项</div><select id="sItem" style="width:100%"></select></div>
       </div>
+      <div id="sPrev" hidden style="margin-top:14px">
+        <div class="summary" style="margin-bottom:8px">
+          <span class="big" id="sPrevStat"></span>
+          <span class="pill" id="sPrevWarn"></span>
+          <span class="spacer" style="flex:1"></span>
+          <button class="btn ghost" id="sBack">← 返回改映射</button>
+          <button class="btn primary" id="sConfirm">确认，打开编辑器</button>
+        </div>
+        <div style="max-height:38vh;overflow:auto;border:1px solid var(--line);border-radius:8px">
+          <table class="analyze" id="sPrevTable"></table>
+        </div>
+      </div>
     </div>
-    <div class="mfoot">
+    <div class="mfoot" id="sFoot">
       <button class="btn primary" id="sBuild">生成草稿并编辑</button>
       <button class="btn ghost" id="sCancel">取消</button>
       <span class="pill" id="sMsg" style="margin-left:auto"></span>
@@ -1371,9 +1383,17 @@ function buildDraftFromSource(){
     const mode = $('#sValMode').value;
     SRC.map.forEach((m, i) => {
       if(m !== 'lower' && m !== 'upper') return;
-      const [l, h] = parseValue(line[i], mode);
-      if(l !== null) lo = l;
-      if(h !== null) hi = h;
+      const txt = String(line[i] || '').trim();
+      // 纯数字：按列的含义直接当上/下限（"3.4" 在下限列就是下限）
+      if(/^[-+]?\s*\d+(\.\d+)?$/.test(txt.replace(/\s+/g, ''))){
+        const v = Number(txt.replace(/[^\d.+\-]/g, ''));
+        if(m === 'lower'){ if(lo === null) lo = v; }
+        else { if(hi === null) hi = v; }
+        return;
+      }
+      const [l, h] = parseValue(txt, mode);        // 带 ± / + / ~ 的交给值解释
+      if(l !== null && lo === null) lo = l;        // 多组上下限时取第一组
+      if(h !== null && hi === null) hi = h;
     });
     const raw = line.filter(Boolean).join(' | ') || '';
     const show = [lo === null ? '' : `下 ${lo}`, hi === null ? '' : `上 ${hi}`]
@@ -1416,16 +1436,88 @@ $('#sValMode').onchange = e => { $('#sValHint').textContent = VAL_HINT[e.target.
 
 $('#btnFromSource').onclick = async () => { if(await ensureEditorData()) openSource(); };
 $('#sClose').onclick = $('#sCancel').onclick = () => { $('#srcModal').hidden = true; };
-$('#sBuild').onclick = () => {
-  const draft = buildDraftFromSource();
+function rowProblems(r, dims, mapped){
+  const out = [];
+  const badDim = dims.find(d => {
+    const v = r.key[d.code];
+    return v === '' || v === undefined || (typeof v === 'string' && !/^[A-Za-z]?[\d.]+$/.test(v));
+  });
+  if(badDim) out.push(`维度 ${badDim.code} 值可疑`);
+  if(r.lower === null && r.upper === null) out.push('没解析出限值');
+  else if(mapped.lower && r.lower === null) out.push('缺下限');
+  else if(mapped.upper && r.upper === null) out.push('缺上限');
+  if(r.lower !== null && r.upper !== null && r.lower > r.upper) out.push('下限大于上限');
+  if(/^(续表|注|单位)/.test(String(r.note || ''))) out.push('疑似表格噪声');
+  return out;
+}
+
+function cellOf(v){
+  if(v === undefined || v === null || v === '') return '';
+  if(Array.isArray(v)) return `(${v.join(', ')}]`;
+  return String(v);
+}
+
+function openSourcePreview(draft){
+  SRC.pending = draft;
+  const dims = draft.dims || [];
+  const rows = draft.rows || [];
+  const mapped = {
+    lower: SRC.map.filter(m => m === 'lower').length,
+    upper: SRC.map.filter(m => m === 'upper').length,
+  };
+  const bad = rows.map(r => rowProblems(r, dims, mapped));
+  const nBad = bad.filter(x => x.length).length;
+  const warn = [];
+  if(mapped.lower > 1) warn.push(`${mapped.lower} 个下限列，只取第一个`);
+  if(mapped.upper > 1) warn.push(`${mapped.upper} 个上限列，只取第一个`);
+
+  $('#sPrevStat').textContent = `预览：${rows.length} 行 × ${dims.length} 个维度`;
+  $('#sPrevWarn').textContent = (nBad ? `${nBad} 行有问题` : '看起来没问题')
+    + (warn.length ? '　·　' + warn.join('；') : '');
+  $('#sPrevWarn').style.color = nBad ? '#b26a00' : '#2e7d32';
+
+  const head = dims.map(d => `<th>${esc(d.code)}</th>`).join('');
+  $('#sPrevTable').innerHTML =
+    `<thead><tr>${head}<th style="width:90px">下限</th><th style="width:90px">上限</th>` +
+    `<th style="width:150px">问题</th></tr></thead><tbody>` +
+    rows.slice(0, 60).map((r, i) => `
+      <tr${bad[i].length ? ' style="background:#fff8ec"' : ''}>
+        ${dims.map(d => `<td>${esc(cellOf(r.key[d.code]))}</td>`).join('')}
+        <td>${r.lower === null ? '—' : esc(r.lower)}</td>
+        <td>${r.upper === null ? '—' : esc(r.upper)}</td>
+        <td style="color:#b26a00;font-size:11.5px">${esc(bad[i].join('，'))}</td>
+      </tr>`).join('') + '</tbody>';
+
+  $('#sPrev').hidden = false;
+  $('#sFoot').hidden = true;
+  $('#sPrev').scrollIntoView({block: 'nearest'});
+  $('#sMsg').textContent = '';
+}
+
+$('#sBack').onclick = () => {
+  $('#sPrev').hidden = true;
+  $('#sFoot').hidden = false;
+  SRC.pending = null;
+};
+
+$('#sConfirm').onclick = () => {
+  const draft = SRC.pending;
   if(!draft) return;
   $('#srcModal').hidden = true;
+  $('#sPrev').hidden = true;
+  $('#sFoot').hidden = false;
   if(SRC.draftMode){                       // 向导第 3 步：存成作业草稿
     openDraftEditor(draft);
     return;
   }
   openEditor(E.std, draft, true);
   $('#eMsg').textContent = `已从原文生成 ${draft.rows.length} 行草稿，核对后再保存`;
+};
+
+$('#sBuild').onclick = () => {
+  const draft = buildDraftFromSource();
+  if(!draft) return;
+  openSourcePreview(draft);
 };
 
 /* ================= 限值表编辑 ================= */
@@ -1876,6 +1968,9 @@ function renderJob(){
       await loadSourceTables(JOB.id);
       const n = Number(srcIdx || 0);
       if(SRC.tables[n]){ $('#sTable').value = String(n); selectSourceTable(n); }
+      if(new URLSearchParams(location.search).get('build') === '1'){
+        setTimeout(() => $('#sBuild').click(), 200);
+      }
     }, 250);
   }
   if(j.has_text) loadOcrText(j.id);
