@@ -44,6 +44,8 @@ class Job:
     params_spec: list[dict] = field(default_factory=list)   # 选择规格的参数
     limits: dict = field(default_factory=dict)              # item_id -> 限值定义
     published_id: str = ""                                  # 发布后对应的标准 id
+    steps: dict = field(default_factory=dict)               # 每一步是否已确认
+    links: dict = field(default_factory=dict)               # item_id -> 限值来源
     created_at: float = field(default_factory=time.time)
 
     def public(self) -> dict:

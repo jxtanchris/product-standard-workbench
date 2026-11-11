@@ -62,6 +62,18 @@ def post(path, payload):
         return json.loads(r.read())
 
 
+def post_raw(path, payload):
+    """不抛异常，返回 (状态码, 响应体, 头)。"""
+    req = urllib.request.Request(
+        BASE + path, data=json.dumps(payload, ensure_ascii=False).encode(),
+        headers={"Content-Type": "application/json"}, method="POST")
+    try:
+        with urllib.request.urlopen(req, timeout=30) as r:
+            return r.status, r.read(), dict(r.headers)
+    except urllib.error.HTTPError as e:
+        return e.code, e.read(), dict(e.headers)
+
+
 def put(path, payload):
     req = urllib.request.Request(
         BASE + path, data=json.dumps(payload, ensure_ascii=False).encode(),
@@ -246,6 +258,27 @@ def main():
     check("删掉一个标准，另一个仍有原件", flags2.get(std_id) is True, str(flags2))
     still = [x for x in getjson("/api/documents") if x["id"] == mine[0]["id"]]
     check("原件本身没被删", bool(still), str(still))
+
+    print("6c. 分步向导")
+    j2 = getjson(f"/api/analyze/jobs/{job_id}")
+    picked = [i for i in j2["items"] if i["selected"]]
+    r1 = post(f"/api/analyze/jobs/{job_id}/step/items",
+              {"data": {"items": picked, "code": j2["code"], "title": j2["title"]},
+               "confirmed": True})
+    r2 = post(f"/api/analyze/jobs/{job_id}/step/params",
+              {"data": {"params_spec": j2["params_spec"]}, "confirmed": True})
+    r3 = post(f"/api/analyze/jobs/{job_id}/step/limits",
+              {"data": {"limits": j2["limits"]}, "confirmed": True})
+    r4 = post(f"/api/analyze/jobs/{job_id}/step/links",
+              {"data": {"links": {i["id"]: "rule" for i in picked}}, "confirmed": True})
+    check("四步都能单独保存", all(x.get("ok") for x in (r1, r2, r3, r4)))
+    steps = getjson(f"/api/analyze/jobs/{job_id}")["steps"]
+    check("四步都记为已确认", all(steps.get(k, {}).get("confirmed")
+                                 for k in ("items", "params", "limits", "links")), str(steps))
+    check("链接表写回作业", getjson(f"/api/analyze/jobs/{job_id}")["links"].get(picked[0]["id"]) == "rule")
+
+    st, _, _ = post_raw(f"/api/analyze/jobs/{job_id}/step/nope", {"data": {}, "confirmed": True})
+    check("未知步骤返回 400", st == 400, str(st))
 
     print("7. 原文与清理")
     req = urllib.request.Request(f"{BASE}/api/standards/unpublish/{std_id}", method="POST")

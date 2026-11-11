@@ -11,6 +11,7 @@ import os
 import re
 import shutil
 import sys
+import time
 import uuid
 from pathlib import Path
 from typing import Any
@@ -477,6 +478,11 @@ class PublishPayload(BaseModel):
     limits: dict[str, dict] = Field(default_factory=dict)
 
 
+class StepPayload(BaseModel):
+    data: dict = Field(default_factory=dict)
+    confirmed: bool = True
+
+
 class TextPayload(BaseModel):
     text: str
     filename: str = "粘贴的文本"
@@ -545,6 +551,27 @@ def analyze_job(job_id: str):
     return job.public()
 
 
+STEP_FIELDS = {"items": "items", "params": "params_spec",
+               "limits": "limits", "links": "links"}
+
+
+@app.post("/api/analyze/jobs/{job_id}/step/{name}")
+def save_step(job_id: str, name: str, payload: StepPayload):
+    """分步向导：每一步单独保存 + 标记确认。"""
+    if name not in STEP_FIELDS:
+        raise HTTPException(400, f"未知步骤 {name}")
+    job = jobstore.STORE.get(job_id)
+    if not job:
+        raise HTTPException(404, "作业不存在")
+    field = STEP_FIELDS[name]
+    kw = {field: payload.data.get(field, payload.data)}
+    steps = dict(job.steps or {})
+    steps[name] = {"confirmed": payload.confirmed, "at": time.time()}
+    kw["steps"] = steps
+    jobstore.STORE.update(job_id, **kw)
+    return {"ok": True, "steps": steps}
+
+
 @app.put("/api/analyze/jobs/{job_id}/items")
 def analyze_save(job_id: str, payload: ItemsPayload):
     job = jobstore.STORE.get(job_id)
@@ -595,7 +622,8 @@ def rerun_job(job_id: str):
     else:
         tmp.write_bytes(bytes(doc["content"]))
     jobstore.STORE.update(job_id, status="ocr", progress=0, pages=0, items=[],
-                          tables=[], params_spec=[], limits={}, code="", title="", error="")
+                          tables=[], params_spec=[], limits={}, code="", title="", error="",
+                          steps={}, links={}, published_id="")
     jobstore.start(job_id, tmp)
     return {"ok": True, "job_id": job_id, "status": "ocr"}
 

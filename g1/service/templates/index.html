@@ -60,6 +60,21 @@
   th:nth-child(5){width:96px} th:nth-child(6){width:150px}
   th:nth-child(7){width:96px} th:nth-child(8){width:44px}
   tbody tr.item:hover{background:#fafcff}
+  .steps{display:flex;gap:8px;margin-bottom:16px}
+  .steps[hidden]{display:none}
+  .step{flex:1;display:flex;align-items:center;gap:10px;padding:10px 14px;
+        border:1px solid var(--line);border-radius:10px;background:#fff;cursor:pointer;
+        text-align:left;font:inherit;color:inherit}
+  .step:hover{border-color:#bcd4ee}
+  .step b{width:24px;height:24px;border-radius:50%;background:#e3ebf4;color:var(--brand);
+          display:grid;place-items:center;font-size:12px;flex:0 0 24px}
+  .step span{font-size:13px;font-weight:500}
+  .step i{font-style:normal;font-size:11px;color:var(--muted);margin-left:auto;white-space:nowrap}
+  .step.on{border-color:var(--brand-2);box-shadow:0 0 0 2px rgba(47,111,176,.12)}
+  .step.on b{background:var(--brand);color:#fff}
+  .step.done b{background:#2e7d32;color:#fff}
+  .stepnav{display:flex;align-items:center;gap:10px;margin-top:16px}
+  .stepnav .spacer{flex:1}
   tbody#atbody tr.off{display:none}
   tbody#atbody.show-off tr.off{display:table-row;opacity:.72}
   td.idx{width:34px;color:var(--muted);font-variant-numeric:tabular-nums}
@@ -281,7 +296,14 @@
   </div><!-- /view-card -->
 
   <div class="view" id="view-analyze" hidden>
-    <section class="card">
+    <div class="steps" id="steps" hidden>
+      <button class="step" data-step="1"><b>1</b><span>检查项</span><i id="s1i">待确认</i></button>
+      <button class="step" data-step="2"><b>2</b><span>规格参数</span><i id="s2i">待确认</i></button>
+      <button class="step" data-step="3"><b>3</b><span>限值</span><i id="s3i">待确认</i></button>
+      <button class="step" data-step="4"><b>4</b><span>关联与发布</span><i id="s4i">待确认</i></button>
+    </div>
+
+    <section class="card" id="uploadCard">
       <div class="card-h">
         <h2>① 上传标准</h2>
         <span class="hint">PDF 扫描件可直接上传；分析在本机完成，文件不出本机</span>
@@ -307,7 +329,7 @@
       </div>
     </section>
 
-    <section class="card" id="resultCard" hidden>
+    <section class="card" id="resultCard" data-pane="1" hidden>
       <div class="card-h">
         <h2>② 确认检项</h2>
         <span class="hint">系统只给候选，勾选与改名由人决定；每条都能回溯到页码与原文</span>
@@ -347,8 +369,10 @@
         <button class="btn primary" id="btnExportStd">导出检验卡 (xlsx)</button>
         <span class="pill" style="margin-left:auto" id="amsg"></span>
       </div>
-      <div class="summary">
-        <span class="pill">下一步：定义第 2 步要填的参数，再给每个检项设限值</span>
+      <div class="stepnav">
+        <span class="pill" id="amsg2"></span>
+        <span class="spacer"></span>
+        <button class="btn ghost" id="next1">确认，下一步：参数 →</button>
       </div>
       <div class="card-b" id="textWrap" hidden>
         <details>
@@ -358,7 +382,7 @@
       </div>
     </section>
 
-    <section class="card" id="specCard" hidden>
+    <section class="card" id="specCard" data-pane="2" hidden>
       <div class="card-h">
         <h2>③ 选择规格参数</h2>
         <span class="hint">第 2 步做检验时，先填这些参数；代码建议 *_nom，枚举型填可选值</span>
@@ -383,9 +407,14 @@
         <button class="btn ghost" id="btnAddParam">+ 新增参数</button>
         <span class="pill" style="margin-left:auto">系统已从标准正文中猜出这些参数，请按产品实际用途增删</span>
       </div>
+      <div class="stepnav">
+        <button class="btn ghost" id="prev2">← 上一步</button>
+        <span class="spacer"></span>
+        <button class="btn primary" id="next2">确认，下一步：限值 →</button>
+      </div>
     </section>
 
-    <section class="card" id="limitCard" hidden>
+    <section class="card" id="limitCard" data-pane="3" hidden>
       <div class="card-h">
         <h2>④ 限值</h2>
         <span class="hint">第 2 步的判定就按这里来；留空表示只记录、不判定</span>
@@ -408,8 +437,36 @@
       <div class="summary">
         <span class="pill">上下限可填数字或表达式（如 <code>d_nom+0.27</code>）；选「规则」可按参数分档，
           每行写 <code>条件 =&gt; 下限 ~ 上限</code></span>
-        <button class="btn primary" id="btnPublish" style="margin-left:auto">发布为标准</button>
+      </div>
+      <div class="stepnav">
+        <button class="btn ghost" id="prev3">← 上一步</button>
+        <span class="spacer"></span>
+        <button class="btn primary" id="next3">确认，下一步：关联 →</button>
+      </div>
+    </section>
+    <section class="card" id="linkCard" data-pane="4" hidden>
+      <div class="card-h">
+        <h2>④ 检查项与限值关联</h2>
+        <span class="hint">每个检项的限值从哪来：手填规则，还是查一张限值表</span>
+      </div>
+      <div style="overflow-x:auto">
+        <table class="analyze">
+          <thead>
+            <tr>
+              <th style="width:64px">条款</th>
+              <th style="width:230px">检查项目</th>
+              <th style="width:150px">限值来源</th>
+              <th>说明</th>
+            </tr>
+          </thead>
+          <tbody id="lkbody"></tbody>
+        </table>
+      </div>
+      <div class="stepnav">
+        <button class="btn ghost" id="prev4">← 上一步</button>
+        <span class="spacer"></span>
         <span class="pill" id="pmsg"></span>
+        <button class="btn primary" id="btnPublish">发布为标准</button>
       </div>
     </section>
   </div><!-- /view-analyze -->
@@ -763,7 +820,7 @@ function route(){
   showView(name);
   if(name === 'card') return initCard(seg[1] || '');
   if(name === 'tables') return initTables(seg[1] || '', seg[2] || '');
-  if(name === 'analyze') return initAnalyze(seg[1] || '');
+  if(name === 'analyze') return initAnalyze(seg[1] || '', Number(seg[2] || 0));
   return initStandards(seg[1] || '');
 }
 window.addEventListener('hashchange', route);
@@ -872,16 +929,124 @@ async function initCard(stdId){
   if(new URLSearchParams(location.search).get('demo') === '1') fillDemo();
 }
 
+/* ================= 分步向导 ================= */
+const STEP_NAMES = {1: "items", 2: "params", 3: "limits", 4: "links"};
+const STEP_LABEL = {1: "检查项", 2: "规格参数", 3: "限值", 4: "关联"};
+
+let JOB = null;
+
+function syncSteps(){
+  const steps = (JOB && JOB.steps) || {};
+  const done = n => !!(steps[STEP_NAMES[n]] || {}).confirmed;
+  document.querySelectorAll('#steps .step').forEach(b => {
+    const n = Number(b.dataset.step);
+    b.classList.toggle('done', done(n));
+  });
+  const counts = {
+    1: $('#' + 's1i'), 2: $('#s2i'), 3: $('#s3i'), 4: $('#s4i'),
+  };
+  const confirmedItems = (JOB && JOB.items || []).filter(i => i.selected).length;
+  counts[1].textContent = done(1) ? `已确认 ${confirmedItems} 项` : `候选 ${confirmedItems} 项`;
+  counts[2].textContent = done(2) ? `已确认 ${(JOB.params_spec || []).length} 个` : `${(JOB.params_spec || []).length} 个待确认`;
+  counts[3].textContent = done(3) ? "已确认" : "待确认";
+  counts[4].textContent = done(4) ? "已确认" : "待确认";
+}
+
+function showStep(n, push = true){
+  S.step = n;
+  document.querySelectorAll('#view-analyze [data-pane]').forEach(el => {
+    el.hidden = Number(el.dataset.pane) !== n;
+  });
+  document.querySelectorAll('#steps .step').forEach(b =>
+    b.classList.toggle('on', Number(b.dataset.step) === n));
+  if(push && JOB) location.hash = `#/analyze/${JOB.id}/${n}`;
+  window.scrollTo(0, 0);
+}
+
+async function saveStep(n, quiet = false){
+  if(!JOB) return false;
+  syncItems();                       // 把表格里的编辑同步回 JOB.items
+  const name = STEP_NAMES[n];
+  let data = {};
+  if(name === 'items') data = {items: JOB.items, code: $('#stdCode').value,
+                               title: $('#stdTitle2').value};
+  if(name === 'params') data = {params_spec: JOB.params_spec};
+  if(name === 'limits') data = {limits: JOB.limits};
+  if(name === 'links') data = {links: JOB.links};
+  const r = await fetch(`/api/analyze/jobs/${JOB.id}/step/${name}`, {
+    method: 'POST', headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({data, confirmed: true}),
+  });
+  if(!r.ok){ if(!quiet) $('#amsg').textContent = '保存失败'; return false; }
+  const d = await r.json();
+  JOB.steps = d.steps;
+  if(name === 'items'){ JOB.code = data.code; JOB.title = data.title; }
+  if(name === 'params') JOB.params_spec = data.params_spec;
+  if(name === 'limits') JOB.limits = data.limits;
+  syncSteps();
+  return true;
+}
+
+function wireSteps(){
+  document.querySelectorAll('#steps .step').forEach(b =>
+    b.onclick = () => showStep(Number(b.dataset.step)));
+  $('#next1').onclick = async () => { if(await saveStep(1)) showStep(2); };
+  $('#next2').onclick = async () => { if(await saveStep(2)) showStep(3); };
+  $('#next3').onclick = async () => { if(await saveStep(3)) { renderLinks(); showStep(4); } };
+  $('#prev2').onclick = () => showStep(1);
+  $('#prev3').onclick = () => showStep(2);
+  $('#prev4').onclick = () => showStep(3);
+}
+
+/* 第 4 步：检项 → 限值来源 */
+function renderLinks(){
+  if(!JOB) return;
+  const tb = $('#lkbody');
+  const links = JOB.links || {};
+  const items = (JOB.items || []).filter(i => i.selected);
+  tb.innerHTML = items.map(it => {
+    const src = links[it.id] || (it.table ? 'table' : 'rule');
+    const lim = (JOB.limits || {})[it.id] || {};
+    const table = it.table || '';
+    const desc = src === 'table'
+      ? `查表 ${table ? '<b>' + esc(table) + '</b>' : '（发布后在「限值表」页建立）'}`
+      : (lim.mode === 'rule' ? '按参数分档的规则' : '常量 / 区间');
+    return `<tr data-id="${esc(it.id)}">
+      <td>${esc(it.clause)}</td>
+      <td>${esc(it.title)}</td>
+      <td><select class="lk">
+        <option value="rule" ${src === 'rule' ? 'selected' : ''}>手填规则</option>
+        <option value="table" ${src === 'table' ? 'selected' : ''}>查限值表</option>
+      </select></td>
+      <td class="desc">${desc}</td>
+    </tr>`;
+  }).join('') || '<tr><td colspan="4" class="muted" style="padding:16px">还没有确认的检项</td></tr>';
+  tb.onchange = e => {
+    if(!e.target.classList.contains('lk')) return;
+    const tr = e.target.closest('tr');
+    JOB.links = JOB.links || {};
+    JOB.links[tr.dataset.id] = e.target.value;
+    renderLinks();
+  };
+}
+
 /* ================= 上传分析 ================= */
-function initAnalyze(jobId){
+function initAnalyze(jobId, step){
   $('#stdTitle').textContent = '标准分析';
-  $('#scope').textContent = '上传 PDF → 识别检项 → 人工确认 → 发布成标准';
+  $('#scope').textContent = '上传 PDF → ①检项 ②参数 ③限值 ④关联，每步人工确认';
   document.title = '上传标准做分析';
   loadRecent();
+  wireSteps();
   if(jobId){
+    S.step = step || 1;
     $('#prog').hidden = false;
     setProg(100, '加载作业…');
     pollJob(jobId);
+  }else{
+    JOB = null;
+    $('#uploadCard').hidden = false;
+    $('#steps').hidden = true;
+    document.querySelectorAll('#view-analyze [data-pane]').forEach(el => el.hidden = true);
   }
 }
 
@@ -1394,6 +1559,8 @@ function renderJob(){
     `质量 <b>${(j.quality * 100).toFixed(0)}%</b>`,
     `候选 <b>${j.items.length}</b>`,
   ].join('');
+  JOB = j;
+  JOB.links = j.links || {};
   $('#stdTitle').textContent = (j.code || '标准分析') + (j.title ? '　' + j.title : '');
   $('#scope').textContent = `来源：${j.filename}`;
 
@@ -1430,9 +1597,12 @@ function renderJob(){
   };
   renderParams();
   renderLimits();
-  $('#specCard').hidden = false;
-  $('#limitCard').hidden = false;
+  renderLinks();
+  $('#uploadCard').hidden = true;
+  $('#steps').hidden = false;
   $('#textWrap').hidden = !j.has_text;
+  syncSteps();
+  showStep(S.step || 1, false);
   if(j.has_text) loadOcrText(j.id);
   updateStat();
 }
@@ -1666,17 +1836,24 @@ $('#btnAddParam').onclick = () => {
   renderParams();
 };
 $('#btnPublish').onclick = async () => {
+  if(!JOB) return;
   try { await saveItems(); } catch(e){ $('#pmsg').textContent = '保存失败'; return; }
+  await saveStep(4, true);
+  const links = JOB.links || {};
+  const items = JOB.items.filter(x => x.selected).map(it => ({
+    ...it,
+    table: links[it.id] === 'table' ? (it.table || '') : '',
+  }));
   const payload = {
-    job_id: A.job.id,
+    job_id: JOB.id,
     code: $('#stdCode').value.trim(),
     title: $('#stdTitle2').value.trim(),
     category: '自定义',
     scope: '',
-    params: A.job.params_spec,
-    items: A.job.items.filter(x => x.selected),
-    limits: A.job.limits,
-    source: {job_id: A.job.id, filename: A.job.filename, pages: A.job.pages},
+    params: JOB.params_spec,
+    items,
+    limits: JOB.limits,
+    source: {job_id: JOB.id, filename: JOB.filename, pages: JOB.pages},
   };
   const r = await fetch('/api/standards/publish', {
     method:'POST', headers:{'Content-Type':'application/json'},
@@ -1684,16 +1861,16 @@ $('#btnPublish').onclick = async () => {
   });
   const d = await r.json().catch(() => ({}));
   if(!r.ok){
-    $('#pmsg').textContent = '发布失败：' + (d.detail || r.status);
+    $('#pmsg').textContent = '发布失败：' + (typeof d.detail === 'string' ? d.detail : r.status);
     return;
   }
-  A.job.published_id = d.std_id;
+  JOB.published_id = d.std_id;
   $('#pmsg').innerHTML = `已发布（${d.params} 个参数 / ${d.items} 个检项）　`
     + `<a href="#/card/${encodeURIComponent(d.std_id)}" style="color:var(--brand-2)">去出检验卡 →</a>`;
 };
 $('#btnExportStd').onclick = async () => {
   try { await saveItems(); } catch(e){ $('#amsg').textContent = '保存失败'; return; }
-  window.location = `/api/analyze/jobs/${A.job.id}/card.xlsx`;
+  window.location = `/api/analyze/jobs/${JOB.id}/card.xlsx`;
 };
 
 async function loadRecent(){
