@@ -744,8 +744,10 @@ def publish(payload: PublishPayload):
 def unpublish(std_id: str):
     """下架自定义标准。幂等：内存里没有也照样清库，避免留下孤儿标准。"""
     std = REGISTRY.get(std_id)
-    if std and not std.custom:
-        raise HTTPException(400, "内置标准不能下架")
+    conn0 = dbmod.connect()
+    row = conn0.execute("SELECT custom FROM standard WHERE id=?", (std_id,)).fetchone()
+    if (std and not std.custom) or (row and not row["custom"]):
+        raise HTTPException(400, "内置标准不能下架")     # 注册表里没有也要查库
     REGISTRY.pop(std_id, None)
     conn = dbmod.connect()
     found = conn.execute("SELECT id FROM standard WHERE id=?", (std_id,)).fetchone()

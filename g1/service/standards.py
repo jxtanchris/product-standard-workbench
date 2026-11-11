@@ -36,6 +36,7 @@ class Param:
     maximum: float | None = None
     default: Any = None
     help: str = ""
+    values_list: list = field(default_factory=list)   # [{sym, val}] 该参数的全部可能值
 
     def meta(self) -> dict:
         return {
@@ -43,6 +44,7 @@ class Param:
             "required": self.required, "options": self.options,
             "min": self.minimum, "max": self.maximum,
             "default": self.default, "help": self.help,
+            "values_list": self.values_list or [{"sym": v, "val": v} for v in (self.options or [])],
         }
 
 
@@ -200,6 +202,7 @@ def build_from_payload(payload: dict) -> Standard:
             maximum=p.get("max"),
             default=p.get("default"),
             help=p.get("help", ""),
+            values_list=list(p.get("values_list") or []),
         ))
     codes = [p.code for p in params]
     if len(codes) != len(set(codes)):
@@ -263,7 +266,8 @@ def from_loaded(entry: dict) -> Standard:
         code=p["code"], name=p.get("name", p["code"]), type=p.get("type", "number"),
         unit=p.get("unit", ""), required=bool(p.get("required", True)),
         options=list(p.get("options") or []), minimum=p.get("min"), maximum=p.get("max"),
-        default=p.get("default"), help=p.get("help", "")) for p in entry["params"]]
+        default=p.get("default"), help=p.get("help", ""),
+        values_list=list(p.get("values_list") or [])) for p in entry["params"]]
     return Standard(
         id=entry["id"], code=entry["code"], title=entry["title"],
         category=entry.get("category", ""), scope=entry.get("scope", ""),
