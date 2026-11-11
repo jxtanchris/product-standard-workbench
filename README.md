@@ -50,6 +50,14 @@ python3 -m venv .venv
 所以限值表是**多维查询表**（维度 × 展开行 × 限值），表头带"偏差型/绝对值"，
 判定时先按参数命中行，再算绝对值。详见 [spec.md](spec.md)。
 
+## 数据结构
+
+4 张表：`standard`（标准 + 参数 + 检项）、`limit_table`（限值表头）、
+`limit_dim`（维度）、`limit_row`（限值行）。
+完整字段、DDL、JSON 结构与示例见 **[docs/schema.md](docs/schema.md)**。
+
+![数据逻辑视图](docs/schema.png)
+
 ## 目录
 
 ```

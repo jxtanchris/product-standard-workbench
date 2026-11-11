@@ -62,7 +62,7 @@ PDF ──OCR──► 文本 ──条款切分──► 候选检项 ──人
 
 ## 4. 数据模型
 
-SQLite，文件 `data/app.db`。
+SQLite，文件 `data/app.db`。完整字段说明与逻辑视图见 [docs/schema.md](docs/schema.md)。
 
 ```sql
 CREATE TABLE standard (
