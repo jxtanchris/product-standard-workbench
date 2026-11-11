@@ -137,6 +137,32 @@
   .rowdel{border:0;background:none;color:#b8c2ce;cursor:pointer;font-size:15px}
   .rowdel:hover{color:var(--bad)}
   .muted{color:var(--muted)}
+  header .brand{color:#fff;text-decoration:none;font-size:14px;font-weight:500;opacity:.85;
+                white-space:nowrap}
+  header .brand:hover{opacity:1}
+  header .back{color:#cfe0f0;text-decoration:none;font-size:12.5px;padding:4px 10px;
+               border:1px solid rgba(255,255,255,.28);border-radius:999px;white-space:nowrap}
+  header .back:hover{background:rgba(255,255,255,.14);color:#fff}
+  header .crumb{display:flex;flex-direction:column;min-width:0}
+  header .crumb h1{font-size:17px}
+  header .crumb .sub{max-width:60vw;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  header .btn.primary{margin-left:auto;background:#fff;color:var(--brand);font-weight:600}
+  header .btn.primary:hover{background:#eaf1f8}
+  .std-list{list-style:none;margin:0;padding:0;max-height:60vh;overflow:auto}
+  .std-list li{padding:11px 12px;border-radius:8px;cursor:pointer;border:1px solid transparent;margin-bottom:6px}
+  .std-list li:hover{background:#fff;border-color:var(--line)}
+  .std-list li.on{background:#e8f0f9;border-color:#bcd4ee}
+  .std-list .tname{display:block;font-size:13.5px;font-weight:600;line-height:1.4}
+  .std-list .tmeta{display:block;font-size:11.5px;color:var(--muted);margin-top:2px}
+  .detail-title{font-size:20px;font-weight:600;margin:2px 0 4px}
+  .detail-sub{color:var(--muted);font-size:13px;margin-bottom:16px}
+  .detail-actions{display:flex;gap:12px;margin:18px 0 22px}
+  .detail-actions .btn{flex:0 0 auto;padding:11px 26px;font-size:14px}
+  .kv{display:grid;grid-template-columns:96px 1fr;gap:8px 14px;font-size:13px;margin-bottom:8px}
+  .kv dt{color:var(--muted)}
+  .kv dd{margin:0}
+  .empty-box{padding:56px 20px;text-align:center;color:var(--muted)}
+  .empty-box .big{font-size:15px;color:var(--ink);margin-bottom:8px}
   .split{display:grid;grid-template-columns:290px minmax(0,1fr)}
   .pane-left{border-right:1px solid var(--line);background:#fafbfd;padding:12px;min-width:0}
   .pane-left .pane-head{display:flex;flex-direction:column;gap:6px;margin-bottom:10px}
@@ -183,20 +209,30 @@
 <body>
 <header>
   <div class="row">
-    <h1 id="stdTitle">正在加载…</h1>
-    <span class="sub" id="scope"></span>
-    <select id="stdSel" hidden></select>
+    <a class="brand" href="#/standards">产品标准分析工作台</a>
+    <a class="back" id="backHome" href="#/standards" hidden>← 全部标准</a>
+    <div class="crumb">
+      <h1 id="stdTitle">全部标准</h1>
+      <span class="sub" id="scope"></span>
+    </div>
+    <button class="btn primary" id="btnUploadTop">上传标准做分析</button>
   </div>
 </header>
 
-<nav class="tabs">
-  <button data-view="card" class="on">按标准出检验卡</button>
-  <button data-view="analyze">上传标准做分析</button>
-  <button data-view="tables">限值表</button>
-</nav>
-
 <main>
-  <div class="view" id="view-card">
+  <div class="view" id="view-standards" hidden>
+    <section class="card">
+      <div class="split">
+        <aside class="pane-left">
+          <div class="pane-head"><span class="pill" id="stdCount">—</span></div>
+          <ul class="std-list" id="stdList"></ul>
+        </aside>
+        <div class="pane-right" id="stdDetail"></div>
+      </div>
+    </section>
+  </div><!-- /view-standards -->
+
+  <div class="view" id="view-card" hidden>
   <section class="card">
     <div class="card-h">
       <h2>① 选择规格</h2>
@@ -383,7 +419,6 @@
       <div class="split">
         <aside class="pane-left">
           <div class="pane-head">
-            <select id="tblStd"></select>
             <span class="pill" id="tblStat"></span>
           </div>
           <ul class="tbl-list" id="tblList"></ul>
@@ -694,85 +729,121 @@ $('#btnExport').onclick = () => {
   window.location = '/api/card.xlsx?' + p.toString();
 };
 
-let cardReady = false;
-async function initCard(){
-  if(cardReady) return; cardReady = true;
-  const list = await (await fetch('/api/standards')).json();
-  if(!list.length){
-    $('#stdTitle').textContent = '还没有标准';
-    $('#scope').textContent = '去「上传标准做分析」上传一份，或运行 tools/load_gb3103.py 灌入样例';
-    $('#form').innerHTML = '<div class="lbl" style="padding:6px 2px">库里还没有标准</div>';
-    $('#tbody').innerHTML = '<tr><td colspan="8" style="padding:28px;text-align:center;color:#9aa6b2">' +
-      '没有可用的标准，先去上传一份</td></tr>';
-    $('#btnExport').disabled = true;
-    $('#paramHint').textContent = '';
-    return;
-  }
-  const want = new URLSearchParams(location.search).get('std');
-  S.std = (want && list.some(s => s.id === want)) ? want : list[0].id;
-  if(list.length > 1){
-    const sel = $('#stdSel');
-    sel.hidden = false;
-    sel.innerHTML = list.map(s =>
-      `<option value="${s.id}" ${s.id === S.std ? 'selected' : ''}>${esc(s.code)}${s.custom ? '（自定义）' : ''}</option>`).join('');
-    sel.onchange = async () => { S.std = sel.value; await loadMeta(); await resolve(); };
-  }
-  await loadMeta();
-  await resolve();
-  if(new URLSearchParams(location.search).get('demo') === '1') fillDemo();
+/* ================= 路由 ================= */
+const VIEWS = ['standards', 'card', 'tables', 'analyze'];
+
+function showView(name){
+  document.querySelectorAll('.view').forEach(v => { v.hidden = (v.id !== 'view-' + name); });
+  $('#backHome').hidden = (name === 'standards');
+  window.scrollTo(0, 0);
 }
 
-async function loadMeta(){
-  S.meta = await (await fetch('/api/meta?std=' + encodeURIComponent(S.std))).json();
-  $('#stdTitle').textContent = `${S.meta.code}　${S.meta.title}`;
-  $('#scope').textContent = S.meta.scope;
+function route(){
+  const raw = (location.hash || '').replace(/^#\/?/, '');
+  const seg = raw ? raw.split('/') : [];
+  const name = VIEWS.includes(seg[0]) ? seg[0] : 'standards';
+  showView(name);
+  if(name === 'card') return initCard(seg[1] || '');
+  if(name === 'tables') return initTables(seg[1] || '', seg[2] || '');
+  if(name === 'analyze') return initAnalyze(seg[1] || '');
+  return initStandards(seg[1] || '');
+}
+window.addEventListener('hashchange', route);
+$('#btnUploadTop').onclick = () => { location.hash = '#/analyze'; };
+
+/* ================= 首页：标准列表 ================= */
+let STD_LIST = [];
+
+async function initStandards(selected){
+  $('#stdTitle').textContent = '全部标准';
+  const list = await (await fetch('/api/standards')).json();
+  STD_LIST = list;
+  $('#scope').textContent = list.length ? `共 ${list.length} 个标准` : '还没有标准';
+  $('#stdCount').textContent = `${list.length} 个标准`;
+  document.title = '产品标准分析工作台';
+
+  if(!list.length){
+    $('#stdList').innerHTML = '<div class="lbl" style="padding:10px 12px">还没有标准</div>';
+    $('#stdDetail').innerHTML = `
+      <div class="empty-box">
+        <div class="big">库里还没有标准</div>
+        <div>上传一份标准 PDF，识别检项并建立限值表后，这里就会出现它</div>
+        <div style="margin-top:18px">
+          <button class="btn primary" id="goUpload">上传标准做分析</button>
+        </div>
+      </div>`;
+    $('#goUpload').onclick = () => { location.hash = '#/analyze'; };
+    return;
+  }
+
+  const cur = list.some(s => s.id === selected) ? selected : list[0].id;
+  $('#stdList').innerHTML = list.map(s => `
+    <li data-s="${esc(s.id)}" class="${s.id === cur ? 'on' : ''}">
+      <span class="tname">${esc(s.code)}</span>
+      <span class="tmeta">${esc(s.title)}${s.custom ? ' · 自定义' : ''}</span>
+      <span class="tmeta">${s.param_count} 参数 · ${s.item_count} 检项</span>
+    </li>`).join('');
+  $('#stdList').onclick = e => {
+    const li = e.target.closest('[data-s]');
+    if(li) location.hash = '#/standards/' + li.dataset.s;
+  };
+  await renderStdDetail(cur);
+}
+
+async function renderStdDetail(id){
+  const meta = await (await fetch('/api/meta?std=' + encodeURIComponent(id))).json();
+  const params = meta.params || [];
+  $('#stdDetail').innerHTML = `
+    <div class="detail-title">${esc(meta.code)}　${esc(meta.title)}</div>
+    <div class="detail-sub">${esc(meta.scope || '')}</div>
+    <div class="detail-actions">
+      <button class="btn primary" id="goCard">检验卡</button>
+      <button class="btn ghost" id="goTables">限值表</button>
+    </div>
+    <dl class="kv">
+      <dt>分类</dt><dd>${esc(meta.category || '—')}</dd>
+      <dt>规格参数</dt><dd>${params.map(p => `<code>${esc(p.code)}</code>`).join(' ') || '—'}</dd>
+      <dt>检项</dt><dd>${(meta.items || []).length} 项</dd>
+      <dt>说明</dt><dd>${esc(meta.note || '—')}</dd>
+    </dl>`;
+  $('#goCard').onclick = () => { location.hash = '#/card/' + id; };
+  $('#goTables').onclick = () => { location.hash = '#/tables/' + id; };
+}
+
+/* ================= 检验卡 ================= */
+async function initCard(stdId){
+  const id = stdId || new URLSearchParams(location.search).get('std');
+  if(!id){ location.hash = '#/standards'; return; }
+  S.std = id;
+  const r = await fetch('/api/meta?std=' + encodeURIComponent(id));
+  if(!r.ok){
+    $('#stdTitle').textContent = '标准不存在';
+    $('#scope').textContent = id;
+    return;
+  }
+  S.meta = await r.json();
+  $('#stdTitle').textContent = '检验卡 · ' + S.meta.code;
+  $('#scope').textContent = S.meta.title + (S.meta.scope ? '　·　' + S.meta.scope : '');
   document.title = S.meta.code + ' 检验卡';
   S.measured = {};
   S.expanded = new Set();
   renderForm();
+  await resolve();
+  if(new URLSearchParams(location.search).get('demo') === '1') fillDemo();
 }
 
-
-/* ================= 视图路由 ================= */
-function setView(name, push=true){
-  document.querySelectorAll('.view').forEach(v => { v.hidden = (v.id !== 'view-' + name); });
-  document.querySelectorAll('nav.tabs button').forEach(b =>
-    b.classList.toggle('on', b.dataset.view === name));
-  if(push) history.replaceState(null, '', '#/' + name);
-  if(name === 'card') initCard();
-  if(name === 'tables'){
-    $('#stdTitle').textContent = '限值表';
-    $('#scope').textContent = '标准表 1 拆成的多维查询表：维度 × 展开行 × 限值';
-    $('#stdSel').hidden = true;
-    initTables();
-  }
-  if(name === 'analyze'){
-    loadRecent();
-    if(!A.job){
-      $('#stdTitle').textContent = '标准分析';
-      $('#scope').textContent = '上传 PDF → 识别检项 → 人工确认 → 导出检验卡';
-      $('#stdSel').hidden = true;
-    }
-  }
-}
-document.querySelectorAll('nav.tabs button').forEach(b =>
-  b.onclick = () => setView(b.dataset.view));
-function route(){
-  const raw = (location.hash || '').replace('#/', '') || 'card';
-  const [name, jobId] = raw.split('/');
-  setView(name, false);
-  if(name === 'tables' && jobId === 'source'){
-    setTimeout(async () => { await ensureEditorData(); openSource(); }, 400);
-  } else if(name === 'tables' && jobId){
-    setTimeout(async () => { PENDING = jobId; await initTables(); }, 300);
-  }
-  if(name === 'analyze' && jobId){
+/* ================= 上传分析 ================= */
+function initAnalyze(jobId){
+  $('#stdTitle').textContent = '标准分析';
+  $('#scope').textContent = '上传 PDF → 识别检项 → 人工确认 → 发布成标准';
+  document.title = '上传标准做分析';
+  loadRecent();
+  if(jobId){
     $('#prog').hidden = false;
     setProg(100, '加载作业…');
     pollJob(jobId);
   }
 }
-window.addEventListener('hashchange', route);
 
 /* ================= 从原文建表 ================= */
 const SRC = { job:null, table:null, tables:[], map:[] };
@@ -924,7 +995,7 @@ const VAL_HINT = {
 };
 $('#sValMode').onchange = e => { $('#sValHint').textContent = VAL_HINT[e.target.value] || ''; };
 
-$('#btnFromSource').onclick = async () => { await ensureEditorData(); openSource(); };
+$('#btnFromSource').onclick = async () => { if(await ensureEditorData()) openSource(); };
 $('#sClose').onclick = $('#sCancel').onclick = () => { $('#srcModal').hidden = true; };
 $('#sBuild').onclick = () => {
   const draft = buildDraftFromSource();
@@ -1083,7 +1154,7 @@ async function saveEditor(){
   if(!r.ok){ $('#eMsg').textContent = '保存失败：' + (d.detail || r.status); return; }
   $('#eMsg').textContent = `已保存 ${d.rows} 行`;
   $('#modal').hidden = true;
-  loadTables();
+  reloadTables();
 }
 
 $('#eAddDim').onclick = () => {
@@ -1099,42 +1170,32 @@ $('#eDims').onchange = () => { E.t.dims = readDims(); renderDims(); };
 
 /* ================= 限值表浏览 ================= */
 let tablesReady = false;
-async function initTables(){
-  if(!tablesReady){
-    const list = await (await fetch('/api/standards')).json();
-    if(!list.length){
-      $('#tblStd').innerHTML = '<option>（暂无标准）</option>';
-      $('#tblStat').textContent = '';
-      $('#tblList').innerHTML = '';
-      $('#tblDetail').innerHTML = '<div class="muted" style="padding:24px">' +
-        '库里还没有标准，先去「上传标准做分析」上传一份</div>';
-      tablesReady = true;
-      return;
-    }
-    $('#tblStd').innerHTML = list.map(s =>
-      `<option value="${s.id}">${esc(s.code)}${s.custom ? '（自定义）' : ''}</option>`).join('');
-    $('#tblStd').onchange = loadTables;
-    tablesReady = true;
-  }
-  await loadTables();
-}
-
 let CURRENT = null;
-let PENDING = null;
 
-async function loadTables(){
-  const id = $('#tblStd').value;
+async function initTables(stdId, tableId){
+  const id = stdId || new URLSearchParams(location.search).get('std');
+  if(!id){ location.hash = '#/standards'; return; }
+  S.std = id; E.std = id;
   const d = await (await fetch(`/api/standards/${encodeURIComponent(id)}/editor`)).json();
-  E.std = id; E.params = d.params || []; E.items = d.items || []; E.allTables = d.tables || [];
-  $('#tblStat').textContent = `${d.code} · ${E.allTables.length} 张表`;
+  E.params = d.params || []; E.items = d.items || []; E.allTables = d.tables || [];
+  $('#stdTitle').textContent = '限值表 · ' + d.code;
+  $('#scope').textContent = `${d.title}　·　${E.allTables.length} 张表`;
+  $('#tblStat').textContent = `${E.allTables.length} 张表`;
+  document.title = d.code + ' 限值表';
+  tablesReady = true;
+
   if(!E.allTables.length){
     $('#tblList').innerHTML = '';
-    $('#tblDetail').innerHTML = '<div class="muted" style="padding:24px">这个标准还没有限值表</div>';
+    $('#tblDetail').innerHTML = '<div class="empty-box"><div class="big">这个标准还没有限值表</div>' +
+      '<div>可以从原文建表，或新建一张空表</div></div>';
     return;
   }
-  const pick = PENDING && E.allTables.some(t => t.id === PENDING) ? PENDING : E.allTables[0].id;
-  PENDING = null;
+  const pick = tableId && E.allTables.some(t => t.id === tableId) ? tableId : E.allTables[0].id;
   selectTable(pick);
+}
+
+async function reloadTables(){
+  if(E.std) await initTables(E.std, CURRENT);
 }
 
 const KIND_ORDER = ['尺寸', '形位', '性能', '表面', '标记', '其他'];
@@ -1214,15 +1275,16 @@ function renderTableDetail(id){
 }
 
 async function ensureEditorData(){
-  const id = $('#tblStd').value;
-  if(E.std === id && E.params.length) return;
+  const id = E.std || S.std;
+  if(!id) return false;
+  if(E.std === id && E.params.length) return true;
   const d = await (await fetch(`/api/standards/${encodeURIComponent(id)}/editor`)).json();
   E.std = id; E.params = d.params || []; E.items = d.items || []; E.allTables = d.tables || [];
+  return true;
 }
 
 $('#btnNewTable').onclick = async () => {
-  await ensureEditorData();
-  openEditor(E.std, null, true);
+  if(await ensureEditorData()) openEditor(E.std, null, true);
 };
 
 /* ================= 上传标准做分析 ================= */
@@ -1566,7 +1628,7 @@ $('#btnPublish').onclick = async () => {
   }
   A.job.published_id = d.std_id;
   $('#pmsg').innerHTML = `已发布（${d.params} 个参数 / ${d.items} 个检项）　`
-    + `<a href="/?std=${encodeURIComponent(d.std_id)}#/card" style="color:var(--brand-2)">去出检验卡 →</a>`;
+    + `<a href="#/card/${encodeURIComponent(d.std_id)}" style="color:var(--brand-2)">去出检验卡 →</a>`;
 };
 $('#btnExportStd').onclick = async () => {
   try { await saveItems(); } catch(e){ $('#amsg').textContent = '保存失败'; return; }
