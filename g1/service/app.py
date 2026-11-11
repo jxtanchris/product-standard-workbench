@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import hashlib
 import os
+import re
 import shutil
 import sys
 import uuid
@@ -26,6 +27,7 @@ from pydantic import BaseModel, Field  # noqa: E402
 
 import card_std  # noqa: E402
 import db as dbmod  # noqa: E402
+import extract_doc  # noqa: E402
 import jobs as jobstore  # noqa: E402
 from card import build_card  # noqa: E402
 from limit_engine import Status  # noqa: E402
@@ -273,6 +275,67 @@ class SourcePayload(BaseModel):
     job_id: str
 
 
+def _doc_pages(doc) -> list[dict]:
+    """取出原件的分页文本（优先复用作业缓存，否则重新 OCR）。"""
+    if doc["storage"] == "file" and doc["path"]:
+        return extract_doc.run_ocr(doc["path"], 200)["pages"]
+    tmp = jobstore.UPLOADS / f"backfill-{doc['id'][:12]}.pdf"
+    tmp.parent.mkdir(parents=True, exist_ok=True)
+    tmp.write_bytes(bytes(doc["content"]))
+    try:
+        return extract_doc.run_ocr(tmp, 200)["pages"]
+    finally:
+        tmp.unlink(missing_ok=True)
+
+
+def _clause_page(pages: list[dict], clause: str, name: str) -> int | None:
+    """按条款号找页码。
+
+    评分：行首就是条款号（标题行）> 条款号 + 名称开头 > 只出现条款号。
+    这样能避开前言里的"……（3.5.3条）"这类引用。
+    """
+    clause = (clause or "").strip()
+    if not clause:
+        return None
+    pat = re.compile(r"(?<![\d.])" + re.escape(clause) + r"(?![\d.])")
+    head = (name or "").strip()[:2]
+    best_score, best_page = 0, None
+    for p in pages:
+        for ln in p.get("lines", []):
+            if not pat.search(ln):
+                continue
+            if ln.strip().startswith(clause):
+                return int(p["page"])          # 标题行，最可信
+            score = 2 if (head and head in ln) else 1
+            if score > best_score:
+                best_score, best_page = score, int(p["page"])
+    return best_page
+
+
+def backfill_pages(std_id: str) -> dict:
+    std = _std(std_id)
+    conn = dbmod.connect()
+    doc = dbmod.document_for_standard(conn, std_id)
+    if not doc:
+        raise HTTPException(404, "这个标准还没有存档原件，无法回填页码")
+    pages = _doc_pages(doc)
+    found: dict[str, int] = {}
+    detail = []
+    for it in std.items:
+        page = _clause_page(pages, it.get("clause") or "", it.get("name") or "")
+        if page:
+            found[it["id"]] = page
+            detail.append({"id": it["id"], "clause": it.get("clause"), "page": page})
+    n = dbmod.update_item_pages(conn, std_id, found)
+    _reload(std_id)
+    return {"ok": True, "matched": len(found), "changed": n, "items": detail}
+
+
+@app.post("/api/standards/{std_id}/backfill-pages")
+def backfill_pages_api(std_id: str):
+    return backfill_pages(std_id)
+
+
 @app.post("/api/standards/{std_id}/source")
 def attach_source(std_id: str, payload: SourcePayload):
     """把某次上传的原件挂到这个标准上（人工整理的标准也能有原件）。"""
@@ -290,7 +353,12 @@ def attach_source(std_id: str, payload: SourcePayload):
     conn.execute("UPDATE standard SET source_json=? WHERE id=?",
                  (_json.dumps(src, ensure_ascii=False), std_id))
     conn.commit()
-    return {"ok": True, "filename": doc["filename"], "sha256": doc["id"]}
+    try:
+        back = backfill_pages(std_id)
+    except Exception:
+        back = {"matched": 0, "changed": 0}
+    return {"ok": True, "filename": doc["filename"], "sha256": doc["id"],
+            "pages_matched": back.get("matched", 0), "pages_changed": back.get("changed", 0)}
 
 
 @app.get("/api/standards/{std_id}/source.pdf")

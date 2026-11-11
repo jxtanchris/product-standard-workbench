@@ -142,6 +142,10 @@ CREATE TABLE limit_row (
 界面把条款号渲染成 `/api/standards/{id}/source.pdf#page=N` 的链接，直接打开 PDF 对应页。
 没有存档原件时（`has_source=false`）退化为纯文本。
 
+**页码回填**：`POST /api/standards/{id}/backfill-pages` 重新 OCR 原件（200 dpi），
+按条款号定位页码——优先取"行首就是条款号"的标题行，避开前言里"（3.5.3条）"这类引用；
+退化时按"条款号 + 名称前两字"匹配。挂载原件（`POST .../source`）时会自动跑一次。
+
 ### 5.5 区间约定
 
 所有分档一律**左开右闭** `(from, to]`，第一档 `from=0` 时含 0。
@@ -177,6 +181,7 @@ CREATE TABLE limit_row (
 | POST | `/api/judge` | `{std, params, measured}` → 逐项结论 |
 | GET | `/api/card.xlsx?std=&<参数>` | 导出检验卡 |
 | GET | `/api/standards/{id}/source.pdf` | 下载标准原件（`#page=N` 可在浏览器定位到页） |
+| POST | `/api/standards/{id}/backfill-pages` | 按条款号在原件的 OCR 文本里回填页码 |
 | POST | `/api/standards/{id}/source` | 把某次上传的原件挂到该标准 |
 | GET | `/api/documents` | 已存档原件清单 |
 | GET | `/api/db/stats` | 库统计 |

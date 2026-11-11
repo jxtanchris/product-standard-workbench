@@ -391,11 +391,11 @@ def save_document(conn: sqlite3.Connection, sha: str, filename: str, size: int,
                   *, data: bytes | None = None, path: str | None = None,
                   job_id: str | None = None, std_id: str | None = None) -> str:
     """按 sha256 入库；同内容只存一份。"""
-    row = conn.execute("SELECT id FROM document WHERE id=?", (sha,)).fetchone()
+    row = conn.execute("SELECT id, storage FROM document WHERE id=?", (sha,)).fetchone()
     if row:
+        # 同内容已在库：把 job 指针挪到最新一次上传（旧作业可能已被清掉）
         if job_id:
-            conn.execute("UPDATE document SET job_id=? WHERE id=? AND job_id IS NULL",
-                         (job_id, sha))
+            conn.execute("UPDATE document SET job_id=? WHERE id=?", (job_id, sha))
         conn.commit()
         return sha
     storage = "db" if data is not None else "file"
@@ -434,3 +434,22 @@ def document_for_standard(conn: sqlite3.Connection, std_id: str):
 def link_document(conn: sqlite3.Connection, job_id: str, std_id: str) -> None:
     conn.execute("UPDATE document SET std_id=? WHERE job_id=?", (std_id, job_id))
     conn.commit()
+
+
+def update_item_pages(conn: sqlite3.Connection, std_id: str, pages: dict[str, int]) -> int:
+    """把 {检项 id: 页码} 写回 item_json，返回改动条数。"""
+    row = conn.execute("SELECT item_json FROM standard WHERE id=?", (std_id,)).fetchone()
+    if not row:
+        return 0
+    items = json.loads(row[0] or "[]")
+    n = 0
+    for it in items:
+        page = pages.get(it.get("id"))
+        if page and it.get("page") != page:
+            it["page"] = page
+            n += 1
+    if n:
+        conn.execute("UPDATE standard SET item_json=? WHERE id=?",
+                     (json.dumps(items, ensure_ascii=False), std_id))
+        conn.commit()
+    return n

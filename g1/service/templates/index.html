@@ -811,6 +811,10 @@ async function renderStdDetail(id, info){
     <div class="detail-actions">
       <button class="btn primary" id="goCard">检验卡</button>
       <button class="btn ghost" id="goTables">限值表</button>
+      ${(info && info.has_source)
+        ? '<button class="btn ghost" id="btnBackfill" title="按条款号在原件的 OCR 文本里找页码">回填页码</button>'
+        : ''}
+      <span class="msg" id="backfillMsg" style="align-self:center"></span>
     </div>
     <dl class="kv">
       <dt>分类</dt><dd>${esc(meta.category || '—')}</dd>
@@ -824,6 +828,19 @@ async function renderStdDetail(id, info){
     </dl>`;
   $('#goCard').onclick = () => { location.hash = '#/card/' + id; };
   $('#goTables').onclick = () => { location.hash = '#/tables/' + id; };
+  const bf = $('#btnBackfill');
+  if(bf) bf.onclick = async () => {
+    bf.disabled = true;
+    $('#backfillMsg').textContent = '识别中…';
+    try{
+      const r = await fetch(`/api/standards/${encodeURIComponent(id)}/backfill-pages`, {method:'POST'});
+      const d = await r.json();
+      $('#backfillMsg').textContent = r.ok
+        ? `已回填 ${d.changed} 项（匹配 ${d.matched} 项）`
+        : ('失败：' + (d.detail || r.status));
+    }catch(e){ $('#backfillMsg').textContent = '失败：网络错误'; }
+    bf.disabled = false;
+  };
 }
 
 /* ================= 检验卡 ================= */

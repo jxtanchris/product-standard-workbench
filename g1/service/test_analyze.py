@@ -151,9 +151,10 @@ def main():
     for it in items:
         limits[it["id"]] = {"mode": "range", "lower": 1.0, "upper": 2.0, "unit": "mm"}
     limits[items[0]["id"]] = {"mode": "max", "lower": None, "upper": 0.5, "unit": "mm"}
+    items_no_page = [dict(it, page=None) for it in items]      # 故意不带页码
     pub = post("/api/standards/publish", {
         "job_id": job_id, "code": "GB/T 9999-TEST", "title": "测试标准（自动发布）",
-        "params": job2.get("params_spec") or [], "items": items, "limits": limits,
+        "params": job2.get("params_spec") or [], "items": items_no_page, "limits": limits,
         "source": {"job_id": job_id},
     })
     std_id = pub.get("std_id")
@@ -183,6 +184,17 @@ def main():
           jd["rows"][0]["verdict"] == "不合格", jd["rows"][0]["verdict"])
     check("判定生效：区间内判合格",
           sum(1 for r in jd["rows"] if r["verdict"] == "合格") >= 1, str(jd["counts"]))
+
+    print("5b. 从原件回填页码")
+    meta_before = getjson(f"/api/meta?std={std_id}")
+    check("发布时页码为空", all(i.get("page") is None for i in meta_before["items"]),
+          str([i.get("page") for i in meta_before["items"]][:3]))
+    bf = post(f"/api/standards/{std_id}/backfill-pages", {})
+    check("回填命中全部检项", bf.get("matched") == len(items), str(bf)[:120])
+    meta_after = getjson(f"/api/meta?std={std_id}")
+    got = {i["clause"]: i["page"] for i in meta_after["items"]}
+    check("每条都有了页码", all(v for v in got.values()), str(got))
+    check("3.1 与 3.5.x 落在正确页", got.get("3.1") == 4 and got.get("3.5.2") == 5, str(got))
 
     print("6. 原件入库与去重")
     st, body, _ = get(f"/api/analyze/jobs/{job_id}/source.pdf")
