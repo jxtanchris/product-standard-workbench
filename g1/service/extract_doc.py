@@ -53,38 +53,90 @@ def quality(pages: list[dict]) -> float:
     return round(min(1.0, ratio * 1.6) * min(1.0, per_page / 12), 3)
 
 
+ICS_RE = re.compile(r"^ICS[\s\d.]", re.I)
+
+# 标准号优先级：GB/T → GB → 其他标准化组织
+CODE_RULES = [
+    re.compile(r"GB\s*/\s*T\s*\d+(?:\.\d+)*\s*[-—–]\s*\d{4}"),
+    re.compile(r"GB\s*/\s*T\s*\d+(?:\.\d+)*"),
+    re.compile(r"GB\s*\d+(?:\.\d+)*\s*[-—–]\s*\d{4}"),
+    re.compile(r"(?:ISO|IEC|DIN|EN|JIS|ASTM|ASME|SAE|BS|NF)\s?[A-Z]?\s?\d+(?:\.\d+)*"
+               r"(?:\s*[-—:]\s*\d{4})?"),
+]
+
+
+def _looks_like_code_line(line: str) -> bool:
+    """封面上的标准号/ICS/发布日期这类行，不能拿来当标题。"""
+    if ICS_RE.match(line):
+        return True
+    if re.fullmatch(r"[\d\s\-—–.:]+", line):
+        return True
+    return bool(re.search(r"[A-Za-z]{2,}", line))
+
+
 def guess_standard_id(pages: list[dict]) -> dict:
-    """从封面页猜标准号与名称，猜不到就留空让用户改。"""
-    head = doc_text(pages[:3])
+    """猜标准号与名称。
+
+    踩过的坑：封面的 ICS 分类号（如 "ICS 21.060.10"）最像"字母+数字"，
+    会被误当成标准号；而真正的 GB/T 3098.1-2010 因为 OCR 断行被拆开了。
+    所以按"GB/T → GB → 其他组织"的优先级找，并跳过 ICS 行。
+    """
+    lines = [ln.strip() for p in pages[:3] for ln in p.get("lines", [])]
+    text = "\n".join(lines)
+
     code = ""
-    m = re.search(r"\b([A-Z]{2,4}(?:/[A-Z])?\s?\d+(?:\.\d+)*(?:\s?[—\-–]\s?\d{4})?)\b", head)
-    if m:
-        code = re.sub(r"\s+", " ", m.group(1))
+    for rule in CODE_RULES:
+        for m in rule.finditer(text):
+            cand = re.sub(r"\s+", " ", m.group(0)).strip()
+            # 落在 ICS 行里的不算
+            line_start = text.rfind("\n", 0, m.start()) + 1
+            line_end = text.find("\n", m.end())
+            line = text[line_start:line_end if line_end > 0 else len(text)]
+            if ICS_RE.match(line.strip()):
+                continue
+            code = re.sub(r"\s*[-–]\s*", "—", cand)   # 年份分隔统一成破折号
+            break
+        if code:
+            break
 
     # 优先在写着“中华人民共和国国家标准”的那一页找标题
     cover = [p for p in pages[:4]
              if any("中华人民共和国国家标准" in ln for ln in p.get("lines", []))]
-    pool = cover[0].get("lines", []) if cover else \
-        [ln for p in pages[:3] for ln in p.get("lines", [])]
+    pool = cover[0].get("lines", []) if cover else lines
+
+    def clean_title(raw: str) -> str:
+        c = re.split(r"(代替|发布|实施|Tolerances)", raw)[0].strip()
+        return re.sub(r"\s{2,}", " ", c)
+
+    def usable(c: str) -> bool:
+        cjk = len(re.findall(r"[\u4e00-\u9fa5]", c))
+        return (2 <= cjk <= 24 and "标准" not in c and "。" not in c
+                and "，" not in c and not _looks_like_code_line(c))
 
     title = ""
     for i, ln in enumerate(pool):
-        if "国家标准" in ln:
-            for cand in pool[i + 1:i + 8]:
-                c = re.split(r"(代替|发布|实施|Tolerances)", cand)[0].strip()
-                c = re.sub(r"\s{2,}", " ", c)
-                cjk = len(re.findall(r"[\u4e00-\u9fa5]", c))
-                if (2 <= cjk <= 20 and "标准" not in c and "。" not in c and "，" not in c
-                        and not re.search(r"[A-Z]{2}/?T", c)):
-                    title = c
+        if "国家标准" not in ln:
+            continue
+        parts: list[str] = []
+        for cand in pool[i + 1:i + 8]:
+            c = clean_title(cand)
+            if not c:
+                if parts:            # 标题后面紧跟英文名/“代替…”，说明标题已结束
                     break
-            break
+                continue
+            if usable(c):
+                parts.append(c)
+                if len(parts) == 2:      # 最多拼两行：主标题 + 副标题
+                    break
+            elif parts:
+                break                     # 已经拿到标题，遇到非标题行就停
+        title = " ".join(parts)
+        break
+
     if not title:
         for ln in pool[:20]:
-            c = ln.strip()
-            cjk = len(re.findall(r"[\u4e00-\u9fa5]", c))
-            if (4 <= cjk <= 20 and "。" not in c and "，" not in c
-                    and not re.search(r"[A-Za-z]{2,}", c)):
+            c = clean_title(ln)
+            if usable(c):
                 title = c
                 break
     return {"code": code, "title": title}

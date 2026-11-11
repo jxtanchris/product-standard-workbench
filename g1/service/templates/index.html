@@ -60,6 +60,8 @@
   th:nth-child(5){width:96px} th:nth-child(6){width:150px}
   th:nth-child(7){width:96px} th:nth-child(8){width:44px}
   tbody tr.item:hover{background:#fafcff}
+  tbody#atbody tr.off{display:none}
+  tbody#atbody.show-off tr.off{display:table-row;opacity:.72}
   td.idx{width:34px;color:var(--muted);font-variant-numeric:tabular-nums}
   td.name{font-weight:600;white-space:nowrap}
   td.name .sym{font-weight:400;color:var(--muted);margin-left:4px}
@@ -336,6 +338,10 @@
       </div>
       <div class="summary">
         <span class="big" id="astat">—</span>
+        <label class="pill" style="cursor:pointer" title="这些行被判定规则过滤掉了，勾选可查看原因">
+          <input type="checkbox" id="showFiltered" class="chk" style="margin-right:5px">显示被过滤的
+          <b id="offN">0</b> 条
+        </label>
         <button class="btn ghost" id="btnAddRow">+ 新增检项</button>
         <button class="btn ghost" id="btnSave">保存确认</button>
         <button class="btn primary" id="btnExportStd">导出检验卡 (xlsx)</button>
@@ -1364,7 +1370,7 @@ async function pollJob(id){
   const j = await (await fetch('/api/analyze/jobs/' + id)).json();
   A.job = j;
   if(j.status === 'done'){
-    setProg(100, `完成：${j.pages} 页 · ${j.items.length} 个候选检项`);
+    setProg(100, `完成：${j.pages} 页 · 识别 ${j.items.filter(i => i.selected).length} 项（另有 ${j.items.length - j.items.filter(i => i.selected).length} 条被规则过滤）`);
     renderJob();
   } else if(j.status === 'error'){
     setProg(100, '分析失败：' + (j.error || '未知错误'));
@@ -1392,15 +1398,24 @@ function renderJob(){
   $('#scope').textContent = `来源：${j.filename}`;
 
   const tb = $('#atbody');
+  const offCount = j.items.filter(it => !it.selected).length;
+  $('#offN').textContent = offCount;
+  $('#showFiltered').checked = false;
+  $('#showFiltered').onchange = e => {
+    $('#atbody').classList.toggle('show-off', e.target.checked);
+  };
+  tb.classList.remove('show-off');
   tb.innerHTML = j.items.map((it, i) => `
-    <tr data-i="${i}">
+    <tr data-i="${i}" class="${it.selected ? '' : 'off'}">
       <td><input type="checkbox" class="chk sel" ${it.selected ? 'checked' : ''}></td>
       <td><input type="text" class="cl" value="${esc(it.clause)}"></td>
       <td><input type="text" class="ti" value="${esc(it.title)}"></td>
       <td><select class="cat">${CATS.map(c =>
         `<option ${c === it.category ? 'selected' : ''}>${c}</option>`).join('')}</select></td>
       <td style="text-align:center"><input type="checkbox" class="chk ms" ${it.measurable ? 'checked' : ''}></td>
-      <td class="evi" title="${esc(it.evidence)}">${esc(clip(it.evidence, 72))}</td>
+      <td class="evi" title="${esc(it.evidence)}">${it.selected
+          ? esc(clip(it.evidence, 72))
+          : `<span style="color:#b26a00">✕ ${esc(it.reason || '未通过判定')}</span>`}</td>
       <td style="text-align:center;color:var(--muted)">${it.page || '—'}</td>
       <td><button class="rowdel" title="删除">×</button></td>
     </tr>`).join('');

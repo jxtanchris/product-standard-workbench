@@ -31,6 +31,37 @@ TABLE_HINT = re.compile(r"表\s?[A-Z]?\.?\d+")
 SKIP_TITLES = ("范围", "引用标准", "规范性引用文件", "术语", "定义", "符号", "前言",
                "附录", "总则", "概述", "引用文件")
 
+# 章节性标题：整章讲的是"规矩"，不是"要量的东西"
+SECTION_TITLES = (
+    "范围", "规范性引用文件", "引用标准", "引用文件", "术语和定义", "术语", "定义",
+    "符号", "代号", "代号与术语", "标记", "标记制度", "标记示例", "标记方法",
+    "分类", "材料", "化学成分", "通则", "总则", "概述", "前言", "引言",
+    "试验方法的适用性", "适用性", "适用范围", "订货", "包装", "运输", "贮存",
+)
+# 过程性小节：试验怎么做，不是检什么
+PROCESS_TITLES = (
+    "设备", "试验设备", "试验装置", "试验程序", "试验步骤", "试验方法", "方法",
+    "试验结果", "结果", "结果判定", "判定规则", "供方的控制", "需方的控制",
+    "交付", "试验报告", "仲裁", "复验", "标志", "仪器", "装置", "制备",
+    "技术要求", "试样", "试件",
+)
+# 性能等级写法与条款号同形（4.6 / 8.8 / 10.9），要排除
+GRADE_CLAUSES = {"3.6", "4.6", "4.8", "5.6", "5.8", "6.8", "8.8", "9.8", "10.9", "12.9"}
+# 标题里必须有这些"可测量的东西"，或者是一个明确的检验动作
+METRIC_WORDS = (
+    "通孔", "外径", "内径", "孔径", "外圆", "圆角", "孔部", "杆部", "头部", "支承面",
+    "直径", "长度", "厚度", "宽度", "高度", "间距", "螺纹", "螺距", "倒角",
+    "角度", "公差", "尺寸", "同轴", "圆度", "平面度", "平行度", "垂直度", "位置度",
+    "跳动", "直线度", "对称度", "强度", "硬度", "伸长率", "收缩率", "冲击", "载荷",
+    "楔负载", "扭矩", "疲劳", "脱碳", "增碳", "回火", "氢脆", "镀层", "粗糙度",
+    "保证应力", "应力", "性能", "缺陷", "裂纹", "毛刺", "间隙", "不均匀度",
+)
+ACTION_WORDS = ("试验", "检查", "检验", "测量", "测试", "判定")
+
+CODE_STRIP = re.compile(r"(?:GB|ISO|DIN|EN|JIS|ASTM|ASME|SAE|BS|NF)(?:/[A-Z])?\s?"
+                        r"\d+(?:\.\d+)*(?:\s*[-—:]\s*\d{4})?")
+LIMIT_HINT = re.compile(r"[≤≥±]|\d\s*(?:mm|%|N|MPa|HRC|HV|HB)\b|～|~")
+
 
 @dataclass
 class Candidate:
@@ -41,6 +72,7 @@ class Candidate:
     measurable: bool = True
     score: float = 0.0
     page: int = 0
+    reason: str = ""
     evidence: str = ""
     table_ref: str = ""
     selected: bool = True
@@ -83,6 +115,29 @@ def _categorize(text: str) -> tuple[str, int]:
     return "其他", 0
 
 
+def _looks_table_ish(line: str) -> bool:
+    """像表格/符号表的一行：短标记开头，或一多半是数字。"""
+    toks = line.split()
+    if len(toks) >= 4 and sum(1 for t in toks if re.fullmatch(r"[\d.,%±\-—]+", t)) >= 3:
+        return True
+    if re.match(r"^[A-Za-z]{1,3}\s", line) and len(line) < 40:
+        return True
+    return False
+
+
+def _clean_body(flat: list[tuple[int, str]], idx: int, end: int, max_lines: int = 4) -> str:
+    """条款后的正文，跳过紧邻的表格碎片（它们会把"有没有数值"判错）。"""
+    out: list[str] = []
+    for j in range(idx + 1, min(end, idx + 1 + max_lines * 3)):
+        ln = flat[j][1]
+        if _looks_table_ish(ln):
+            continue
+        out.append(ln)
+        if len(out) >= max_lines:
+            break
+    return " ".join(out)
+
+
 def _looks_clause_number(num: str) -> bool:
     parts = [int(p) for p in num.split(".")]
     if len(parts) == 1:
@@ -113,6 +168,7 @@ def parse(pages: list[dict], min_score: float = 0.35) -> list[Candidate]:
         end = heads[k + 1][0] if k + 1 < len(heads) else len(flat)
         body = [flat[j][1] for j in range(idx, min(end, idx + 5))]
         evidence = " ".join(body)[:160]
+        clean_body = _clean_body(flat, idx, end)
         title = _clean_title(rest)
         if not title:
             continue
@@ -122,9 +178,10 @@ def parse(pages: list[dict], min_score: float = 0.35) -> list[Candidate]:
             continue
         seen.add(num)
 
-        cat, hit = _categorize(title + " " + evidence)
-        numeric = bool(NUMERIC_HINT.search(evidence))
-        tbl = TABLE_HINT.search(evidence)
+        cat, hit = _categorize(title + " " + clean_body)
+        # 去掉标准号再判"有没有数值"，否则 GB/T 5276 里的 5276 也算数值
+        numeric = bool(LIMIT_HINT.search(CODE_STRIP.sub(" ", clean_body)))
+        tbl = TABLE_HINT.search(clean_body)
         depth = len(num.split("."))
 
         score = 0.2 + 0.4 * hit + 0.2 * int(numeric) + 0.2 * int(depth >= 2) \
@@ -133,12 +190,33 @@ def parse(pages: list[dict], min_score: float = 0.35) -> list[Candidate]:
             score -= 0.15
         score = round(min(1.0, max(0.0, score)), 2)
 
+        # −−− 最终判断：这条到底算不算"检查项目" −−−
+        metric = [w for w in METRIC_WORDS if w in title]
+        action = [w for w in ACTION_WORDS if w in title]
+        reason = ""
+        if num in GRADE_CLAUSES or title.startswith("级"):
+            reason = "性能等级或断行碎片，不是条款"
+        elif (title.endswith("/") or title.endswith("、")
+              or re.search(r"[/=]", title) or "，" in title):
+            reason = "表格单元格被当成条款"
+        elif title in SECTION_TITLES or any(t in title for t in
+                                            ("术语", "符号", "代号", "标记制度", "标记示例")):
+            reason = "章节标题（讲规矩，不是要量的东西）"
+        elif title in PROCESS_TITLES or any(t in title for t in
+                                            ("试验结果", "交付", "供方的控制", "需方的控制",
+                                             "技术要求", "仪器", "装置", "制备", "试件")):
+            reason = "过程性小节（讲怎么做，不是检什么）"
+        elif not (metric or action):
+            reason = "标题里没有可测量的对象"
+        selected = not reason
+
         out.append(Candidate(
             id=f"c{len(out) + 1:03d}", clause=num, title=title, category=cat,
             measurable=numeric or cat in ("尺寸", "形位", "性能"),
             score=score, page=page, evidence=evidence,
             table_ref=tbl.group(0) if tbl else "",
-            selected=score >= min_score,
+            selected=selected,
+            reason=reason,
         ))
 
     out.sort(key=lambda c: [int(x) for x in c.clause.split(".")])

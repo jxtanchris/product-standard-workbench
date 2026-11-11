@@ -579,6 +579,27 @@ def analyze_save(job_id: str, payload: ItemsPayload):
     return {"ok": True, "count": len(items)}
 
 
+@app.post("/api/analyze/jobs/{job_id}/rerun")
+def rerun_job(job_id: str):
+    """用已存档的原件重新分析（改了识别逻辑后不必重新上传）。"""
+    job = jobstore.STORE.get(job_id)
+    if not job:
+        raise HTTPException(404, "作业不存在")
+    doc = dbmod.document_for_job(dbmod.connect(), job_id)
+    if not doc:
+        raise HTTPException(404, "这个作业没有存档原件，无法重跑")
+    tmp = jobstore.UPLOADS / f"rerun-{job_id}.pdf"
+    tmp.parent.mkdir(parents=True, exist_ok=True)
+    if doc["storage"] == "file" and doc["path"]:
+        shutil.copyfile(doc["path"], tmp)
+    else:
+        tmp.write_bytes(bytes(doc["content"]))
+    jobstore.STORE.update(job_id, status="ocr", progress=0, pages=0, items=[],
+                          tables=[], params_spec=[], limits={}, code="", title="", error="")
+    jobstore.start(job_id, tmp)
+    return {"ok": True, "job_id": job_id, "status": "ocr"}
+
+
 @app.get("/api/analyze/jobs/{job_id}/tables")
 def analyze_tables(job_id: str):
     job = jobstore.STORE.get(job_id)
