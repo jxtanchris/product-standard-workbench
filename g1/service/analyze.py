@@ -57,6 +57,8 @@ METRIC_WORDS = (
     "保证应力", "应力", "性能", "缺陷", "裂纹", "毛刺", "间隙", "不均匀度",
 )
 ACTION_WORDS = ("试验", "检查", "检验", "测量", "测试", "判定")
+# 上级标题像"一个检项"时，下级视为它的方法步骤
+TESTISH_RE = re.compile(r"(试验|检查|检验|测定|性能|硬度|载荷|强度|扭矩|脱碳|增碳|回火|冲击|缺陷|镀层)")
 
 CODE_STRIP = re.compile(r"(?:GB|ISO|DIN|EN|JIS|ASTM|ASME|SAE|BS|NF)(?:/[A-Z])?\s?"
                         r"\d+(?:\.\d+)*(?:\s*[-—:]\s*\d{4})?")
@@ -218,6 +220,30 @@ def parse(pages: list[dict], min_score: float = 0.35) -> list[Candidate]:
             selected=selected,
             reason=reason,
         ))
+
+    # −−− 父子折叠：上级已经是检项时，下级是它的方法步骤，不再单列 −−−
+    by_clause = {c.clause: c for c in out}
+
+    def testish(title: str) -> bool:
+        return bool(TESTISH_RE.search(title))
+
+    def ancestor(cand: "Candidate") -> "Candidate | None":
+        parts = cand.clause.split(".")
+        while len(parts) > 1:
+            parts = parts[:-1]
+            p = by_clause.get(".".join(parts))
+            if p and (p.selected or p.reason == ""):
+                if testish(p.title):
+                    return p
+        return None
+
+    for c in out:
+        if not c.selected:
+            continue
+        a = ancestor(c)
+        if a is not None:
+            c.selected = False
+            c.reason = f"属于 {a.clause}「{a.title}」的方法步骤"
 
     out.sort(key=lambda c: [int(x) for x in c.clause.split(".")])
     return out
