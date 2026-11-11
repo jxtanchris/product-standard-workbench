@@ -1264,14 +1264,65 @@ function matchDimParam(text, params){
   return byName ? byName.code : null;
 }
 
-function guessMapping(t, params){
+/* 表内分段：整列空白 或 表头文字重复（如 直径d | min | max | 直径d | min | max） */
+function segmentCols(t, params, hdrRows){
   const grid = t.grid || [];
-  // 表头可能跨 1~2 行：在前 3 行里找命中关键词最多的一行
+  if(grid.length < 2) return [[...Array(t.cols).keys()]];
+  const nHdr = (hdrRows === undefined || hdrRows === null) ? detectHeaderRows(grid) : hdrRows;
+  const hdr = nHdr > 0 ? grid[nHdr - 1] : null;
+  const body = grid.slice(nHdr);
+  const emptyCol = Array.from({length: t.cols}, (_, c) =>
+    body.every(r => !String(r[c] || '').trim()));
+
+  const isDimHdr = h => h && !UP_RE.test(h) && !LO_RE.test(h) && !TOL_RE.test(h)
+    && /[\u4e00-\u9fa5A-Za-z]/.test(h) && h.length <= 12;
+
+  const segs = [];
+  let cur = [];
+  const seenDimHdr = new Set();
+  for(let c = 0; c < t.cols; c++){
+    if(emptyCol[c]){
+      if(cur.length) segs.push(cur);
+      cur = [];
+      continue;
+    }
+    const h = hdr ? normCell(hdr[c]) : '';
+
+    // ① 一个表头格里同时出现"限值词 + 维度词"（如 "max 直径d"）→ 后面是新一段
+    if(h && /(min|max|上限|下限|最大|最小)/i.test(h)
+        && /(直径|规格|公称|等级|厚度|长度|螺距)/.test(h)){
+      cur.push(c);
+      segs.push(cur);
+      cur = [];
+      seenDimHdr.clear();
+      continue;
+    }
+    // ② 维度表头重复（同一个词第二次出现）→ 新一段
+    if(isDimHdr(h) && seenDimHdr.has(h) && cur.length > 1){
+      segs.push(cur);
+      cur = [];
+      seenDimHdr.clear();
+    }
+    if(isDimHdr(h)) seenDimHdr.add(h);
+    cur.push(c);
+  }
+  if(cur.length) segs.push(cur);
+  return segs.length ? segs : [[...Array(t.cols).keys()]];
+}
+
+function detectHeaderRows(grid){
   let hi = -1, best = 0;
   for(let r = 0; r < Math.min(3, grid.length); r++){
     const hit = (grid[r] || []).filter(c => HDR_RE.test(c || '')).length;
     if(hit > best && hit >= 2){ best = hit; hi = r; }
   }
+  return hi + 1;                    // 表头占前几行
+}
+
+function guessMapping(t, params, hdrRows){
+  const grid = t.grid || [];
+  const nHdr = (hdrRows === undefined || hdrRows === null) ? detectHeaderRows(grid) : hdrRows;
+  const hi = nHdr - 1;
   const header = hi >= 0 ? grid[hi] : null;
   const body = header ? grid.slice(hi + 1) : grid;
   const notes = [];
@@ -1311,7 +1362,7 @@ function guessMapping(t, params){
   });
 
   // 4) 只猜到一列上限、但左右各有数字列 → 补一个下限
-  return {map, header: !!header, headerRows: hi >= 0 ? hi + 1 : 0, notes};
+  return {map, header: !!header, headerRows: nHdr, notes};
 }
 
 function dimKindOf(values){
@@ -1364,13 +1415,14 @@ function selectSourceTable(i){
   $('#sName').value = `第 ${t.page} 页表格（${t.rows}×${t.cols}）`;
 }
 
-function buildDraftFromSource(){
-  const t = SRC.table;
-  const dimIdx = SRC.map.map((m, i) => [m, i]).filter(([m]) => m && m.startsWith('dim:'));
-  if(!dimIdx.length){ $('#sMsg').textContent = '至少要指定一列作为维度'; return null; }
-  const dataRows = t.grid.slice(SRC.headerRows || 0);
+function buildDraft(tbl, map, headerRows, name, itemCode){
+  const dimIdx = map.map((m, i) => [m, i]).filter(([m]) => m && m.startsWith('dim:'));
+  if(!dimIdx.length) return {error: '至少要指定一列作为维度'};
+  const dataRows = tbl.grid.slice(headerRows || 0);
   const dims = dimIdx.map(([m]) => ({code: m.slice(4), kind: 'enum', values: []}));
   const rows = [];
+  const mode = $('#sValMode').value;
+
   for(const line of dataRows){
     const key = {};
     dimIdx.forEach(([m, i], k) => {
@@ -1379,48 +1431,93 @@ function buildDraftFromSource(){
       if(v && !dims[k].values.includes(v)) dims[k].values.push(v);
     });
     if(!Object.keys(key).length) continue;
+
     let lo = null, hi = null;
-    const mode = $('#sValMode').value;
-    SRC.map.forEach((m, i) => {
+    map.forEach((m, i) => {
       if(m !== 'lower' && m !== 'upper') return;
       const txt = String(line[i] || '').trim();
-      // 纯数字：按列的含义直接当上/下限（"3.4" 在下限列就是下限）
       if(/^[-+]?\s*\d+(\.\d+)?$/.test(txt.replace(/\s+/g, ''))){
         const v = Number(txt.replace(/[^\d.+\-]/g, ''));
         if(m === 'lower'){ if(lo === null) lo = v; }
         else { if(hi === null) hi = v; }
         return;
       }
-      const [l, h] = parseValue(txt, mode);        // 带 ± / + / ~ 的交给值解释
-      if(l !== null && lo === null) lo = l;        // 多组上下限时取第一组
+      const [l, h] = parseValue(txt, mode);
+      if(l !== null && lo === null) lo = l;
       if(h !== null && hi === null) hi = h;
     });
+
     const raw = line.filter(Boolean).join(' | ') || '';
     const show = [lo === null ? '' : `下 ${lo}`, hi === null ? '' : `上 ${hi}`]
       .filter(Boolean).join('，');
     rows.push({key, lower: lo, upper: hi, lower_expr: '', upper_expr: '',
                na: false, note: (show ? show + '  ←  ' : '') + raw.slice(0, 60)});
   }
-  // 维度：值是 "0~3" 这种就按区间存，否则枚举；顺手滤掉"续表/单位"这类噪声
+
   dims.forEach(d => {
     const vals = d.values.filter(v => v && !/^(续表|表\s?\d|注[：:]|单位)/.test(v));
     const k = dimKindOf(vals);
     d.kind = k.kind;
     d.values = k.values;
-    if(k.kind === 'range'){                 // 行 key 也跟着换成 [a,b]，否则对不上维度取值
+    if(k.kind === 'range'){
       rows.forEach(r => {
         const m = String(r.key[d.code] || '').match(/^[>≥]?\s*(\d+(?:\.\d+)?)\s*[~～\-—]\s*(\d+(?:\.\d+)?)$/);
         if(m) r.key[d.code] = [Number(m[1]), Number(m[2])];
       });
     }
   });
-  if(!rows.length){ $('#sMsg').textContent = '这一页没有可导入的行'; return null; }
+  if(!rows.length) return {error: '这一页没有可导入的行'};
+
   return {
-    id: 'T-' + Date.now().toString(36),
-    name: $('#sName').value.trim() || '原文导入',
+    id: 'T-' + Date.now().toString(36) + Math.floor(Math.random() * 100),
+    name: name || '原文导入',
     unit: 'mm', value_form: 'absolute', nominal_param: null,
-    item_code: $('#sItem').value || '', dims, rows,
+    item_code: itemCode || '', dims, rows,
   };
+}
+
+function sliceTable(t, cols){
+  return {...t, cols: cols.length, grid: t.grid.map(r => cols.map(c => r[c] || ''))};
+}
+
+/* 生成草稿：表内分几段就生成几张表 */
+function buildDraftsFromSource(){
+  const t = SRC.table;
+  const baseName = ($('#sName').value.trim() || '原文导入');
+  const itemCode = $('#sItem').value || '';
+  const nHdr = detectHeaderRows(t.grid || []);
+  const segs = segmentCols(t, E.params, nHdr);
+  SRC.dbg = `t=${t.page}/${t.rows}x${t.cols} hdr=${nHdr} segs=${segs.length}`;
+
+  // 第 1 段识别出的维度列，后面各段共用（同一个"螺纹公称"管整张表）
+  const firstCols = segs[0] || [];
+  const dimCols = (() => {
+    const g0 = guessMapping(sepsApply(t, firstCols, segs.length), E.params, nHdr);
+    return firstCols.filter((c, k) => (g0.map[k] || '').startsWith('dim:'));
+  })();
+
+  const drafts = [];
+  segs.forEach((cols, i) => {
+    const eff = i === 0 ? cols : dimCols.concat(cols.filter(c => !dimCols.includes(c)));
+    const sub = sepsApply(t, eff, segs.length > 1 || eff !== cols ? 2 : 1);
+    const g = guessMapping(sub, E.params, nHdr);
+    const name = segs.length > 1 ? `${baseName}（第 ${i + 1}/${segs.length} 段）` : baseName;
+    const d = buildDraft(sub, g.map, g.headerRows, name, itemCode);
+    if(d.error){ $('#sMsg').textContent = `第 ${i + 1} 段：${d.error}`; return; }
+    drafts.push({...d, _seg: i + 1, _segs: segs.length, _cols: eff});
+  });
+  return drafts;
+}
+
+function sepsApply(t, cols, total){
+  return total > 1 ? sliceTable(t, cols) : t;
+}
+
+function buildDraftFromSource(){
+  const name = $('#sName').value.trim() || '原文导入';
+  const d = buildDraft(SRC.table, SRC.map, SRC.headerRows, name, $('#sItem').value || '');
+  if(d.error){ $('#sMsg').textContent = d.error; return null; }
+  return d;
 }
 
 const VAL_HINT = {
@@ -1457,36 +1554,52 @@ function cellOf(v){
   return String(v);
 }
 
-function openSourcePreview(draft){
-  SRC.pending = draft;
-  const dims = draft.dims || [];
-  const rows = draft.rows || [];
-  const mapped = {
-    lower: SRC.map.filter(m => m === 'lower').length,
-    upper: SRC.map.filter(m => m === 'upper').length,
-  };
-  const bad = rows.map(r => rowProblems(r, dims, mapped));
-  const nBad = bad.filter(x => x.length).length;
-  const warn = [];
-  if(mapped.lower > 1) warn.push(`${mapped.lower} 个下限列，只取第一个`);
-  if(mapped.upper > 1) warn.push(`${mapped.upper} 个上限列，只取第一个`);
+function openSourcePreview(drafts){
+  SRC.pending = drafts;
+  const multi = drafts.length > 1;
+  let totalRows = 0, totalBad = 0;
+  const blocks = drafts.map(d => {
+    const dims = d.dims || [], rows = d.rows || [];
+    const mapped = {lower: 0, upper: 0};
+    const cols = d._cols || [];
+    const sub = multi ? sliceTable(SRC.table, cols) : SRC.table;
+    if(multi){
+      const g = guessMapping(sub, E.params);
+      mapped.lower = g.map.filter(m => m === 'lower').length;
+      mapped.upper = g.map.filter(m => m === 'upper').length;
+    }else{
+      mapped.lower = SRC.map.filter(m => m === 'lower').length;
+      mapped.upper = SRC.map.filter(m => m === 'upper').length;
+    }
+    const bad = rows.map(r => rowProblems(r, dims, mapped));
+    totalRows += rows.length;
+    totalBad += bad.filter(x => x.length).length;
 
-  $('#sPrevStat').textContent = `预览：${rows.length} 行 × ${dims.length} 个维度`;
-  $('#sPrevWarn').textContent = (nBad ? `${nBad} 行有问题` : '看起来没问题')
-    + (warn.length ? '　·　' + warn.join('；') : '');
-  $('#sPrevWarn').style.color = nBad ? '#b26a00' : '#2e7d32';
+    const head = dims.map(x => `<th>${esc(x.code)}</th>`).join('');
+    const title = multi
+      ? `<div class="lbl" style="margin:10px 0 4px"><b>${esc(d.name)}</b>　${rows.length} 行</div>` : '';
+    const warns = [];
+    if(mapped.lower > 1) warns.push(`${mapped.lower} 个下限列，只取第一个`);
+    if(mapped.upper > 1) warns.push(`${mapped.upper} 个上限列，只取第一个`);
+    return title + (warns.length ? `<div class="lbl" style="color:#b26a00">${esc(warns.join('；'))}</div>` : '')
+      + `<table class="analyze"><thead><tr>${head}<th style="width:90px">下限</th>` +
+      `<th style="width:90px">上限</th><th style="width:150px">问题</th></tr></thead><tbody>` +
+      rows.slice(0, 60).map((r, i) => `
+        <tr${bad[i].length ? ' style="background:#fff8ec"' : ''}>
+          ${dims.map(x => `<td>${esc(cellOf(r.key[x.code]))}</td>`).join('')}
+          <td>${r.lower === null ? '—' : esc(r.lower)}</td>
+          <td>${r.upper === null ? '—' : esc(r.upper)}</td>
+          <td style="color:#b26a00;font-size:11.5px">${esc(bad[i].join('，'))}</td>
+        </tr>`).join('') + '</tbody></table>';
+  }).join('');
 
-  const head = dims.map(d => `<th>${esc(d.code)}</th>`).join('');
-  $('#sPrevTable').innerHTML =
-    `<thead><tr>${head}<th style="width:90px">下限</th><th style="width:90px">上限</th>` +
-    `<th style="width:150px">问题</th></tr></thead><tbody>` +
-    rows.slice(0, 60).map((r, i) => `
-      <tr${bad[i].length ? ' style="background:#fff8ec"' : ''}>
-        ${dims.map(d => `<td>${esc(cellOf(r.key[d.code]))}</td>`).join('')}
-        <td>${r.lower === null ? '—' : esc(r.lower)}</td>
-        <td>${r.upper === null ? '—' : esc(r.upper)}</td>
-        <td style="color:#b26a00;font-size:11.5px">${esc(bad[i].join('，'))}</td>
-      </tr>`).join('') + '</tbody>';
+  $('#sPrevStat').textContent = multi
+    ? `预览：识别到 ${drafts.length} 段，将生成 ${drafts.length} 张表，共 ${totalRows} 行`
+    : `预览：${totalRows} 行 × ${(drafts[0].dims || []).length} 个维度`;
+  $('#sPrevWarn').textContent = (totalBad ? `${totalBad} 行有问题` : '看起来没问题')
+    + (new URLSearchParams(location.search).get('debug') === '1' ? '　[' + (SRC.dbg || '') + ']' : '');
+  $('#sPrevWarn').style.color = totalBad ? '#b26a00' : '#2e7d32';
+  $('#sPrevTable').innerHTML = blocks;
 
   $('#sPrev').hidden = false;
   $('#sFoot').hidden = true;
@@ -1500,24 +1613,45 @@ $('#sBack').onclick = () => {
   SRC.pending = null;
 };
 
-$('#sConfirm').onclick = () => {
-  const draft = SRC.pending;
-  if(!draft) return;
+$('#sConfirm').onclick = async () => {
+  const drafts = SRC.pending || [];
+  if(!drafts.length) return;
   $('#srcModal').hidden = true;
   $('#sPrev').hidden = true;
   $('#sFoot').hidden = false;
-  if(SRC.draftMode){                       // 向导第 3 步：存成作业草稿
-    openDraftEditor(draft);
+
+  if(drafts.length === 1){                 // 单张：进编辑器细调
+    if(SRC.draftMode){ openDraftEditor(drafts[0]); }
+    else{
+      openEditor(E.std, drafts[0], true);
+      $('#eMsg').textContent = `已从原文生成 ${drafts[0].rows.length} 行草稿，核对后再保存`;
+    }
     return;
   }
-  openEditor(E.std, draft, true);
-  $('#eMsg').textContent = `已从原文生成 ${draft.rows.length} 行草稿，核对后再保存`;
+
+  // 多张：直接落库/落作业，之后可在列表里逐张编辑
+  let n = 0;
+  for(const d of drafts){
+    const url = SRC.draftMode
+      ? `/api/analyze/jobs/${JOB.id}/tables`
+      : `/api/standards/${encodeURIComponent(E.std)}/tables/${encodeURIComponent(d.id)}`;
+    const method = SRC.draftMode ? 'POST' : 'PUT';
+    const r = await fetch(url, {method, headers: {'Content-Type': 'application/json'},
+                                body: JSON.stringify(d)});
+    if(r.ok) n += 1;
+    if(SRC.draftMode && r.ok){
+      JOB.table_drafts = (JOB.table_drafts || []).filter(x => x.id !== d.id).concat([d]);
+    }
+  }
+  if(SRC.draftMode){ renderDrafts(); }
+  else{ reloadTables(); }
+  $('#sMsg').textContent = `已生成 ${n}/${drafts.length} 张表，可在列表里逐张编辑`;
 };
 
 $('#sBuild').onclick = () => {
-  const draft = buildDraftFromSource();
-  if(!draft) return;
-  openSourcePreview(draft);
+  const drafts = buildDraftsFromSource();
+  if(!drafts || !drafts.length) return;
+  openSourcePreview(drafts);
 };
 
 /* ================= 限值表编辑 ================= */
