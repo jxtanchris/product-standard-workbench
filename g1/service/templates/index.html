@@ -1681,7 +1681,8 @@ function parseRules(txt){
 const MODE_TEXT = {range:'范围', max:'上限', min:'下限', none:'仅记录', rule:'规则'};
 
 function renderLimits(){
-  const its = A.job.items || [];
+  // 只给"已确认的检项"设限值，没通过判定的候选不参与
+  const its = (A.job.items || []).filter(i => i.selected);
   const lim = A.job.limits || {};
   $('#ltbody').innerHTML = its.map(it => {
     const L = lim[it.id] || {mode: it.measurable ? 'range' : 'none', lower: null, upper: null, unit: 'mm'};
