@@ -175,7 +175,7 @@
   header .crumb{display:flex;flex-direction:column;min-width:0}
   header .crumb h1{font-size:17px}
   header .crumb .sub{max-width:60vw;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-  header .btn.primary{margin-left:auto;background:#fff;color:var(--brand);font-weight:600}
+  header .btn.primary{background:#fff;color:var(--brand);font-weight:600}
   header .btn.primary:hover{background:#eaf1f8}
   .std-list{list-style:none;margin:0;padding:0;max-height:60vh;overflow:auto}
   .std-list li{padding:11px 12px;border-radius:8px;cursor:pointer;border:1px solid transparent;margin-bottom:6px}
@@ -244,6 +244,7 @@
       <h1 id="stdTitle">全部标准</h1>
       <span class="sub" id="scope"></span>
     </div>
+    <a class="back" id="navCatalog" href="#/catalog" style="margin-left:auto">参数库</a>
     <button class="btn primary" id="btnUploadTop">上传标准做分析</button>
   </div>
 </header>
@@ -260,6 +261,23 @@
       </div>
     </section>
   </div><!-- /view-standards -->
+
+  <div class="view" id="view-catalog" hidden>
+    <section class="card">
+      <div class="card-h">
+        <h2>参数库</h2>
+        <span class="hint">产品小类 → 参数 → 全部可能取值；标准分析时从这里挑</span>
+        <button class="btn ghost" id="btnAddClass">+ 新增小类</button>
+      </div>
+      <div class="split">
+        <aside class="pane-left">
+          <div class="pane-head"><span class="pill" id="catStat">—</span></div>
+          <ul class="std-list" id="catList"></ul>
+        </aside>
+        <div class="pane-right" id="catDetail"></div>
+      </div>
+    </section>
+  </div>
 
   <div class="view" id="view-card" hidden>
   <section class="card">
@@ -420,6 +438,7 @@
       </div>
       <div class="summary">
         <button class="btn ghost" id="btnAddParam">+ 新增参数</button>
+        <button class="btn ghost" id="btnFromCatalog">从参数库导入</button>
         <span class="pill" style="margin-left:auto">系统已从标准正文中猜出这些参数，请按产品实际用途增删</span>
       </div>
       <div class="stepnav">
@@ -531,6 +550,26 @@
       <button class="btn ghost" id="whyClose" style="margin-left:auto">关闭</button>
     </div>
     <div class="mbody"><div id="whyBody" style="font-size:13px;line-height:1.9"></div></div>
+  </div>
+</div>
+
+<div class="modal" id="catPickModal" hidden>
+  <div class="panel" style="max-width:780px">
+    <div class="mhead">
+      <h3>从参数库导入</h3>
+      <span class="pill">勾选要用的参数，取值会一起带过来</span>
+      <button class="btn ghost" id="cpClose" style="margin-left:auto">关闭</button>
+    </div>
+    <div class="mbody">
+      <div class="lbl" style="margin-bottom:6px">产品小类</div>
+      <select id="cpClass" style="width:100%"></select>
+      <div id="cpList" style="margin-top:12px;max-height:46vh;overflow:auto"></div>
+    </div>
+    <div class="mfoot">
+      <span class="pill" id="cpMsg"></span>
+      <span style="flex:1"></span>
+      <button class="btn primary" id="cpOk">导入选中</button>
+    </div>
   </div>
 </div>
 
@@ -675,6 +714,11 @@
 
 <footer id="foot"></footer>
 
+<script>
+window.addEventListener('error', e => {
+  document.title = 'JSERR: ' + e.message + ' @' + (e.filename || '').split('/').pop() + ':' + e.lineno;
+});
+</script>
 <script>
 const S = { std:null, meta:null, rows:[], params:{}, measured:{}, expanded:new Set() };
 const $ = s => document.querySelector(s);
@@ -891,11 +935,12 @@ $('#btnExport').onclick = () => {
 };
 
 /* ================= 路由 ================= */
-const VIEWS = ['standards', 'card', 'tables', 'analyze'];
+const VIEWS = ['standards', 'card', 'tables', 'analyze', 'catalog'];
 
 function showView(name){
   document.querySelectorAll('.view').forEach(v => { v.hidden = (v.id !== 'view-' + name); });
   $('#backHome').hidden = (name === 'standards');
+  if($('#navCatalog')) $('#navCatalog').hidden = (name === 'catalog');
   window.scrollTo(0, 0);
 }
 
@@ -907,6 +952,7 @@ function route(){
   if(name === 'card') return initCard(seg[1] || '');
   if(name === 'tables') return initTables(seg[1] || '', seg[2] || '');
   if(name === 'analyze') return initAnalyze(seg[1] || '', Number(seg[2] || 0));
+  if(name === 'catalog') return initCatalog(seg[1] || '');
   return initStandards(seg[1] || '');
 }
 window.addEventListener('hashchange', route);
@@ -1014,6 +1060,88 @@ async function initCard(stdId){
   await resolve();
   if(new URLSearchParams(location.search).get('demo') === '1') fillDemo();
 }
+
+/* ================= 参数库 ================= */
+let CAT = [];
+
+async function initCatalog(selected){
+  CAT = await (await fetch('/api/catalog')).json();
+  $('#stdTitle').textContent = '参数库';
+  $('#scope').textContent = `${CAT.length} 个产品小类　·　${CAT.reduce((n, c) => n + c.params.length, 0)} 个参数`;
+  document.title = '参数库';
+  $('#catStat').textContent = `${CAT.length} 个小类`;
+
+  if(!CAT.length){
+    $('#catList').innerHTML = '<div class="lbl" style="padding:10px 12px">还没有小类</div>';
+    $('#catDetail').innerHTML = '<div class="empty-box"><div class="big">参数库是空的</div>' +
+      '<div>先建一个产品小类，再往里加参数和取值</div></div>';
+    return;
+  }
+  const cur = CAT.some(c => c.id === selected) ? selected : CAT[0].id;
+  $('#catList').innerHTML = CAT.map(c => `
+    <li data-c="${esc(c.id)}" class="${c.id === cur ? 'on' : ''}">
+      <span class="tname">${esc(c.name || c.code)}</span>
+      <span class="tmeta">${esc(c.parent || '')}　${c.params.length} 个参数</span>
+    </li>`).join('');
+  $('#catList').onclick = e => {
+    const li = e.target.closest('[data-c]');
+    if(li) location.hash = '#/catalog/' + li.dataset.c;
+  };
+  renderCatDetail(cur);
+}
+
+function renderCatDetail(cid){
+  const c = CAT.find(x => x.id === cid);
+  if(!c){ $('#catDetail').innerHTML = ''; return; }
+  const params = c.params.map(p => `
+    <div class="draft" data-p="${esc(p.id)}">
+      <h4>${esc(p.code)}　${esc(p.name)}</h4>
+      <div class="meta">${p.type === 'enum' ? '枚举' : '数值'}${p.unit ? ' · ' + esc(p.unit) : ''}
+        · ${p.values.length} 个取值</div>
+      <div class="meta" style="margin-top:6px">${
+        p.values.length
+          ? p.values.map(v => `<code style="display:inline-block;margin:0 6px 4px 0">${esc(v.val)}</code>`).join('')
+          : '<span class="muted">（没有取值）</span>'}</div>
+      <div class="ops"><button class="btn ghost" data-op="vals" data-id="${esc(p.id)}">编辑取值</button></div>
+    </div>`).join('') || '<div class="muted" style="padding:16px">这个小类还没有参数</div>';
+
+  $('#catDetail').innerHTML = `
+    <div class="detail-title">${esc(c.name || c.code)}</div>
+    <div class="detail-sub">${esc(c.parent || '')}　·　小类代码 ${esc(c.code || '—')}</div>
+    <div class="summary" style="margin-bottom:10px">
+      <button class="btn ghost" id="btnAddParam">+ 新增参数</button>
+      <span class="pill" style="margin-left:auto">标准分析第 2 步可以直接从这里挑</span>
+    </div>
+    ${params}`;
+  $('#btnAddParam').onclick = () => addParamTo(c.id);
+  $('#catDetail').onclick = e => {
+    const b = e.target.closest('[data-op="vals"]');
+    if(!b) return;
+    const p = c.params.find(x => x.id === b.dataset.id);
+    openVals({type: 'catalog', paramId: p.id, classId: c.id, title: p.code, sub: p.name,
+              list: p.values.map(v => ({sym: v.sym, val: v.val}))});
+  };
+}
+
+async function addParamTo(classId){
+  const code = prompt('参数代码（小写字母开头，如 class）');
+  if(!code) return;
+  const name = prompt('参数名称（如 性能等级）') || code;
+  const type = (prompt('类型：enum 或 number', 'enum') || 'enum').trim();
+  await fetch('/api/catalog/params', {method: 'POST', headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({id: `p-${code}-${Date.now().toString(36)}`, class_id: classId,
+                          code, name, type: type === 'number' ? 'number' : 'enum'})});
+  initCatalog(classId);
+}
+
+$('#btnAddClass').onclick = async () => {
+  const name = prompt('小类名称（如 螺栓）');
+  if(!name) return;
+  const parent = prompt('所属中类（如 紧固件产品）', '紧固件产品') || '';
+  await fetch('/api/catalog/classes', {method: 'POST', headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({id: 'cls-' + Date.now().toString(36), code: '', name, parent})});
+  initCatalog();
+};
 
 /* ================= 判定依据 ================= */
 function showWhy(it){
@@ -1949,6 +2077,52 @@ function dimFromParam(code){
   };
 }
 
+/* 从参数库导入到第 2 步 */
+async function openCatalogPicker(){
+  const cat = await (await fetch('/api/catalog')).json();
+  if(!cat.length){ $('#cpMsg').textContent = '参数库是空的，先去「参数库」建小类'; $('#catPickModal').hidden = false; return; }
+  $('#cpClass').innerHTML = cat.map(c =>
+    `<option value="${esc(c.id)}">${esc(c.parent ? c.parent + ' / ' : '')}${esc(c.name)}（${c.params.length}）</option>`).join('');
+  const render = () => {
+    const c = cat.find(x => x.id === $('#cpClass').value);
+    $('#cpList').innerHTML = (c ? c.params : []).map(p => `
+      <label class="draft" style="display:block;cursor:pointer">
+        <input type="checkbox" class="cpchk" data-code="${esc(p.code)}" style="margin-right:8px"
+               data-json='${esc(JSON.stringify(p))}'>
+        <b>${esc(p.code)}</b>　${esc(p.name)}
+        <span class="meta">${p.type === 'enum' ? '枚举' : '数值'} · ${p.values.length} 个取值</span>
+        <div class="meta" style="margin-left:22px">${p.values.map(v =>
+          `<code style="display:inline-block;margin:0 6px 4px 0">${esc(v.val)}</code>`).join('') || '—'}</div>
+      </label>`).join('') || '<div class="muted">这个小类没有参数</div>';
+  };
+  $('#cpClass').onchange = render;
+  render();
+  $('#cpMsg').textContent = '';
+  $('#catPickModal').hidden = false;
+}
+
+$('#cpClose').onclick = () => { $('#catPickModal').hidden = true; };
+$('#cpOk').onclick = () => {
+  const picked = [...document.querySelectorAll('#cpList .cpchk:checked')].map(x => JSON.parse(x.dataset.json));
+  if(!picked.length){ $('#cpMsg').textContent = '至少勾一个参数'; return; }
+  const have = new Set((A.job.params_spec || []).map(p => p.code));
+  let n = 0;
+  picked.forEach(p => {
+    if(have.has(p.code)) return;
+    A.job.params_spec.push({
+      code: p.code, name: p.name, type: p.type, unit: p.unit || '',
+      required: !!p.required, options: (p.values || []).map(v => v.val),
+      values_list: (p.values || []).map(v => ({sym: v.sym, val: v.val})),
+      default: (p.values || [])[0] ? p.values[0].val : null,
+      min: null, max: null, help: p.help || '',
+    });
+    n += 1;
+  });
+  $('#catPickModal').hidden = true;
+  renderParams();
+  $('#amsg').textContent = n ? `已导入 ${n} 个参数` : '这些参数都已经有了';
+};
+
 $('#eAddDim').onclick = () => {
   E.t.dims = readDims();
   const used = new Set(E.t.dims.map(d => d.code));
@@ -2244,10 +2418,11 @@ function renderJob(){
 
   const qs = new URLSearchParams(location.search);
   if(qs.get('rules') === '1') setTimeout(() => showRules(), 300);
+  if(qs.get('catpick') === '1') setTimeout(() => openCatalogPicker(), 400);
   if(qs.get('vals') !== null){
     setTimeout(() => {
       const p = (JOB.params_spec || []).findIndex(x => x.code === qs.get('vals'));
-      if(p >= 0) openVals(p);
+      if(p >= 0) openValsJob(p);
     }, 400);
   }
   const newTable = qs.get('newtable');
@@ -2328,7 +2503,7 @@ function renderParams(){
   };
   $('#ptbody').onclick = e => {
     const b = e.target.closest('.rowvals');
-    if(b){ syncParams(); openVals(Number(b.dataset.i)); return; }
+    if(b){ syncParams(); openValsJob(Number(b.dataset.i)); return; }
     if(!e.target.classList.contains('rowdel')) return;
     e.target.closest('tr').remove();
     syncParams();
@@ -2358,18 +2533,24 @@ function syncParams(){
 /* ---------- 参数取值（该参数可能的全部值） ---------- */
 let VALS = {index: -1};
 
-function openVals(i){
-  const p = (A.job.params_spec || [])[i];
-  if(!p) return;
-  VALS.index = i;
-  VALS.list = (p.values_list && p.values_list.length)
-    ? p.values_list.map(v => ({sym: v.sym ?? v.val, val: v.val ?? v.sym}))
-    : (p.options || []).map(v => ({sym: v, val: v}));
-  $('#valsTitle').textContent = `参数取值 · ${p.code}`;
-  $('#valsSub').textContent = p.name || '';
+function openVals(target){
+  VALS.target = target;
+  VALS.list = (target.list || []).map(v => ({sym: v.sym ?? v.val, val: v.val ?? v.sym}));
+  $('#valsTitle').textContent = `参数取值 · ${target.title}`;
+  $('#valsSub').textContent = target.sub || '';
   $('#valsBulk').value = '';
   renderVals();
   $('#valsModal').hidden = false;
+}
+
+function openValsJob(i){
+  const p = (A.job.params_spec || [])[i];
+  if(!p) return;
+  openVals({
+    type: 'job', index: i, title: p.code, sub: p.name,
+    list: (p.values_list && p.values_list.length) ? p.values_list
+          : (p.options || []).map(v => ({sym: v, val: v})),
+  });
 }
 
 function renderVals(){
@@ -2410,12 +2591,22 @@ $('#valsBulkBtn').onclick = () => {
   VALS.list = rows;
   renderVals();
 };
-$('#valsSave').onclick = () => {
+$('#valsSave').onclick = async () => {
   const list = readVals();
-  const p = (A.job.params_spec || [])[VALS.index];
+  const t = VALS.target || {};
+  if(t.type === 'catalog'){
+    await fetch(`/api/catalog/params/${encodeURIComponent(t.paramId)}/values`, {
+      method: 'POST', headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({values: list.map((v, i) => ({seq: i + 1, sym: v.sym, val: v.val}))}),
+    });
+    $('#valsModal').hidden = true;
+    initCatalog(t.classId || '');
+    return;
+  }
+  const p = (A.job.params_spec || [])[t.index];
   if(p){
     p.values_list = list;
-    p.options = list.map(v => v.val);          // 枚举可选值跟着同步
+    p.options = list.map(v => v.val);
   }
   $('#valsModal').hidden = true;
   renderParams();
@@ -2591,6 +2782,8 @@ $('#btnAddRow').onclick = () => {
   renderJob();
 };
 $('#btnSave').onclick = () => saveItems(false).catch(() => $('#amsg').textContent = '保存失败');
+$('#btnFromCatalog').onclick = () => openCatalogPicker();
+
 $('#btnAddParam').onclick = () => {
   if(!A.job) return;
   A.job.params_spec = A.job.params_spec || [];

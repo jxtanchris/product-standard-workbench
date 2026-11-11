@@ -158,6 +158,25 @@ def main():
     except ImportError:
         print("  SKIP  openpyxl 未安装，跳过内容校验")
 
+    print("5c. 参数库（小类 → 参数 → 值）")
+    post("/api/catalog/classes", {"id": "cls-test", "code": "T", "name": "测试小类",
+                                  "parent": "测试中类"})
+    post("/api/catalog/params", {"id": "p-test", "class_id": "cls-test", "code": "cls",
+                                 "name": "性能等级", "type": "enum"})
+    _, r = post("/api/catalog/params/p-test/values", {"values": [
+        {"seq": 1, "sym": "8.8", "val": "8.8"},
+        {"seq": 2, "sym": "10.9", "val": "10.9"}]})
+    check("参数值写入", r.get("count") == 2, str(r))
+    cat = getjson("/api/catalog")
+    mine = next((c for c in cat if c["id"] == "cls-test"), None)
+    check("小类可读回", mine is not None and len(mine["params"]) == 1, str(mine))
+    check("参数带全部取值",
+          [v["val"] for v in mine["params"][0]["values"]] == ["8.8", "10.9"])
+    req = urllib.request.Request(f"{BASE}/api/catalog/classes/cls-test", method="DELETE")
+    with urllib.request.urlopen(req, timeout=10) as rr:
+        rr.read()
+    check("删小类后消失", all(c["id"] != "cls-test" for c in getjson("/api/catalog")))
+
     print("6. 限值表编辑（录改即生效）")
     ed = getjson("/api/standards/gb3103-3/editor")
     check("取到编辑器数据", len(ed["tables"]) == 8, str(len(ed.get("tables", []))))

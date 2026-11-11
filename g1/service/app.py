@@ -540,6 +540,63 @@ def analyze_text(payload: TextPayload):
     return {"job_id": job.id, "status": "done"}
 
 
+# ------------------------------------------------------------------ 参数库
+class ClassPayload(BaseModel):
+    id: str
+    code: str = ""
+    name: str = ""
+    parent: str = ""
+    sort: int = 0
+
+
+class ParamPayload(BaseModel):
+    id: str
+    class_id: str
+    code: str
+    name: str = ""
+    type: str = "enum"
+    unit: str = ""
+    required: bool = True
+    help: str = ""
+    sort: int = 0
+
+
+class ValuesPayload(BaseModel):
+    values: list[dict] = Field(default_factory=list)
+
+
+@app.get("/api/catalog")
+def get_catalog():
+    return dbmod.catalog(dbmod.connect())
+
+
+@app.post("/api/catalog/classes")
+def post_class(payload: ClassPayload):
+    dbmod.save_class(dbmod.connect(), payload.id, payload.code, payload.name,
+                     payload.parent, payload.sort)
+    return {"ok": True, "id": payload.id}
+
+
+@app.post("/api/catalog/params")
+def post_param(payload: ParamPayload):
+    conn = dbmod.connect()
+    dbmod.save_param(conn, payload.id, payload.class_id, payload.code, payload.name,
+                     payload.type, payload.unit, payload.required, payload.help, payload.sort)
+    return {"ok": True, "id": payload.id}
+
+
+@app.post("/api/catalog/params/{param_id}/values")
+def post_param_values(param_id: str, payload: ValuesPayload):
+    n = dbmod.save_param_values(dbmod.connect(), param_id, payload.values)
+    return {"ok": True, "count": n}
+
+
+@app.delete("/api/catalog/classes/{class_id}")
+def del_class(class_id: str):
+    dbmod.delete_class(dbmod.connect(), class_id)
+    return {"ok": True}
+
+
 @app.get("/api/rules")
 def rules():
     """识别规则原样返回，界面上照着调。"""

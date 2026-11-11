@@ -101,6 +101,39 @@ CREATE TABLE IF NOT EXISTS standard_document (
 
 CREATE INDEX IF NOT EXISTS idx_sd_doc ON standard_document(doc_id);
 CREATE INDEX IF NOT EXISTS idx_doc_job ON document(job_id);
+
+-- 产品小类下的参数库：小类 → 参数定义 → 参数值（最大集）
+CREATE TABLE IF NOT EXISTS product_class (
+    id      TEXT PRIMARY KEY,
+    code    TEXT,
+    name    TEXT,
+    parent  TEXT,
+    sort    INTEGER DEFAULT 0
+);
+
+CREATE TABLE IF NOT EXISTS param_def (
+    id       TEXT PRIMARY KEY,
+    class_id TEXT REFERENCES product_class(id) ON DELETE CASCADE,
+    code     TEXT NOT NULL,
+    name     TEXT,
+    type     TEXT DEFAULT 'enum',
+    unit     TEXT DEFAULT '',
+    required INTEGER DEFAULT 1,
+    help     TEXT DEFAULT '',
+    sort     INTEGER DEFAULT 0,
+    UNIQUE (class_id, code)
+);
+
+CREATE TABLE IF NOT EXISTS param_value (
+    id       INTEGER PRIMARY KEY AUTOINCREMENT,
+    param_id TEXT REFERENCES param_def(id) ON DELETE CASCADE,
+    seq      INTEGER,
+    sym      TEXT,
+    val      TEXT
+);
+
+CREATE INDEX IF NOT EXISTS idx_pd_class ON param_def(class_id);
+CREATE INDEX IF NOT EXISTS idx_pv_param ON param_value(param_id);
 CREATE INDEX IF NOT EXISTS idx_lt_std ON limit_table(std_id);
 CREATE INDEX IF NOT EXISTS idx_lr_tbl ON limit_row(table_id);
 """
@@ -515,3 +548,57 @@ def update_item_pages(conn: sqlite3.Connection, std_id: str, pages: dict[str, in
                      (json.dumps(items, ensure_ascii=False), std_id))
         conn.commit()
     return n
+
+
+# ------------------------------------------------------------------ 参数库（产品小类 → 参数 → 值）
+def catalog(conn: sqlite3.Connection) -> list[dict]:
+    out = []
+    for c in conn.execute("SELECT * FROM product_class ORDER BY sort, id"):
+        params = []
+        for p in conn.execute("SELECT * FROM param_def WHERE class_id=? ORDER BY sort, id", (c["id"],)):
+            vals = [{"seq": v["seq"], "sym": v["sym"], "val": v["val"]}
+                    for v in conn.execute("SELECT * FROM param_value WHERE param_id=? ORDER BY seq, id",
+                                          (p["id"],))]
+            params.append({"id": p["id"], "code": p["code"], "name": p["name"], "type": p["type"],
+                           "unit": p["unit"], "required": bool(p["required"]), "help": p["help"],
+                           "values": vals})
+        out.append({"id": c["id"], "code": c["code"], "name": c["name"],
+                    "parent": c["parent"], "params": params})
+    return out
+
+
+def save_class(conn: sqlite3.Connection, cid: str, code: str, name: str,
+               parent: str = "", sort: int = 0) -> str:
+    conn.execute("INSERT INTO product_class(id, code, name, parent, sort) VALUES (?,?,?,?,?)"
+                 " ON CONFLICT(id) DO UPDATE SET code=excluded.code, name=excluded.name,"
+                 " parent=excluded.parent, sort=excluded.sort",
+                 (cid, code, name, parent, sort))
+    conn.commit()
+    return cid
+
+
+def save_param(conn: sqlite3.Connection, pid: str, class_id: str, code: str, name: str,
+               type_: str = "enum", unit: str = "", required: bool = True,
+               help: str = "", sort: int = 0) -> str:
+    conn.execute("INSERT INTO param_def(id, class_id, code, name, type, unit, required, help, sort)"
+                 " VALUES (?,?,?,?,?,?,?,?,?)"
+                 " ON CONFLICT(id) DO UPDATE SET code=excluded.code, name=excluded.name,"
+                 " type=excluded.type, unit=excluded.unit, required=excluded.required,"
+                 " help=excluded.help, sort=excluded.sort",
+                 (pid, class_id, code, name, type_, unit, int(required), help, sort))
+    conn.commit()
+    return pid
+
+
+def save_param_values(conn: sqlite3.Connection, param_id: str, values: list[dict]) -> int:
+    conn.execute("DELETE FROM param_value WHERE param_id=?", (param_id,))
+    for i, v in enumerate(values, start=1):
+        conn.execute("INSERT INTO param_value(param_id, seq, sym, val) VALUES (?,?,?,?)",
+                     (param_id, v.get("seq", i), v.get("sym", ""), v.get("val", "")))
+    conn.commit()
+    return len(values)
+
+
+def delete_class(conn: sqlite3.Connection, cid: str) -> None:
+    conn.execute("DELETE FROM product_class WHERE id=?", (cid,))
+    conn.commit()
