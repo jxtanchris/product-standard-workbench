@@ -647,9 +647,11 @@ def rerun_job(job_id: str):
         shutil.copyfile(doc["path"], tmp)
     else:
         tmp.write_bytes(bytes(doc["content"]))
+    # 重跑会重新生成检项 id，草稿表的 item_code 可能失效 → 解绑但保留表数据
+    drafts = [{**d, "item_code": ""} for d in (job.table_drafts or [])]
     jobstore.STORE.update(job_id, status="ocr", progress=0, pages=0, items=[],
                           tables=[], params_spec=[], limits={}, code="", title="", error="",
-                          steps={}, links={}, published_id="")
+                          steps={}, links={}, published_id="", table_drafts=drafts)
     jobstore.start(job_id, tmp)
     return {"ok": True, "job_id": job_id, "status": "ocr"}
 
