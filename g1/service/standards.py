@@ -39,6 +39,13 @@ class Param:
     values_list: list = field(default_factory=list)   # [{sym, val}] 该参数的全部可能值
     class_id: str = ""                                # 来自哪个产品小类
 
+    def layer(self, sc_id: str | None = None) -> "Layer | None":
+        if not self.layers:
+            return None
+        if not sc_id:
+            return self.layers[0]
+        return next((l for l in self.layers if l.id == sc_id), None)
+
     def meta(self) -> dict:
         return {
             "code": self.code, "name": self.name, "type": self.type, "unit": self.unit,
@@ -52,13 +59,14 @@ class Param:
 
 @dataclass
 class Layer:
-    """标准 × 产品小类：这一层下有自己的参数、检项、限值。"""
+    """标准 × 产品小类：这一层下有自己的参数、检项、限值、限值表。"""
     id: str
     class_id: str = ""
     name: str = ""
-    params: list = field(default_factory=list)
+    params: list = field(default_factory=list)     # list[Param]
     items: list = field(default_factory=list)
     limits: dict = field(default_factory=dict)
+    tables: dict = field(default_factory=dict)
 
 
 @dataclass
@@ -112,6 +120,13 @@ class Standard:
                 ctx[p.code] = num
         return ctx, errors
 
+    def layer(self, sc_id: str | None = None) -> "Layer | None":
+        if not self.layers:
+            return None
+        if not sc_id:
+            return self.layers[0]
+        return next((l for l in self.layers if l.id == sc_id), None)
+
     def meta(self) -> dict:
         return {
             "id": self.id, "code": self.code, "title": self.title,
@@ -156,6 +171,20 @@ def get(std_id: str) -> Standard:
 
 # ---------------------------------------------------------------- 自定义标准
 SLUG_RE = re.compile(r"^[a-z][a-z0-9_]{1,30}$")
+
+
+def _layer_tables(layer: dict, db_tables: dict) -> dict:
+    """一层的限值表：库里按 sc_id 归属的表 + 由 limits_json 生成的规则表。"""
+    out = {k: v for k, v in db_tables.items() if k in (layer.get("table_ids") or [])}
+    limits = layer.get("limits") or {}
+    for it in layer.get("items") or []:
+        key = it.get("table") or f"L-{it.get('id')}"
+        if key in out:
+            continue
+        lim = limits.get(it.get("id")) or {}
+        if lim or f"L-{it.get('id')}" in out:
+            out[key] = out.get(f"L-{it.get('id')}") or _limit_table(it, lim)
+    return out
 
 
 def _limit_table(item: dict, lim: dict) -> Any:
@@ -298,10 +327,21 @@ def from_loaded(entry: dict) -> Standard:
         note=entry.get("note", ""), params=params, items=entry["items"],
         tables=entry["tables"], symbols={}, custom=bool(entry.get("custom")),
         classes=entry.get("classes") or [],
-        layers=[Layer(id=l["id"], class_id=l.get("class_id", ""), name=l.get("name", ""),
-                      params=l.get("params") or [], items=l.get("items") or [],
-                      limits=l.get("limits") or {})
-                for l in (entry.get("layers") or [])],
+        layers=[Layer(
+            id=l["id"], class_id=l.get("class_id", ""), name=l.get("name", ""),
+            params=[Param(code=p["code"], name=p.get("name", p["code"]),
+                          type=p.get("type", "number"), unit=p.get("unit", ""),
+                          required=bool(p.get("required", True)),
+                          options=list(p.get("options") or []),
+                          minimum=p.get("min"), maximum=p.get("max"),
+                          default=p.get("default"), help=p.get("help", ""),
+                          values_list=list(p.get("values_list") or []),
+                          class_id=p.get("class_id", ""))
+                    for p in (l.get("params") or [])],
+            items=l.get("items") or [],
+            limits=l.get("limits") or {},
+            tables=_layer_tables(l, entry["tables"]),
+        ) for l in (entry.get("layers") or [])],
         source=entry.get("source") or {},
     )
 

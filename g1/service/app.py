@@ -52,6 +52,7 @@ app = FastAPI(title="产品标准检验卡服务", version="0.2.0")
 # ------------------------------------------------------------------ 模型
 class ResolveRequest(BaseModel):
     std: str = "gb3103-3"
+    sc: str | None = None          # 层 id（标准 × 小类），不传则用第一层
     params: dict[str, Any] = Field(default_factory=dict)
 
 
@@ -77,32 +78,75 @@ def limit_text(r) -> str:
     return f"{lo:.3f} ～ {hi:.3f} {r.unit}"
 
 
+class LayerView:
+    """把某一层包装成"像一个标准"，复用 resolve / 出卡的逻辑。"""
+
+    def __init__(self, std: Standard, layer):
+        self.id = std.id
+        self.code = std.code
+        self.title = std.title
+        self.category = std.category
+        self.scope = std.scope
+        self.note = std.note
+        self.custom = std.custom
+        self.classes = std.classes
+        self.symbols = std.symbols
+        self.source = getattr(std, "source", {}) or {}
+        self.layers = [layer]
+        self.layer_id = layer.id
+        self.class_id = layer.class_id
+        self.params = layer.params or std.params
+        self.items = layer.items or []
+        self.tables = layer.tables or {}
+
+    def build_context(self, raw):
+        return Standard.build_context(self, raw)
+
+    def meta(self):
+        d = Standard.meta(self)
+        d["layer"] = {"id": self.layer_id, "class_id": self.class_id}
+        return d
+
+
+def _scoped(std: Standard, sc: str | None):
+    """带 sc 时返回层视图，否则返回标准本身。"""
+    layer = std.layer(sc) if sc else None
+    if sc and not layer:
+        raise HTTPException(404, f"没有这一层：{sc}")
+    return LayerView(std, layer) if layer else std
+
+
 def resolve_rows(std: Standard, ctx: dict[str, Any]) -> list[dict]:
     rows = []
     for item in std.items:
-        missing = [p for p in item["requires"] if p not in ctx]
+        missing = [p for p in (item.get("requires") or []) if p not in ctx]
         if missing:
             rows.append(dict(
-                id=item["id"], name=item["name"], symbol=item["symbol"], clause=item["clause"],
-                kind=item["kind"], page=item.get("page"), status="MISS", status_text="缺少参数",
+                id=item["id"], name=item["name"], symbol=item.get("symbol", ""),
+                clause=item.get("clause", ""),
+                kind=item.get("kind", "其他"), page=item.get("page"),
+                status="MISS", status_text="缺少参数",
                 limit_text=f"请先填写 {', '.join(missing)}", lower=None, upper=None, unit="mm",
-                measured_key=item["measured_key"], nominal_param=item["nominal_param"],
-                nominal_value=ctx.get(item["nominal_param"]),
-                method=item["method"], position=item["position"], gauge=item["gauge"],
-                points=item["points"], measured_hint=item["measured_hint"],
+                measured_key=item.get("measured_key"), nominal_param=item.get("nominal_param"),
+                nominal_value=ctx.get(item.get("nominal_param")),
+                method=item.get("method", ""), position=item.get("position", ""),
+                gauge=item.get("gauge", ""), points=item.get("points", ""),
+                measured_hint=item.get("measured_hint", ""),
                 trace=[f"缺少参数 {', '.join(missing)}，无法解析"],
             ))
             continue
         r = std.tables[item["table"]].evaluate(ctx, std.symbols)
         rows.append(dict(
-            id=item["id"], name=item["name"], symbol=item["symbol"], clause=item["clause"],
-            kind=item["kind"], page=item.get("page"),
+            id=item["id"], name=item["name"], symbol=item.get("symbol", ""),
+            clause=item.get("clause", ""), kind=item.get("kind", "其他"),
+            page=item.get("page"),
             status=r.status.value, status_text=STATUS_TEXT[r.status],
             limit_text=limit_text(r), lower=r.lower, upper=r.upper, unit=r.unit,
-            measured_key=item["measured_key"], nominal_param=item["nominal_param"],
-            nominal_value=ctx.get(item["nominal_param"]),
-            method=item["method"], position=item["position"], gauge=item["gauge"],
-            points=item["points"], measured_hint=item["measured_hint"],
+            measured_key=item.get("measured_key"), nominal_param=item.get("nominal_param"),
+            nominal_value=ctx.get(item.get("nominal_param")),
+            method=item.get("method", ""), position=item.get("position", ""),
+            gauge=item.get("gauge", ""), points=item.get("points", ""),
+            measured_hint=item.get("measured_hint", ""),
             trace=r.trace,
         ))
     return rows
@@ -145,7 +189,7 @@ def _std(std_id: str) -> Standard:
 
 
 def _ctx(req: ResolveRequest):
-    std = _std(req.std)
+    std = _scoped(_std(req.std), getattr(req, "sc", None))
     ctx, errors = std.build_context(req.params)
     if errors:
         raise HTTPException(422, detail={"errors": errors})
@@ -213,8 +257,8 @@ def _reload(std_id: str) -> None:
 
 
 @app.get("/api/standards/{std_id}/editor")
-def std_editor(std_id: str):
-    std = _std(std_id)
+def std_editor(std_id: str, sc: str | None = None):
+    std = _scoped(_std(std_id), sc)
     conn = dbmod.connect()
     return {
         "std": std.id, "code": std.code, "title": std.title,
@@ -223,7 +267,8 @@ def std_editor(std_id: str):
                    "clause": i.get("clause", ""), "page": i.get("page"),
                    "table": i.get("table") or "",
                    "kind": i.get("kind") or i.get("category") or "其他"} for i in std.items],
-        "tables": dbmod.table_detail(conn, std.id),
+        "tables": [t for t in dbmod.table_detail(conn, std.id)
+                   if getattr(std, "layer_id", None) is None or t.get("sc_id") in (None, std.layer_id)],
     }
 
 
@@ -420,10 +465,11 @@ def standards():
 
 
 @app.get("/api/meta")
-def meta(std: str = Query("gb3103-3")):
+def meta(std: str = Query("gb3103-3"), sc: str | None = None):
     s = _std(std)
-    data = s.meta()
-    data["default_params"] = default_params(s)
+    view = _scoped(s, sc)
+    data = view.meta()
+    data["default_params"] = default_params(view)
     data["has_source"] = dbmod.document_for_standard(dbmod.connect(), s.id) is not None
     return data
 

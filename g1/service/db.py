@@ -334,7 +334,7 @@ def save_payload(conn: sqlite3.Connection, payload: dict) -> str:
         sc_id = f"sc-{sid}-{cid or 'all'}"
         sc_of_class[cid] = sc_id
         ps = [p for p in (payload.get("params") or []) if (p.get("class_id") or "") == cid]
-        its = [it for it in (payload.get("items") or [])
+        its = [_norm_item(it) for it in (payload.get("items") or [])
                if (it.get("class_id") or "") in ("", cid)]
         conn.execute("INSERT INTO standard_class(id, std_id, class_id, name, sort,"
                      " param_json, item_json, limits_json) VALUES (?,?,?,?,?,?,?,?)",
@@ -441,12 +441,28 @@ def _simple_table(code: str, lim: dict) -> LimitTable:
     return tbl
 
 
+def _norm_item(it: dict) -> dict:
+    """层里的检项补全缺省字段，保证和从 payload 建出来的形状一致。"""
+    return {
+        **it,
+        "name": it.get("name") or it.get("title") or it.get("id"),
+        "symbol": it.get("symbol") or "",
+        "clause": it.get("clause") or "",
+        "kind": it.get("kind") or it.get("category") or "其他",
+        "table": it.get("table") or f"L-{it.get('id')}",
+        "requires": list(it.get("requires") or []),
+        "measured_key": it.get("measured_key") or f"{it.get('id')}_act",
+        "nominal_param": it.get("nominal_param") or "",
+    }
+
+
 def layers_of(conn: sqlite3.Connection, std_id: str) -> list[dict]:
     out = []
     for r in conn.execute("SELECT * FROM standard_class WHERE std_id=? ORDER BY sort, id", (std_id,)):
+        items = [_norm_item(it) for it in json.loads(r["item_json"] or "[]")]
         out.append({"id": r["id"], "class_id": r["class_id"] or "", "name": r["name"] or "",
                     "params": json.loads(r["param_json"] or "[]"),
-                    "items": json.loads(r["item_json"] or "[]"),
+                    "items": items,
                     "limits": json.loads(r["limits_json"] or "{}")})
     return out
 
@@ -455,9 +471,13 @@ def load_all(conn: sqlite3.Connection) -> list[dict]:
     out = []
     for s in conn.execute("SELECT * FROM standard ORDER BY created_at"):
         tables = {}
+        sc_tables: dict[str, list] = {}
         for t in conn.execute("SELECT * FROM limit_table WHERE std_id=? ORDER BY sort", (s["id"],)):
             tables[t["local_id"]] = _build_table(conn, t)
+            sc_tables.setdefault(t["sc_id"] or "", []).append(t["local_id"])
         layers = layers_of(conn, s["id"])
+        for l in layers:
+            l["table_ids"] = sc_tables.get(l["id"], [])
         limits_json = json.loads(s["limits_json"] or "{}")
         items = json.loads(s["item_json"] or "[]")
         for code, lim in limits_json.items():
@@ -531,7 +551,8 @@ def table_detail(conn: sqlite3.Connection, std_id: str) -> list[dict]:
                          "na": bool(r["na"]), "note": r["note"] or ""})
         out.append({"id": t["local_id"], "name": t["name"], "unit": t["unit"],
                     "value_form": t["value_form"], "nominal_param": t["nominal_param"],
-                    "item_code": t["item_code"], "dims": dims, "rows": rows})
+                    "item_code": t["item_code"], "dims": dims, "rows": rows,
+                    "sc_id": t["sc_id"] if "sc_id" in t.keys() else None})
     return out
 
 

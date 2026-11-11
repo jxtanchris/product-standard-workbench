@@ -388,6 +388,7 @@
               <th style="width:86px">类别</th>
               <th style="width:72px">判定</th>
               <th>原文依据</th>
+              <th style="width:90px">小类</th>
               <th style="width:56px">页</th>
               <th style="width:34px"></th>
             </tr>
@@ -735,6 +736,10 @@ const esc = s => String(s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':
 
 /* ---------------- 表单：完全由标准声明的 params 生成 ---------------- */
 function fieldHtml(p){
+  // 没给默认值的枚举，默认选第一个，免得一进来就报"缺少必填参数"
+  if(p.default === null || p.default === undefined){
+    if(p.type === 'enum' && p.options && p.options.length) p.default = p.options[0];
+  }
   const head = `<label><b>${esc(p.name)}</b>${p.unit ? `（${p.unit}）` : ''}<code>${esc(p.code)}</code></label>`;
   const help = p.help ? `<span class="help">${esc(p.help)}</span>` : '';
   if(p.type === 'enum'){
@@ -878,7 +883,7 @@ async function resolve(){
   $('#msg').textContent = '解析中…';
   const res = await fetch('/api/resolve', {
     method:'POST', headers:{'Content-Type':'application/json'},
-    body: JSON.stringify({std:S.std, params:S.params})
+    body: JSON.stringify({std:S.std, sc:S.sc || null, params:S.params})
   });
   const data = await res.json();
   if(!res.ok){
@@ -1032,9 +1037,12 @@ async function renderStdDetail(id, info){
       <dt>规格参数</dt><dd>${params.map(p => `<code>${esc(p.code)}</code>`).join(' ') || '—'}</dd>
       <dt>检项</dt><dd>${(meta.items || []).length} 项</dd>
       <dt>说明</dt><dd>${esc(meta.note || '—')}</dd>
-      <dt>覆盖小类</dt><dd>${(info && info.classes && info.classes.length)
+      <dt>覆盖小类</dt><dd>${(meta.layers && meta.layers.length > 1)
+        ? meta.layers.map(l => `<a href="#/card/${encodeURIComponent(id)}?sc=${encodeURIComponent(l.id)}"
+             style="color:var(--brand-2);margin-right:10px">${esc(CLASSMAP_G[l.class_id] || l.name || l.id)}</a>`).join('')
+        : ((info && info.classes && info.classes.length)
         ? info.classes.map(cid => `<code>${esc((CLASSMAP_G[cid] || cid))}</code>`).join(' ')
-        : '<span class="muted">未指定</span>'}</dd>
+        : '<span class="muted">未指定</span>')}</dd>
       <dt>原件</dt><dd>${(info && info.has_source)
         ? `<a href="/api/standards/${encodeURIComponent(id)}/source.pdf" target="_blank"
               style="color:var(--brand-2)">查看标准原件（PDF）</a>`
@@ -1059,10 +1067,13 @@ async function renderStdDetail(id, info){
 
 /* ================= 检验卡 ================= */
 async function initCard(stdId){
-  const id = stdId || new URLSearchParams(location.search).get('std');
+  const qs = new URLSearchParams(location.search);
+  const id = stdId || qs.get('std');
+  const sc = qs.get('sc') || '';
   if(!id){ location.hash = '#/standards'; return; }
-  S.std = id;
-  const r = await fetch('/api/meta?std=' + encodeURIComponent(id));
+  S.std = id; S.sc = sc;
+  const r = await fetch('/api/meta?std=' + encodeURIComponent(id) +
+                        (sc ? '&sc=' + encodeURIComponent(sc) : ''));
   if(!r.ok){
     $('#stdTitle').textContent = '标准不存在';
     $('#scope').textContent = id;
@@ -1070,7 +1081,12 @@ async function initCard(stdId){
   }
   S.meta = await r.json();
   S.hasSource = !!S.meta.has_source;
-  $('#stdTitle').textContent = '检验卡 · ' + S.meta.code;
+  try{
+    const cat = await (await fetch('/api/catalog')).json();
+    cat.forEach(c => { CLASSMAP[c.id] = c.name || c.code; });
+  }catch(e){}
+  const layerName = S.meta.layer ? (CLASSMAP[S.meta.layer.class_id] || '') : '';
+  $('#stdTitle').textContent = '检验卡 · ' + S.meta.code + (layerName ? '　·　' + layerName : '');
   $('#scope').textContent = S.meta.title + (S.meta.scope ? '　·　' + S.meta.scope : '');
   document.title = S.meta.code + ' 检验卡';
   S.measured = {};
@@ -2274,10 +2290,13 @@ let tablesReady = false;
 let CURRENT = null;
 
 async function initTables(stdId, tableId){
-  const id = stdId || new URLSearchParams(location.search).get('std');
+  const qs = new URLSearchParams(location.search);
+  const id = stdId || qs.get('std');
+  const sc = qs.get('sc') || '';
   if(!id){ location.hash = '#/standards'; return; }
-  S.std = id; E.std = id;
-  const d = await (await fetch(`/api/standards/${encodeURIComponent(id)}/editor`)).json();
+  S.std = id; S.sc = sc; E.std = id;
+  const d = await (await fetch(`/api/standards/${encodeURIComponent(id)}/editor` +
+                               (sc ? '?sc=' + encodeURIComponent(sc) : ''))).json();
   E.params = d.params || []; E.items = d.items || []; E.allTables = d.tables || [];
   S.hasSource = !!(d.items || []).length && await (async () => {
     const r = await fetch('/api/meta?std=' + encodeURIComponent(id));
@@ -2489,6 +2508,9 @@ function renderJob(){
       <td><select class="cat">${CATS.map(c =>
         `<option ${c === it.category ? 'selected' : ''}>${c}</option>`).join('')}</select></td>
       <td style="text-align:center"><input type="checkbox" class="chk ms" ${it.measurable ? 'checked' : ''}></td>
+      <td><select class="icl">${['<option value="">—</option>'].concat(
+        (JOB.classes || []).map(cid => `<option value="${esc(cid)}" ${
+          (it.class_id || '') === cid ? 'selected' : ''}>${esc(CLASSMAP[cid] || cid)}</option>`)).join('')}</select></td>
       <td class="evi" title="${esc(it.evidence)}">${it.selected
           ? esc(clip(it.evidence, 72))
           : `<span style="color:#b26a00">✕ ${esc(it.reason || '未通过判定')}</span>
@@ -2846,6 +2868,7 @@ function syncItems(){
       title: tr.querySelector('.ti').value,
       category: tr.querySelector('.cat').value,
       measurable: tr.querySelector('.ms').checked,
+      class_id: tr.querySelector('.icl') ? tr.querySelector('.icl').value : '', 
     });
   });
   updateStat();
