@@ -570,6 +570,24 @@ def get_catalog():
     return dbmod.catalog(dbmod.connect())
 
 
+@app.get("/api/params")
+def get_params():
+    """参数名称表（全局）+ 每个参数的取值与用到它的小类。"""
+    return dbmod.all_params(dbmod.connect())
+
+
+@app.post("/api/catalog/classes/{class_id}/params/{param_id}")
+def attach_param(class_id: str, param_id: str):
+    dbmod.attach_param(dbmod.connect(), class_id, param_id)
+    return {"ok": True}
+
+
+@app.delete("/api/catalog/classes/{class_id}/params/{param_id}")
+def detach_param(class_id: str, param_id: str):
+    dbmod.detach_param(dbmod.connect(), class_id, param_id)
+    return {"ok": True}
+
+
 @app.post("/api/catalog/classes")
 def post_class(payload: ClassPayload):
     dbmod.save_class(dbmod.connect(), payload.id, payload.code, payload.name,
@@ -579,9 +597,12 @@ def post_class(payload: ClassPayload):
 
 @app.post("/api/catalog/params")
 def post_param(payload: ParamPayload):
+    """建一个全局参数；带 class_id 时同时挂到该小类下。"""
     conn = dbmod.connect()
-    dbmod.save_param(conn, payload.id, payload.class_id, payload.code, payload.name,
-                     payload.type, payload.unit, payload.required, payload.help, payload.sort)
+    dbmod.save_param_name(conn, payload.id, payload.code, payload.name,
+                          payload.type, payload.unit, payload.help)
+    if payload.class_id:
+        dbmod.attach_param(conn, payload.class_id, payload.id, payload.sort, payload.required)
     return {"ok": True, "id": payload.id}
 
 

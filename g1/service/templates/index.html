@@ -1111,11 +1111,38 @@ function renderCatDetail(cid){
     <div class="detail-title">${esc(c.name || c.code)}</div>
     <div class="detail-sub">${esc(c.parent || '')}　·　小类代码 ${esc(c.code || '—')}</div>
     <div class="summary" style="margin-bottom:10px">
-      <button class="btn ghost" id="btnAddParam">+ 新增参数</button>
-      <span class="pill" style="margin-left:auto">标准分析第 2 步可以直接从这里挑</span>
+      <button class="btn ghost" id="btnAddParam">+ 新建参数</button>
+      <button class="btn ghost" id="btnAttach">从参数名称表挂载</button>
+      <span class="pill" style="margin-left:auto">参数名称与取值是全局的，一个小类用了不影响别的</span>
     </div>
-    ${params}`;
+    ${params}
+    <div class="draft" id="attachBox" hidden>
+      <h4>参数名称表</h4>
+      <div class="meta">勾选后挂到「${esc(c.name || '')}」；取消勾选即解除</div>
+      <div id="attachList" style="margin-top:8px"></div>
+    </div>`;
   $('#btnAddParam').onclick = () => addParamTo(c.id);
+  $('#btnAttach').onclick = async () => {
+    const box = $('#attachBox');
+    if(!box.hidden){ box.hidden = true; return; }
+    const all = await (await fetch('/api/params')).json();
+    const mine = new Set(c.params.map(p => p.id));
+    $('#attachList').innerHTML = all.map(p => `
+      <label style="display:block;padding:4px 0;cursor:pointer">
+        <input type="checkbox" class="atch" data-id="${esc(p.id)}" ${mine.has(p.id) ? 'checked' : ''}>
+        <b>${esc(p.code)}</b>　${esc(p.name)}
+        <span class="meta">${p.type === 'enum' ? '枚举' : '数值'} · ${
+          isFreeValues(p.values) ? '自由取值' : p.values.length + ' 个取值'}</span>
+      </label>`).join('') || '<div class="muted">参数名称表还是空的</div>';
+    box.hidden = false;
+    $('#attachList').onchange = async e => {
+      if(!e.target.classList.contains('atch')) return;
+      const pid = e.target.dataset.id;
+      const url = `/api/catalog/classes/${encodeURIComponent(c.id)}/params/${encodeURIComponent(pid)}`;
+      await fetch(url, {method: e.target.checked ? 'POST' : 'DELETE'});
+      initCatalog(c.id);
+    };
+  };
   $('#catDetail').onclick = e => {
     const b = e.target.closest('[data-op="vals"]');
     if(!b) return;

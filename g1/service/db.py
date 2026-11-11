@@ -111,28 +111,35 @@ CREATE TABLE IF NOT EXISTS product_class (
     sort    INTEGER DEFAULT 0
 );
 
-CREATE TABLE IF NOT EXISTS param_def (
-    id       TEXT PRIMARY KEY,
-    class_id TEXT REFERENCES product_class(id) ON DELETE CASCADE,
-    code     TEXT NOT NULL,
-    name     TEXT,
-    type     TEXT DEFAULT 'enum',
-    unit     TEXT DEFAULT '',
-    required INTEGER DEFAULT 1,
-    help     TEXT DEFAULT '',
-    sort     INTEGER DEFAULT 0,
-    UNIQUE (class_id, code)
+-- 参数名称表（全局，两层中的第一层）
+CREATE TABLE IF NOT EXISTS param_name (
+    id   TEXT PRIMARY KEY,
+    code TEXT NOT NULL UNIQUE,
+    name TEXT,
+    type TEXT DEFAULT 'enum',
+    unit TEXT DEFAULT '',
+    help TEXT DEFAULT ''
 );
 
+-- 小类用哪些参数（多对多）
+CREATE TABLE IF NOT EXISTS class_param (
+    class_id TEXT NOT NULL REFERENCES product_class(id) ON DELETE CASCADE,
+    param_id TEXT NOT NULL REFERENCES param_name(id) ON DELETE CASCADE,
+    sort     INTEGER DEFAULT 0,
+    required INTEGER DEFAULT 1,
+    PRIMARY KEY (class_id, param_id)
+);
+
+-- 参数值表（两层中的第二层，挂在参数名称下）
 CREATE TABLE IF NOT EXISTS param_value (
     id       INTEGER PRIMARY KEY AUTOINCREMENT,
-    param_id TEXT REFERENCES param_def(id) ON DELETE CASCADE,
+    param_id TEXT REFERENCES param_name(id) ON DELETE CASCADE,
     seq      INTEGER,
     sym      TEXT,
     val      TEXT
 );
 
-CREATE INDEX IF NOT EXISTS idx_pd_class ON param_def(class_id);
+CREATE INDEX IF NOT EXISTS idx_cp_class ON class_param(class_id);
 CREATE INDEX IF NOT EXISTS idx_pv_param ON param_value(param_id);
 CREATE INDEX IF NOT EXISTS idx_lt_std ON limit_table(std_id);
 CREATE INDEX IF NOT EXISTS idx_lr_tbl ON limit_row(table_id);
@@ -551,16 +558,93 @@ def update_item_pages(conn: sqlite3.Connection, std_id: str, pages: dict[str, in
 
 
 # ------------------------------------------------------------------ 参数库（产品小类 → 参数 → 值）
+def migrate_catalog(conn: sqlite3.Connection) -> None:
+    """旧的两层半结构（param_def 挂小类）→ 参数名称表 + 关联表。"""
+    if not _columns(conn, "param_def"):
+        return
+    # 旧 param_value 的外键指向 param_def，先重建为指向 param_name
+    fks = list(conn.execute("PRAGMA foreign_key_list(param_value)"))
+    if any(fk["table"] == "param_def" for fk in fks):
+        conn.executescript("""
+            PRAGMA foreign_keys = OFF;
+            ALTER TABLE param_value RENAME TO old_param_value;
+            CREATE TABLE param_value (
+                id       INTEGER PRIMARY KEY AUTOINCREMENT,
+                param_id TEXT REFERENCES param_name(id) ON DELETE CASCADE,
+                seq      INTEGER,
+                sym      TEXT,
+                val      TEXT
+            );
+            INSERT INTO param_value(id, param_id, seq, sym, val)
+                SELECT id, param_id, seq, sym, val FROM old_param_value;
+            DROP TABLE old_param_value;
+            PRAGMA foreign_keys = ON;
+        """)
+    rows = list(conn.execute("SELECT * FROM param_def"))
+    for r in rows:
+        code = r["code"]
+        pid = "pn-" + code
+        conn.execute("INSERT OR IGNORE INTO param_name(id, code, name, type, unit, help)"
+                     " VALUES (?,?,?,?,?,?)",
+                     (pid, code, r["name"], r["type"], r["unit"], r["help"] or ""))
+        conn.execute("INSERT OR IGNORE INTO class_param(class_id, param_id, sort, required)"
+                     " VALUES (?,?,?,?)",
+                     (r["class_id"], pid, r["sort"] or 0, r["required"]))
+        hit = conn.execute("SELECT 1 FROM param_value WHERE param_id=? LIMIT 1", (pid,)).fetchone()
+        if not hit:
+            for v in conn.execute("SELECT * FROM param_value WHERE param_id=?", (r["id"],)):
+                conn.execute("UPDATE param_value SET param_id=? WHERE id=?", (pid, v["id"]))
+    conn.commit()
+
+
+def all_params(conn: sqlite3.Connection) -> list[dict]:
+    out = []
+    for p in conn.execute("SELECT * FROM param_name ORDER BY code"):
+        vals = [{"seq": v["seq"], "sym": v["sym"], "val": v["val"]}
+                for v in conn.execute("SELECT * FROM param_value WHERE param_id=? ORDER BY seq, id",
+                                      (p["id"],))]
+        classes = [r["class_id"] for r in
+                   conn.execute("SELECT class_id FROM class_param WHERE param_id=?", (p["id"],))]
+        out.append({"id": p["id"], "code": p["code"], "name": p["name"], "type": p["type"],
+                    "unit": p["unit"], "help": p["help"], "values": vals, "classes": classes})
+    return out
+
+
+def save_param_name(conn: sqlite3.Connection, pid: str, code: str, name: str,
+                    type_: str = "enum", unit: str = "", help: str = "") -> str:
+    conn.execute("INSERT INTO param_name(id, code, name, type, unit, help) VALUES (?,?,?,?,?,?)"
+                 " ON CONFLICT(id) DO UPDATE SET code=excluded.code, name=excluded.name,"
+                 " type=excluded.type, unit=excluded.unit, help=excluded.help",
+                 (pid, code, name, type_, unit, help))
+    conn.commit()
+    return pid
+
+
+def attach_param(conn: sqlite3.Connection, class_id: str, param_id: str,
+                 sort: int = 0, required: bool = True) -> None:
+    conn.execute("INSERT OR IGNORE INTO class_param(class_id, param_id, sort, required)"
+                 " VALUES (?,?,?,?)", (class_id, param_id, sort, int(required)))
+    conn.commit()
+
+
+def detach_param(conn: sqlite3.Connection, class_id: str, param_id: str) -> None:
+    conn.execute("DELETE FROM class_param WHERE class_id=? AND param_id=?", (class_id, param_id))
+    conn.commit()
+
+
 def catalog(conn: sqlite3.Connection) -> list[dict]:
     out = []
     for c in conn.execute("SELECT * FROM product_class ORDER BY sort, id"):
         params = []
-        for p in conn.execute("SELECT * FROM param_def WHERE class_id=? ORDER BY sort, id", (c["id"],)):
+        for p in conn.execute(
+                "SELECT pn.*, cp.required AS req, cp.sort AS cpsort FROM param_name pn"
+                " JOIN class_param cp ON cp.param_id = pn.id"
+                " WHERE cp.class_id=? ORDER BY cp.sort, pn.code", (c["id"],)):
             vals = [{"seq": v["seq"], "sym": v["sym"], "val": v["val"]}
                     for v in conn.execute("SELECT * FROM param_value WHERE param_id=? ORDER BY seq, id",
                                           (p["id"],))]
             params.append({"id": p["id"], "code": p["code"], "name": p["name"], "type": p["type"],
-                           "unit": p["unit"], "required": bool(p["required"]), "help": p["help"],
+                           "unit": p["unit"], "required": bool(p["req"]), "help": p["help"],
                            "values": vals})
         out.append({"id": c["id"], "code": c["code"], "name": c["name"],
                     "parent": c["parent"], "params": params})
