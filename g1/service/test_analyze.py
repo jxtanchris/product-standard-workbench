@@ -280,6 +280,34 @@ def main():
     st, _, _ = post_raw(f"/api/analyze/jobs/{job_id}/step/nope", {"data": {}, "confirmed": True})
     check("未知步骤返回 400", st == 400, str(st))
 
+    print("6d. 限值表草稿随发布落库")
+    first = picked[0]
+    draft = {
+        "id": "T-TEST", "name": "草稿表", "unit": "MPa", "value_form": "absolute",
+        "nominal_param": None, "item_code": first["id"],
+        "dims": [{"code": j2["params_spec"][0]["code"], "kind": "enum", "values": ["A"]}],
+        "rows": [{"key": {j2["params_spec"][0]["code"]: "A"}, "lower": 100, "upper": 200,
+                  "na": False, "note": "测试"}],
+    }
+    d1 = post(f"/api/analyze/jobs/{job_id}/tables", draft)
+    check("草稿保存到作业", d1.get("ok") and d1.get("id") == "T-TEST", str(d1))
+    check("作业里能看到草稿",
+          any(t["id"] == "T-TEST" for t in getjson(f"/api/analyze/jobs/{job_id}")["table_drafts"]))
+
+    pub2 = post("/api/standards/publish", {
+        "job_id": job_id, "code": "GB/T 7777-TEST", "title": "草稿表测试",
+        "params": j2["params_spec"], "items": picked, "limits": {},
+    })
+    ed = getjson(f"/api/standards/{pub2['std_id']}/editor")
+    check("发布后表已落库", any(t["id"] == "T-TEST" for t in ed["tables"]),
+          str([t["id"] for t in ed["tables"]]))
+    check("检项绑到了这张表",
+          next((i for i in ed["items"] if i["code"] == first["id"]), {}).get("table") == "T-TEST")
+    post(f"/api/standards/unpublish/{pub2['std_id']}", {})
+    req = urllib.request.Request(f"{BASE}/api/analyze/jobs/{job_id}/tables/T-TEST", method="DELETE")
+    with urllib.request.urlopen(req, timeout=10) as r:
+        r.read()
+
     print("7. 原文与清理")
     req = urllib.request.Request(f"{BASE}/api/standards/unpublish/{std_id}", method="POST")
     with urllib.request.urlopen(req, timeout=10) as r:

@@ -220,6 +220,7 @@ def std_editor(std_id: str):
         "params": [p.meta() for p in std.params],
         "items": [{"code": i["id"], "name": i.get("name") or i.get("title") or i["id"],
                    "clause": i.get("clause", ""), "page": i.get("page"),
+                   "table": i.get("table") or "",
                    "kind": i.get("kind") or i.get("category") or "其他"} for i in std.items],
         "tables": dbmod.table_detail(conn, std.id),
     }
@@ -552,7 +553,7 @@ def analyze_job(job_id: str):
 
 
 STEP_FIELDS = {"items": "items", "params": "params_spec",
-               "limits": "limits", "links": "links"}
+               "limits": "limits", "links": "links", "tables": "table_drafts"}
 
 
 @app.post("/api/analyze/jobs/{job_id}/step/{name}")
@@ -570,6 +571,31 @@ def save_step(job_id: str, name: str, payload: StepPayload):
     kw["steps"] = steps
     jobstore.STORE.update(job_id, **kw)
     return {"ok": True, "steps": steps}
+
+
+@app.post("/api/analyze/jobs/{job_id}/tables")
+def save_draft_table(job_id: str, payload: dict):
+    """在作业里建/改一张限值表草稿（发布时一起落库）。"""
+    job = jobstore.STORE.get(job_id)
+    if not job:
+        raise HTTPException(404, "作业不存在")
+    t = dict(payload)
+    if not t.get("id"):
+        t["id"] = "T-" + uuid.uuid4().hex[:6]
+    drafts = [d for d in (job.table_drafts or []) if d.get("id") != t["id"]]
+    drafts.append(t)
+    jobstore.STORE.update(job_id, table_drafts=drafts)
+    return {"ok": True, "id": t["id"], "count": len(drafts)}
+
+
+@app.delete("/api/analyze/jobs/{job_id}/tables/{table_id}")
+def delete_draft_table(job_id: str, table_id: str):
+    job = jobstore.STORE.get(job_id)
+    if not job:
+        raise HTTPException(404, "作业不存在")
+    drafts = [d for d in (job.table_drafts or []) if d.get("id") != table_id]
+    jobstore.STORE.update(job_id, table_drafts=drafts)
+    return {"ok": True, "count": len(drafts)}
 
 
 @app.put("/api/analyze/jobs/{job_id}/items")
@@ -687,7 +713,17 @@ def publish(payload: PublishPayload):
     dbmod.save_payload(conn, data)          # 落库：参数 + 检项 + 限值
     if payload.job_id:
         dbmod.link_document(conn, payload.job_id, std.id)
+        job = jobstore.STORE.get(payload.job_id)
+        for draft in (job.table_drafts if job else []) or []:
+            dbmod.save_table(conn, std.id, draft)
+            if draft.get("item_code"):
+                dbmod.bind_table(conn, std.id, draft["item_code"], draft["id"])
+        for it in data.get("items") or []:
+            if it.get("table"):
+                dbmod.bind_table(conn, std.id, it["id"], it["table"])
     register(std, replace=True)
+    if payload.job_id:
+        _reload(std.id)          # 草稿表绑定改的是库，内存里的标准要重读
     if payload.job_id:
         jobstore.STORE.update(payload.job_id, published_id=std.id,
                               params_spec=data["params"], limits=data["limits"])

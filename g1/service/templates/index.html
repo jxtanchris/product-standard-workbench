@@ -60,6 +60,15 @@
   th:nth-child(5){width:96px} th:nth-child(6){width:150px}
   th:nth-child(7){width:96px} th:nth-child(8){width:44px}
   tbody tr.item:hover{background:#fafcff}
+  .tabs2{display:inline-flex;gap:4px;background:#eef2f7;padding:4px;border-radius:9px}
+  .tabs2 button{border:0;background:transparent;padding:7px 16px;border-radius:6px;
+                font:inherit;font-size:12.5px;color:#4a5765;cursor:pointer}
+  .tabs2 button.on{background:#fff;color:var(--brand);font-weight:600;
+                   box-shadow:0 1px 3px rgba(16,40,70,.12)}
+  .draft{border:1px solid var(--line);border-radius:10px;padding:12px 14px;margin-bottom:10px;background:#fff}
+  .draft h4{margin:0 0 4px;font-size:13.5px}
+  .draft .meta{font-size:11.5px;color:var(--muted)}
+  .draft .ops{display:flex;gap:8px;margin-top:8px}
   .steps{display:flex;gap:8px;margin-bottom:16px}
   .steps[hidden]{display:none}
   .step{flex:1;display:flex;align-items:center;gap:10px;padding:10px 14px;
@@ -419,6 +428,12 @@
         <h2>④ 限值</h2>
         <span class="hint">第 2 步的判定就按这里来；留空表示只记录、不判定</span>
       </div>
+      <div class="tabs2" id="limTabs" style="margin-bottom:12px">
+        <button class="on" data-lim="rule">按检项填规则</button>
+        <button data-lim="table">限值表数据 <b id="draftN">0</b></button>
+      </div>
+
+      <div id="limRule">
       <div style="overflow-x:auto">
         <table class="analyze">
           <thead>
@@ -433,6 +448,16 @@
           </thead>
           <tbody id="ltbody"></tbody>
         </table>
+      </div>
+      </div>
+
+      <div id="limTable" hidden>
+        <div class="summary">
+          <button class="btn ghost" id="btnImportTable">+ 从原文表格导入</button>
+          <button class="btn ghost" id="btnNewDraft">+ 新建空表</button>
+          <span class="pill" style="margin-left:auto">表在发布时随标准一起落库</span>
+        </div>
+        <div id="draftList"></div>
       </div>
       <div class="summary">
         <span class="pill">上下限可填数字或表达式（如 <code>d_nom+0.27</code>）；选「规则」可按参数分档，
@@ -998,26 +1023,102 @@ function wireSteps(){
   $('#prev4').onclick = () => showStep(3);
 }
 
+/* 第 3 步：限值表草稿 */
+function renderDrafts(){
+  const list = (JOB && JOB.table_drafts) || [];
+  $('#draftN').textContent = list.length;
+  const box = $('#draftList');
+  if(!list.length){
+    box.innerHTML = '<div class="muted" style="padding:20px 4px">还没有限值表。' +
+      '点「从原文表格导入」，把标准里的表指定成维度与限值列。</div>';
+    return;
+  }
+  box.innerHTML = list.map(t => {
+    const dims = (t.dims || []).map(d => d.code).join(' × ') || '无维度';
+    return `<div class="draft" data-id="${esc(t.id)}">
+      <h4>${esc(t.id)}　${esc(t.name || '')}</h4>
+      <div class="meta">${esc(dims)} · ${(t.rows || []).length} 行 · ${t.value_form === 'deviation'
+        ? '偏差型（叠加 ' + esc(t.nominal_param || '—') + '）' : '绝对值'}
+        ${t.item_code ? ' · 服务检项 ' + esc(t.item_code) : ''}</div>
+      <div class="ops">
+        <button class="btn ghost" data-op="edit">编辑</button>
+        <button class="btn ghost" data-op="del">删除</button>
+      </div>
+    </div>`;
+  }).join('');
+  box.onclick = async e => {
+    const btn = e.target.closest('[data-op]');
+    if(!btn) return;
+    const id = btn.closest('.draft').dataset.id;
+    const t = (JOB.table_drafts || []).find(x => x.id === id);
+    if(btn.dataset.op === 'edit'){
+      openDraftEditor(t);
+    }else{
+      await fetch(`/api/analyze/jobs/${JOB.id}/tables/${encodeURIComponent(id)}`, {method: 'DELETE'});
+      JOB.table_drafts = (JOB.table_drafts || []).filter(x => x.id !== id);
+      renderDrafts();
+    }
+  };
+}
+
+function openDraftEditor(t){
+  DRAFT = t;
+  openEditor(null, t, true);
+  $('#mSub').textContent = '作业草稿（发布时落库）';
+  E.items = (JOB.items || []).filter(i => i.selected).map(i => ({code: i.id, clause: i.clause, name: i.title}));
+  $('#eItem').innerHTML = '<option value="">—</option>' + E.items.map(i =>
+    `<option value="${i.code}" ${i.code === (t.item_code || '') ? 'selected' : ''}>${esc(i.clause)} ${esc(i.name)}</option>`).join('');
+}
+
+let DRAFT = null;
+
+$('#limTabs').onclick = e => {
+  const b = e.target.closest('[data-lim]');
+  if(!b) return;
+  document.querySelectorAll('#limTabs button').forEach(x => x.classList.toggle('on', x === b));
+  $('#limRule').hidden = b.dataset.lim !== 'rule';
+  $('#limTable').hidden = b.dataset.lim !== 'table';
+};
+
+$('#btnImportTable').onclick = () => {
+  SRC.draftMode = true;
+  $('#srcModal').hidden = false;
+  $('#sMsg').textContent = '';
+  $('#sJob').innerHTML = `<option value="${JOB.id}">${esc(JOB.code || JOB.filename)}</option>`;
+  $('#sJob').disabled = true;
+  $('#sItem').innerHTML = '<option value="">—</option>' + (JOB.items || []).filter(i => i.selected).map(i =>
+    `<option value="${i.id}">${esc(i.clause)} ${esc(i.title)}</option>`).join('');
+  loadSourceTables(JOB.id);
+};
+
+$('#btnNewDraft').onclick = () => {
+  openDraftEditor({id: 'T-' + Date.now().toString(36), name: '手动新建', unit: 'mm',
+                   value_form: 'absolute', nominal_param: null, item_code: '', dims: [], rows: []});
+};
+
 /* 第 4 步：检项 → 限值来源 */
 function renderLinks(){
   if(!JOB) return;
   const tb = $('#lkbody');
   const links = JOB.links || {};
   const items = (JOB.items || []).filter(i => i.selected);
+  const drafts = (JOB && JOB.table_drafts) || [];
   tb.innerHTML = items.map(it => {
-    const src = links[it.id] || (it.table ? 'table' : 'rule');
+    const bound = drafts.find(d => d.item_code === it.id);
+    const src = links[it.id] || it.table || (bound ? bound.id : 'rule');
     const lim = (JOB.limits || {})[it.id] || {};
-    const table = it.table || '';
-    const desc = src === 'table'
-      ? `查表 ${table ? '<b>' + esc(table) + '</b>' : '（发布后在「限值表」页建立）'}`
-      : (lim.mode === 'rule' ? '按参数分档的规则' : '常量 / 区间');
+    const draft = drafts.find(d => d.id === src);
+    const desc = src === 'rule'
+      ? (lim.mode === 'rule' ? '按参数分档的规则' : '常量 / 区间')
+      : (draft ? `${(draft.dims || []).map(d => d.code).join(' × ')} · ${(draft.rows || []).length} 行`
+               : '查表（未选择具体表）');
+    const opts = [`<option value="rule" ${src === 'rule' ? 'selected' : ''}>手填规则</option>`]
+      .concat(drafts.map(t => `<option value="${esc(t.id)}" ${src === t.id ? 'selected' : ''}>表 ${esc(t.id)}｜${esc(t.name || '')}</option>`))
+      .join('');
     return `<tr data-id="${esc(it.id)}">
       <td>${esc(it.clause)}</td>
       <td>${esc(it.title)}</td>
-      <td><select class="lk">
-        <option value="rule" ${src === 'rule' ? 'selected' : ''}>手填规则</option>
-        <option value="table" ${src === 'table' ? 'selected' : ''}>查限值表</option>
-      </select></td>
+      <td><select class="lk">${opts}</select></td>
       <td class="desc">${desc}</td>
     </tr>`;
   }).join('') || '<tr><td colspan="4" class="muted" style="padding:16px">还没有确认的检项</td></tr>';
@@ -1206,6 +1307,10 @@ $('#sBuild').onclick = () => {
   const draft = buildDraftFromSource();
   if(!draft) return;
   $('#srcModal').hidden = true;
+  if(SRC.draftMode){                       // 向导第 3 步：存成作业草稿
+    openDraftEditor(draft);
+    return;
+  }
   openEditor(E.std, draft, true);
   $('#eMsg').textContent = `已从原文生成 ${draft.rows.length} 行草稿，核对后再保存`;
 };
@@ -1351,6 +1456,20 @@ async function saveEditor(){
   };
   if(!payload.id){ $('#eMsg').textContent = '表 id 不能为空'; return; }
   if(!rows.length){ $('#eMsg').textContent = '没有行，先按维度展开'; return; }
+  if(!E.std){                              // 作业草稿：发布时随标准落库
+    payload.dims = readDims();
+    const r0 = await fetch(`/api/analyze/jobs/${JOB.id}/tables`, {
+      method: 'POST', headers: {'Content-Type':'application/json'},
+      body: JSON.stringify(payload),
+    });
+    const d0 = await r0.json().catch(() => ({}));
+    if(!r0.ok){ $('#eMsg').textContent = '保存失败：' + (d0.detail || r0.status); return; }
+    JOB.table_drafts = (JOB.table_drafts || []).filter(t => t.id !== payload.id).concat([payload]);
+    $('#eMsg').textContent = `已保存 ${payload.rows.length} 行到作业草稿`;
+    $('#modal').hidden = true;
+    renderDrafts();
+    return;
+  }
   const r = await fetch(`/api/standards/${encodeURIComponent(E.std)}/tables/${encodeURIComponent(payload.id)}`, {
     method: 'PUT', headers: {'Content-Type':'application/json'},
     body: JSON.stringify(payload)
@@ -1597,6 +1716,13 @@ function renderJob(){
   };
   renderParams();
   renderLimits();
+  renderDrafts();
+  if((JOB.table_drafts || []).length){
+    document.querySelectorAll('#limTabs button').forEach(x =>
+      x.classList.toggle('on', x.dataset.lim === 'table'));
+    $('#limRule').hidden = true;
+    $('#limTable').hidden = false;
+  }
   renderLinks();
   $('#uploadCard').hidden = true;
   $('#steps').hidden = false;
@@ -1841,10 +1967,10 @@ $('#btnPublish').onclick = async () => {
   try { await saveItems(); } catch(e){ $('#pmsg').textContent = '保存失败'; return; }
   await saveStep(4, true);
   const links = JOB.links || {};
-  const items = JOB.items.filter(x => x.selected).map(it => ({
-    ...it,
-    table: links[it.id] === 'table' ? (it.table || '') : '',
-  }));
+  const items = JOB.items.filter(x => x.selected).map(it => {
+    const src = links[it.id] || 'rule';
+    return {...it, table: src === 'rule' ? '' : src};
+  });
   const payload = {
     job_id: JOB.id,
     code: $('#stdCode').value.trim(),
