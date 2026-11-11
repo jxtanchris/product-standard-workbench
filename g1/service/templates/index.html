@@ -434,6 +434,7 @@
               <th style="width:70px">单位</th>
               <th style="width:60px">必填</th>
               <th>可选值（逗号分隔；数值型留空）</th>
+              <th style="width:110px">所属小类</th>
               <th style="width:150px">取值</th>
               <th style="width:240px">依据</th>
               <th style="width:34px"></th>
@@ -445,6 +446,7 @@
       <div class="summary">
         <button class="btn ghost" id="btnAddParam">+ 新增参数</button>
         <button class="btn ghost" id="btnFromCatalog">从参数库导入</button>
+        <span class="pill" id="clsPill" style="cursor:pointer">覆盖小类：<b id="clsN">0</b></span>
         <span class="pill" style="margin-left:auto">系统已从标准正文中猜出这些参数，请按产品实际用途增删</span>
       </div>
       <div class="stepnav">
@@ -970,6 +972,10 @@ let STD_LIST = [];
 
 async function initStandards(selected){
   $('#stdTitle').textContent = '全部标准';
+  fetch('/api/catalog').then(r => r.json()).then(cat => {
+    CLASSMAP_G = Object.fromEntries(cat.map(c => [c.id, c.name || c.code]));
+    if(document.querySelector('#stdDetail .kv')) renderStdDetail(STD_CUR, STD_INFO);
+  }).catch(() => {});
   const list = await (await fetch('/api/standards')).json();
   STD_LIST = list;
   $('#scope').textContent = list.length ? `共 ${list.length} 个标准` : '还没有标准';
@@ -1004,7 +1010,10 @@ async function initStandards(selected){
   await renderStdDetail(cur, list.find(s => s.id === cur));
 }
 
+let STD_CUR = null, STD_INFO = null;
+
 async function renderStdDetail(id, info){
+  STD_CUR = id; STD_INFO = info;
   const meta = await (await fetch('/api/meta?std=' + encodeURIComponent(id))).json();
   const params = meta.params || [];
   $('#stdDetail').innerHTML = `
@@ -1023,6 +1032,9 @@ async function renderStdDetail(id, info){
       <dt>规格参数</dt><dd>${params.map(p => `<code>${esc(p.code)}</code>`).join(' ') || '—'}</dd>
       <dt>检项</dt><dd>${(meta.items || []).length} 项</dd>
       <dt>说明</dt><dd>${esc(meta.note || '—')}</dd>
+      <dt>覆盖小类</dt><dd>${(info && info.classes && info.classes.length)
+        ? info.classes.map(cid => `<code>${esc((CLASSMAP_G[cid] || cid))}</code>`).join(' ')
+        : '<span class="muted">未指定</span>'}</dd>
       <dt>原件</dt><dd>${(info && info.has_source)
         ? `<a href="/api/standards/${encodeURIComponent(id)}/source.pdf" target="_blank"
               style="color:var(--brand-2)">查看标准原件（PDF）</a>`
@@ -1068,8 +1080,36 @@ async function initCard(stdId){
   if(new URLSearchParams(location.search).get('demo') === '1') fillDemo();
 }
 
+/* ================= 覆盖小类 ================= */
+$('#clsPill').onclick = async () => {
+  const cat = await (await fetch('/api/catalog')).json();
+  if(!cat.length){ alert('参数库还是空的，先去「参数库」建小类'); return; }
+  const have = new Set(JOB.classes || []);
+  const html = cat.map(c => `
+    <label class="draft" style="display:block;cursor:pointer">
+      <input type="checkbox" class="clchk" value="${esc(c.id)}" ${have.has(c.id) ? 'checked' : ''}
+             style="margin-right:8px">
+      <b>${esc(c.name)}</b> <span class="meta">${esc(c.parent || '')} · ${c.params.length} 个参数</span>
+    </label>`).join('');
+  openWhyHtml('覆盖的产品小类', '这份标准适用的产品小类（可多选）', html, () => {
+    JOB.classes = [...document.querySelectorAll('#whyBody .clchk:checked')].map(x => x.value);
+    $('#clsN').textContent = JOB.classes.length;
+    renderParams();
+  });
+};
+
+function openWhyHtml(title, sub, html, onOk){
+  $('#whyTitle').textContent = title;
+  $('#whySub').textContent = sub || '';
+  $('#whyBody').innerHTML = html +
+    '<div style="margin-top:14px"><button class="btn primary" id="whyOk">确定</button></div>';
+  $('#whyModal').hidden = false;
+  $('#whyOk').onclick = () => { if(onOk) onOk(); $('#whyModal').hidden = true; };
+}
+
 /* ================= 参数库 ================= */
 let CAT = [];
+let CLASSMAP_G = {};      // 首页用的小类 id → 名称
 
 async function initCatalog(selected){
   CAT = await (await fetch('/api/catalog')).json();
@@ -1288,6 +1328,7 @@ const STEP_NAMES = {1: "items", 2: "params", 3: "limits", 4: "links"};
 const STEP_LABEL = {1: "检查项", 2: "规格参数", 3: "限值", 4: "关联"};
 
 let JOB = null;
+let CLASSMAP = {};          // 小类 id → 名称
 
 function syncSteps(){
   const steps = (JOB && JOB.steps) || {};
@@ -2190,7 +2231,11 @@ $('#cpOk').onclick = () => {
       values_list: (p.values || []).map(v => ({sym: v.sym, val: v.val})),
       default: free ? null : ((p.values || [])[0] ? p.values[0].val : null),
       min: null, max: null, help: p.help || '',
+      class_id: $('#cpClass').value || '',
     });
+    if($('#cpClass').value && !(JOB.classes || []).includes($('#cpClass').value)){
+      JOB.classes = (JOB.classes || []).concat([$('#cpClass').value]);
+    }
     n += 1;
   });
   $('#catPickModal').hidden = true;
@@ -2413,6 +2458,11 @@ function renderJob(){
   ].join('');
   JOB = j;
   JOB.links = j.links || {};
+  JOB.classes = j.classes || [];
+  fetch('/api/catalog').then(r => r.json()).then(cat => {
+    CLASSMAP = Object.fromEntries(cat.map(c => [c.id, c.name || c.code]));
+    if(JOB) renderParams();                 // 拿到名称后重渲染一次
+  }).catch(() => { CLASSMAP = {}; });
   const jid = document.querySelector('#jobmeta .jid');
   if(jid) jid.onclick = () => {
     navigator.clipboard?.writeText(jid.dataset.id);
@@ -2558,6 +2608,9 @@ function renderParams(){
       <td style="text-align:center"><input type="checkbox" class="chk preq" ${p.required ? 'checked' : ''}></td>
       <td><input type="text" class="popts" value="${esc((p.options || []).join(','))}"
                  ${p.type === 'enum' ? 'placeholder="如：A,B,C"' : 'disabled placeholder="—（数值型不需要）"'}></td>
+      <td><select class="pcls">${['<option value="">—</option>'].concat(
+        (JOB.classes || []).map(cid => `<option value="${esc(cid)}" ${
+          (p.class_id || '') === cid ? 'selected' : ''}>${esc(CLASSMAP[cid] || cid)}</option>`)).join('')}</select></td>
       <td style="white-space:nowrap">
         <button class="rowvals" data-i="${i}">${
           isFreeValues(p.values_list) ? '自由取值' :
@@ -2603,6 +2656,7 @@ function syncParams(){
       default: isEnum ? (opts[0] ?? null) : null,
       min: null, max: null, help: '',
       values_list: (old[i] && old[i].values_list) || [],
+      class_id: tr.querySelector('.pcls') ? tr.querySelector('.pcls').value : '',
     };
   });
 }
@@ -2896,6 +2950,7 @@ $('#btnPublish').onclick = async () => {
     category: '自定义',
     scope: '',
     params: JOB.params_spec,
+    classes: JOB.classes || [],
     items,
     limits: JOB.limits,
     source: {job_id: JOB.id, filename: JOB.filename, pages: JOB.pages},

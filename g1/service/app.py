@@ -414,6 +414,7 @@ def standards():
         out.append({"id": s.id, "code": s.code, "title": s.title,
                     "category": s.category, "param_count": len(s.params),
                     "item_count": len(s.items), "custom": s.custom,
+                    "classes": s.classes,
                     "has_source": dbmod.document_for_standard(conn, s.id) is not None})
     return out
 
@@ -469,6 +470,7 @@ class ItemsPayload(BaseModel):
 
 class PublishPayload(BaseModel):
     job_id: str | None = None
+    classes: list[str] = Field(default_factory=list)   # 覆盖的产品小类
     id: str | None = None
     code: str = ""
     title: str = ""

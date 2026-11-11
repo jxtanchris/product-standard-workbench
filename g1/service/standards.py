@@ -37,6 +37,7 @@ class Param:
     default: Any = None
     help: str = ""
     values_list: list = field(default_factory=list)   # [{sym, val}] 该参数的全部可能值
+    class_id: str = ""                                # 来自哪个产品小类
 
     def meta(self) -> dict:
         return {
@@ -45,6 +46,7 @@ class Param:
             "min": self.minimum, "max": self.maximum,
             "default": self.default, "help": self.help,
             "values_list": self.values_list or [{"sym": v, "val": v} for v in (self.options or [])],
+            "class_id": self.class_id,
         }
 
 
@@ -61,6 +63,7 @@ class Standard:
     symbols: dict[str, SymbolSet]
     note: str = ""
     custom: bool = False          # 由“上传分析”发布的标准
+    classes: list = field(default_factory=list)   # 覆盖的产品小类 id
     source: dict = field(default_factory=dict)   # 来源作业、文件名等
 
     # ---------- 参数校验：把用户输入整理成引擎上下文 ----------
@@ -104,6 +107,7 @@ class Standard:
             "custom": self.custom,
             "source": self.source,
             "params": [p.meta() for p in self.params],
+            "classes": self.classes,
             "items": [{**{k: i[k] for k in
                         ("id", "name", "symbol", "clause", "kind", "measured_key",
                          "nominal_param", "requires") if k in i},
@@ -203,6 +207,7 @@ def build_from_payload(payload: dict) -> Standard:
             default=p.get("default"),
             help=p.get("help", ""),
             values_list=list(p.get("values_list") or []),
+            class_id=p.get("class_id", ""),
         ))
     codes = [p.code for p in params]
     if len(codes) != len(set(codes)):
@@ -249,6 +254,7 @@ def build_from_payload(payload: dict) -> Standard:
         note=payload.get("note") or "由上传分析发布",
         params=params, items=items, tables=tables, symbols={},
         custom=True,
+        classes=list(payload.get("classes") or []),
         source=payload.get("source") or {},
     )
     return std
@@ -273,6 +279,7 @@ def from_loaded(entry: dict) -> Standard:
         category=entry.get("category", ""), scope=entry.get("scope", ""),
         note=entry.get("note", ""), params=params, items=entry["items"],
         tables=entry["tables"], symbols={}, custom=bool(entry.get("custom")),
+        classes=entry.get("classes") or [],
         source=entry.get("source") or {},
     )
 

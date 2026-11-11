@@ -39,6 +39,7 @@ CREATE TABLE IF NOT EXISTS standard (
     note          TEXT DEFAULT '',
     custom        INTEGER DEFAULT 0,
     source_json   TEXT DEFAULT '{}',
+    classes_json  TEXT DEFAULT '[]',
     param_json    TEXT DEFAULT '[]',
     item_json     TEXT DEFAULT '[]',
     limits_json   TEXT DEFAULT '{}',
@@ -283,13 +284,20 @@ def _insert_table(conn, std_id: str, t: dict) -> int:
 
 
 # ------------------------------------------------------------------ 写入
+def _ensure_column(conn: sqlite3.Connection, table: str, col: str, decl: str) -> None:
+    if col not in _columns(conn, table):
+        conn.execute(f"ALTER TABLE {table} ADD COLUMN {col} {decl}")
+        conn.commit()
+
+
 def save_payload(conn: sqlite3.Connection, payload: dict) -> str:
     sid = payload["id"]
     conn.execute("DELETE FROM standard WHERE id = ?", (sid,))   # 级联删表
+    _ensure_column(conn, "standard", "classes_json", "TEXT DEFAULT '[]'")
     conn.execute(
         "INSERT INTO standard(id, code, title, category, scope, note, custom,"
-        " param_json, item_json, limits_json, source_json, created_at)"
-        " VALUES (?,?,?,?,?,?,?,?,?,?,?,?)",
+        " param_json, item_json, limits_json, source_json, classes_json, created_at)"
+        " VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)",
         (sid, payload.get("code", ""), payload.get("title", ""),
          payload.get("category", ""), payload.get("scope", ""), payload.get("note", ""),
          int(payload.get("custom", 0)),
@@ -297,6 +305,7 @@ def save_payload(conn: sqlite3.Connection, payload: dict) -> str:
          json.dumps(payload.get("items") or [], ensure_ascii=False),
          json.dumps(payload.get("limits") or {}, ensure_ascii=False),
          json.dumps(payload.get("source") or {}, ensure_ascii=False),
+         json.dumps(payload.get("classes") or [], ensure_ascii=False),
          time.time()))
     for t in payload.get("tables") or []:
         _insert_table(conn, sid, t)
@@ -429,6 +438,7 @@ def load_all(conn: sqlite3.Connection) -> list[dict]:
             "custom": bool(s["custom"]),
             "source": json.loads(s["source_json"] or "{}"),
             "params": json.loads(s["param_json"] or "[]"),
+            "classes": json.loads(s["classes_json"] or "[]") if "classes_json" in s.keys() else [],
             "items": items, "tables": tables,
         })
     return out
