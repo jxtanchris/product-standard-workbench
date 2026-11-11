@@ -1158,7 +1158,8 @@ function renderDrafts(){
 
 function openDraftEditor(t){
   DRAFT = t;
-  E.params = (JOB.params_spec || []).map(p => ({code: p.code, name: p.name}));
+  E.params = (JOB.params_spec || []).map(p => ({code: p.code, name: p.name,
+    type: p.type || 'number', options: p.options || []}));
   E.items = (JOB.items || []).filter(i => i.selected)
     .map(i => ({code: i.id, clause: i.clause, name: i.title}));
   openEditor(null, t, true);
@@ -1180,7 +1181,8 @@ $('#limTabs').onclick = e => {
 
 $('#btnImportTable').onclick = () => {
   SRC.draftMode = true;
-  E.params = (JOB.params_spec || []).map(p => ({code: p.code, name: p.name}));
+  E.params = (JOB.params_spec || []).map(p => ({code: p.code, name: p.name,
+    type: p.type || 'number', options: p.options || []}));
   $('#srcModal').hidden = false;
   $('#sMsg').textContent = '';
   $('#sJob').innerHTML = `<option value="${JOB.id}">${esc(JOB.code || JOB.filename)}</option>`;
@@ -1901,16 +1903,45 @@ async function saveEditor(){
   reloadTables();
 }
 
+function paramOf(code){
+  return (E.params || []).find(p => p.code === code) || null;
+}
+
+function dimFromParam(code){
+  const p = paramOf(code);
+  const isEnum = p && p.type === 'enum';
+  return {
+    code: code,
+    kind: isEnum ? 'enum' : 'enum',
+    values: isEnum && (p.options || []).length ? [...p.options] : [],
+  };
+}
+
 $('#eAddDim').onclick = () => {
   E.t.dims = readDims();
-  E.t.dims.push({code: E.params[0].code, kind: 'enum', values: []});
+  const used = new Set(E.t.dims.map(d => d.code));
+  const next = (E.params || []).find(p => !used.has(p.code)) || (E.params || [])[0];
+  E.t.dims.push(dimFromParam(next ? next.code : ''));
   renderDims();
 };
 $('#eExpand').onclick = expandRows;
 $('#eSave').onclick = saveEditor;
 $('#eCancel').onclick = () => { $('#modal').hidden = true; };
 $('#mClose').onclick = () => { $('#modal').hidden = true; };
-$('#eDims').onchange = () => { E.t.dims = readDims(); renderDims(); };
+$('#eDims').onchange = e => {
+  E.t.dims = readDims();
+  const row = e.target.closest('.dimrow');
+  if(row && (e.target.classList.contains('dcode') || e.target.classList.contains('dkind'))){
+    const d = E.t.dims[Number(row.dataset.i)];
+    const p = paramOf(d.code);
+    // 换了参数、或原来就没填取值 → 用该参数的枚举值补上
+    if(d && p && !d.values.length && (p.options || []).length){
+      d.values = [...p.options];
+      if(d.kind !== 'range') d.kind = 'enum';
+    }
+  }
+  renderDims();
+};
 
 /* ================= 限值表浏览 ================= */
 let tablesReady = false;
@@ -2181,6 +2212,20 @@ function renderJob(){
 
   const qs = new URLSearchParams(location.search);
   if(qs.get('rules') === '1') setTimeout(() => showRules(), 300);
+  const newTable = qs.get('newtable');
+  if(newTable){
+    setTimeout(() => {
+      openDraftEditor({id: 'T-' + Date.now().toString(36), name: '手动新建', unit: 'mm',
+                       value_form: 'absolute', nominal_param: null, item_code: '', dims: [], rows: []});
+      setTimeout(() => {
+        $('#eAddDim').click();
+        if(newTable !== '1'){                 // ?newtable=class → 直接选这个参数当维度
+          const sel = document.querySelector('#eDims .dcode');
+          if(sel){ sel.value = newTable; sel.dispatchEvent(new Event('change', {bubbles: true})); }
+        }
+      }, 150);
+    }, 300);
+  }
   if(qs.get('why') !== null){
     setTimeout(() => {
       const it = (JOB.items || []).filter(x => x.selected)[Number(qs.get('why') || 0)];
@@ -2192,7 +2237,8 @@ function renderJob(){
   if(srcIdx !== null && JOB){
     setTimeout(async () => {
       SRC.draftMode = true;
-      E.params = (JOB.params_spec || []).map(p => ({code: p.code, name: p.name}));
+      E.params = (JOB.params_spec || []).map(p => ({code: p.code, name: p.name,
+    type: p.type || 'number', options: p.options || []}));
       $('#srcModal').hidden = false;
       $('#sMsg').textContent = '';
       $('#sJob').innerHTML = `<option>${esc(JOB.code || JOB.filename)}</option>`;
