@@ -108,13 +108,16 @@ CREATE INDEX IF NOT EXISTS idx_doc_job ON document(job_id);
 CREATE TABLE IF NOT EXISTS standard_class (
     id          TEXT PRIMARY KEY,
     std_id      TEXT NOT NULL REFERENCES standard(id) ON DELETE CASCADE,
-    class_id    TEXT,
+    class_id    TEXT REFERENCES product_class(id) ON DELETE SET NULL,
     name        TEXT,
     sort        INTEGER DEFAULT 0,
     param_json  TEXT DEFAULT '[]',
     item_json   TEXT DEFAULT '[]',
     limits_json TEXT DEFAULT '{}'
 );
+
+CREATE UNIQUE INDEX IF NOT EXISTS ux_sc_std_class
+    ON standard_class(std_id, IFNULL(class_id, ''));
 
 -- 产品小类下的参数库：小类 → 参数定义 → 参数值（最大集）
 CREATE TABLE IF NOT EXISTS product_class (
@@ -330,7 +333,11 @@ def save_payload(conn: sqlite3.Connection, payload: dict) -> str:
         classes = [""]
     conn.execute("DELETE FROM standard_class WHERE std_id=?", (sid,))
     sc_of_class = {}
+    seen_class = set()
     for i, cid in enumerate(classes):
+        if cid in seen_class:
+            continue                      # 同一小类只留一层
+        seen_class.add(cid)
         sc_id = f"sc-{sid}-{cid or 'all'}"
         sc_of_class[cid] = sc_id
         ps = [p for p in (payload.get("params") or []) if (p.get("class_id") or "") == cid]

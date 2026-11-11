@@ -147,6 +147,21 @@
 
 ---
 
+## 5.2 standard_class（标准 × 产品小类）
+
+一份标准可以覆盖多个小类，每个小类在库里是**单独一行**，行与行之间互不影响。
+
+| 字段 | 类型 | 约束 | 说明 |
+|---|---|---|---|
+| `id` | TEXT | PK | 如 `sc-<标准id>-<小类id>` |
+| `std_id` | TEXT | FK → `standard.id` CASCADE | |
+| `class_id` | TEXT | FK → `product_class.id` SET NULL | **一行只挂一个小类** |
+| `name` | TEXT | | 层名 |
+| `param_json` / `item_json` / `limits_json` | JSON | | 这一层自己的参数、检项、限值 |
+
+约束：`UNIQUE(std_id, IFNULL(class_id,''))` —— 同一标准同一小类只能有一层。
+限值表通过 `limit_table.sc_id` 归属到层。
+
 ## 6. 关系
 
 ```mermaid
