@@ -102,9 +102,10 @@ class Standard:
             "custom": self.custom,
             "source": self.source,
             "params": [p.meta() for p in self.params],
-            "items": [{k: i[k] for k in
-                       ("id", "name", "symbol", "clause", "kind", "measured_key",
-                        "nominal_param", "requires")} for i in self.items],
+            "items": [{**{k: i[k] for k in
+                        ("id", "name", "symbol", "clause", "kind", "measured_key",
+                         "nominal_param", "requires") if k in i},
+                       "page": i.get("page")} for i in self.items],
         }
 
 

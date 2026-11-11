@@ -605,6 +605,18 @@ function readParams(){
 }
 
 /* ---------------- 检验卡 ---------------- */
+function pdfLink(std, page, text, title){
+  if(!page || !S.hasSource) return esc(text);
+  return `<a href="/api/standards/${encodeURIComponent(std)}/source.pdf#page=${page}"
+             target="_blank" rel="noopener" title="${esc(title || ('打开原件第 ' + page + ' 页'))}"
+             style="color:var(--brand-2);font-weight:600;text-decoration:underline;
+                    text-decoration-style:dotted;text-underline-offset:3px">${esc(text)}</a>`;
+}
+
+function clauseCell(r){
+  return pdfLink(S.std, r.page, r.clause, `打开原件第 ${r.page} 页（${r.clause}）`);
+}
+
 function rowHtml(r, i){
   const cls = {'可判定':'ok','不要求':'na','无法判定':'warn'}[r.status_text] || 'na';
   const v = S.measured[r.measured_key];
@@ -614,7 +626,7 @@ function rowHtml(r, i){
   <tr class="item" data-id="${r.id}">
     <td class="idx">${i+1}</td>
     <td class="name">${esc(r.name)}<span class="sym">${esc(r.symbol)}</span></td>
-    <td class="clause">${esc(r.clause)}</td>
+    <td class="clause">${clauseCell(r)}</td>
     <td class="limit">${esc(r.limit_text)}</td>
     <td><span class="badge ${cls}">${esc(r.status_text)}</span></td>
     <td class="meas">${r.status === 'OK'
@@ -826,6 +838,7 @@ async function initCard(stdId){
     return;
   }
   S.meta = await r.json();
+  S.hasSource = !!S.meta.has_source;
   $('#stdTitle').textContent = '检验卡 · ' + S.meta.code;
   $('#scope').textContent = S.meta.title + (S.meta.scope ? '　·　' + S.meta.scope : '');
   document.title = S.meta.code + ' 检验卡';
@@ -1182,6 +1195,10 @@ async function initTables(stdId, tableId){
   S.std = id; E.std = id;
   const d = await (await fetch(`/api/standards/${encodeURIComponent(id)}/editor`)).json();
   E.params = d.params || []; E.items = d.items || []; E.allTables = d.tables || [];
+  S.hasSource = !!(d.items || []).length && await (async () => {
+    const r = await fetch('/api/meta?std=' + encodeURIComponent(id));
+    return r.ok ? !!(await r.json()).has_source : false;
+  })();
   $('#stdTitle').textContent = '限值表 · ' + d.code;
   $('#scope').textContent = `${d.title}　·　${E.allTables.length} 张表`;
   $('#tblStat').textContent = `${E.allTables.length} 张表`;
@@ -1200,6 +1217,11 @@ async function initTables(stdId, tableId){
 
 async function reloadTables(){
   if(E.std) await initTables(E.std, CURRENT);
+}
+
+function pageOfTable(t){
+  const it = (E.items || []).find(i => i.code === t.item_code);
+  return (it && it.page) ? it.page : null;
 }
 
 const KIND_ORDER = ['尺寸', '形位', '性能', '表面', '标记', '其他'];
@@ -1226,7 +1248,8 @@ function renderTableList(){
     ${g.tables.map(t => `
       <li data-t="${esc(t.id)}" class="${t.id === CURRENT ? 'on' : ''}">
         <span class="tname">${esc(t.name || t.id)}</span>
-        <span class="tmeta">${esc(t.id)} · ${t.dims.length} 维 · ${t.rows.length} 行</span>
+        <span class="tmeta">${esc(t.id)} · ${t.dims.length} 维 · ${t.rows.length} 行${
+          pageOfTable(t) ? ` · P${pageOfTable(t)}` : ''}</span>
       </li>`).join('')}`).join('');
   $('#tblList').onclick = e => {
     const li = e.target.closest('[data-t]');
@@ -1268,6 +1291,8 @@ function renderTableDetail(id){
       <span class="pill">${form}</span>
       <span class="pill">单位 ${esc(t.unit || 'mm')}</span>
       ${t.item_code ? `<span class="pill">检项 ${esc(t.item_code)}</span>` : ''}
+      ${pageOfTable(t) ? `<span class="pill">${pdfLink(E.std, pageOfTable(t),
+          '原件 P' + pageOfTable(t), '打开原件第 ' + pageOfTable(t) + ' 页')}</span>` : ''}
     </div>
     <div style="overflow:auto;max-height:560px">
       <table class="analyze"><thead><tr>${head}<th>下限</th><th>上限</th><th>说明</th></tr></thead>

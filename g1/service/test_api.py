@@ -100,6 +100,17 @@ def main():
           rows["d2"]["limit_text"])
     check("C 级 t1 = 1.680（2IT15）", "1.680" in rows["t1"]["limit_text"], rows["t1"]["limit_text"])
 
+    print("2b. 条款可回溯到原件页码")
+    meta2 = getjson("/api/meta?std=gb3103-3")
+    check("meta 带 has_source", meta2.get("has_source") is True, str(meta2.get("has_source")))
+    pages = {i["id"]: i.get("page") for i in meta2["items"]}
+    check("检项带页码", pages.get("d1") == 4 and pages.get("t1") == 5, str(pages))
+    check("解析结果也带页码",
+          all(r.get("page") for r in
+              post("/api/resolve", {"std": "gb3103-3", "params": BASE_PARAMS})[1]["rows"]))
+    st, body, _ = get("/api/standards/gb3103-3/source.pdf")
+    check("原件可下载", st == 200 and body[:4] == b"%PDF")
+
     print("3. 判定")
     st, d = judge({"d1_act": 13.12, "h1_act": 1.2, "d2_act": 23.9, "h_act": 2.05,
                    "e_act": 0.7, "dh_act": 0.06, "t1_act": 0.3, "t2_act": 0.12})

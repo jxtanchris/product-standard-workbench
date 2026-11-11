@@ -80,7 +80,7 @@ def resolve_rows(std: Standard, ctx: dict[str, Any]) -> list[dict]:
         if missing:
             rows.append(dict(
                 id=item["id"], name=item["name"], symbol=item["symbol"], clause=item["clause"],
-                kind=item["kind"], status="MISS", status_text="缺少参数",
+                kind=item["kind"], page=item.get("page"), status="MISS", status_text="缺少参数",
                 limit_text=f"请先填写 {', '.join(missing)}", lower=None, upper=None, unit="mm",
                 measured_key=item["measured_key"], nominal_param=item["nominal_param"],
                 nominal_value=ctx.get(item["nominal_param"]),
@@ -92,7 +92,8 @@ def resolve_rows(std: Standard, ctx: dict[str, Any]) -> list[dict]:
         r = std.tables[item["table"]].evaluate(ctx, std.symbols)
         rows.append(dict(
             id=item["id"], name=item["name"], symbol=item["symbol"], clause=item["clause"],
-            kind=item["kind"], status=r.status.value, status_text=STATUS_TEXT[r.status],
+            kind=item["kind"], page=item.get("page"),
+            status=r.status.value, status_text=STATUS_TEXT[r.status],
             limit_text=limit_text(r), lower=r.lower, upper=r.upper, unit=r.unit,
             measured_key=item["measured_key"], nominal_param=item["nominal_param"],
             nominal_value=ctx.get(item["nominal_param"]),
@@ -215,7 +216,7 @@ def std_editor(std_id: str):
         "std": std.id, "code": std.code, "title": std.title,
         "params": [p.meta() for p in std.params],
         "items": [{"code": i["id"], "name": i.get("name") or i.get("title") or i["id"],
-                   "clause": i.get("clause", ""),
+                   "clause": i.get("clause", ""), "page": i.get("page"),
                    "kind": i.get("kind") or i.get("category") or "其他"} for i in std.items],
         "tables": dbmod.table_detail(conn, std.id),
     }
@@ -335,6 +336,7 @@ def meta(std: str = Query("gb3103-3")):
     s = _std(std)
     data = s.meta()
     data["default_params"] = default_params(s)
+    data["has_source"] = dbmod.document_for_standard(dbmod.connect(), s.id) is not None
     return data
 
 
