@@ -249,6 +249,21 @@ curl -s -X POST http://127.0.0.1:8022/api/resolve \
            "evidence":"3.1通孔（冲压）h≤4H130.5h","selected":true}]}
 ```
 
+## 清空数据
+
+```bash
+# 清空标准、限值表、作业与上传件（保留表结构，启动时不会自动重灌）
+.venv/bin/python g1/service/tools/reset_db.py --jobs
+
+# 只想清业务数据、保留作业
+.venv/bin/python g1/service/tools/reset_db.py
+
+# 想要回样例标准
+.venv/bin/python g1/service/tools/load_gb3103.py
+```
+
+> 直接删 `data/app.db` 也行，但 `run.sh` 会在下次启动时重新灌入 GB/T 3103.3。
+
 ## 测试
 
 ```bash

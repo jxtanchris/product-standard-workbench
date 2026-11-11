@@ -623,6 +623,7 @@ function render(){
 
 /* ---------------- 请求 ---------------- */
 async function resolve(){
+  if(!S.meta || !S.meta.params || !S.meta.params.length){ return; }   // 空库时不发请求
   S.params = readParams();
   $('#msg').classList.remove('err');
   $('#msg').textContent = '解析中…';
@@ -697,6 +698,16 @@ let cardReady = false;
 async function initCard(){
   if(cardReady) return; cardReady = true;
   const list = await (await fetch('/api/standards')).json();
+  if(!list.length){
+    $('#stdTitle').textContent = '还没有标准';
+    $('#scope').textContent = '去「上传标准做分析」上传一份，或运行 tools/load_gb3103.py 灌入样例';
+    $('#form').innerHTML = '<div class="lbl" style="padding:6px 2px">库里还没有标准</div>';
+    $('#tbody').innerHTML = '<tr><td colspan="8" style="padding:28px;text-align:center;color:#9aa6b2">' +
+      '没有可用的标准，先去上传一份</td></tr>';
+    $('#btnExport').disabled = true;
+    $('#paramHint').textContent = '';
+    return;
+  }
   const want = new URLSearchParams(location.search).get('std');
   S.std = (want && list.some(s => s.id === want)) ? want : list[0].id;
   if(list.length > 1){
@@ -1091,6 +1102,15 @@ let tablesReady = false;
 async function initTables(){
   if(!tablesReady){
     const list = await (await fetch('/api/standards')).json();
+    if(!list.length){
+      $('#tblStd').innerHTML = '<option>（暂无标准）</option>';
+      $('#tblStat').textContent = '';
+      $('#tblList').innerHTML = '';
+      $('#tblDetail').innerHTML = '<div class="muted" style="padding:24px">' +
+        '库里还没有标准，先去「上传标准做分析」上传一份</div>';
+      tablesReady = true;
+      return;
+    }
     $('#tblStd').innerHTML = list.map(s =>
       `<option value="${s.id}">${esc(s.code)}${s.custom ? '（自定义）' : ''}</option>`).join('');
     $('#tblStd').onchange = loadTables;

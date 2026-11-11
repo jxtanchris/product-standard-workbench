@@ -70,6 +70,15 @@ g1/
   docs/                  界面截图
 ```
 
+## 清空数据
+
+```bash
+.venv/bin/python g1/service/tools/reset_db.py --jobs   # 标准/限值表/作业/上传件全清，保留表结构
+.venv/bin/python g1/service/tools/load_gb3103.py       # 想要回样例标准
+```
+
+> 直接删 `data/app.db` 会让 `run.sh` 下次启动时重新灌样例。
+
 ## 测试
 
 ```bash

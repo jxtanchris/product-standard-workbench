@@ -125,29 +125,8 @@ def get(std_id: str) -> Standard:
 
 
 # ---------------------------------------------------------------- GB/T 3103.3
-GB3103_3 = register(Standard(
-    id="gb3103-3",
-    code="GB/T 3103.3—2000",
-    title="紧固件公差  平垫圈",
-    category="机械 / 紧固件产品 / 垫圈",
-    scope="螺纹公称直径 1～150 mm 的螺栓、螺钉和螺母用 A 级、C 级冲压平垫圈",
-    note="公差适用于镀前尺寸（GB/T 5267）",
-    params=[
-        Param("grade", "产品等级", "enum", options=["A", "C"], default="A",
-              help="决定检项数量：C 级不要求 h₁、倒角、Δh、t₂"),
-        Param("material", "材料类型", "enum", options=["非不锈钢", "不锈钢"],
-              default="非不锈钢", help="影响平面度 t₂ 的取值"),
-        Param("h_nom", "公称厚度 h", "number", "mm", True, None, 0.1, 20, 2.0,
-              "决定 d₁、d₂、Δh、t₂ 的分档"),
-        Param("d1_nom", "通孔公称直径 d₁", "number", "mm", False, None, 1, 150, 13.0,
-              "用于通孔公差查档；留空则该项无法判定"),
-        Param("d2_nom", "外径公称 d₂", "number", "mm", False, None, 1, 250, 24.0,
-              "同轴度按此查档；留空则该项无法判定"),
-    ],
-    items=ITEMS,
-    tables=TABLES,
-    symbols=GB,
-))
+# GB/T 3103.3 不再硬编码：由 tools/load_gb3103.py 灌进数据库，
+# 标准只有一个来源 data/app.db，空库启动即“没有任何标准”。
 
 
 # ---------------------------------------------------------------- 自定义标准
