@@ -65,6 +65,12 @@
                 font:inherit;font-size:12.5px;color:#4a5765;cursor:pointer}
   .tabs2 button.on{background:#fff;color:var(--brand);font-weight:600;
                    box-shadow:0 1px 3px rgba(16,40,70,.12)}
+  .cat-grid{display:grid;grid-template-columns:minmax(320px,1fr) minmax(360px,1.1fr);gap:16px}
+  .panel-h{display:flex;align-items:center;gap:10px;padding:8px 2px;border-bottom:1px solid var(--line);
+           margin-bottom:6px}
+  .panel-h b{font-size:13px}
+  table.analyze tr.on{background:#e8f0f9}
+  table.analyze tr.on td{font-weight:600}
   .draft{border:1px solid var(--line);border-radius:10px;padding:12px 14px;margin-bottom:10px;background:#fff}
   .draft h4{margin:0 0 4px;font-size:13.5px}
   .draft .meta{font-size:11.5px;color:var(--muted)}
@@ -1091,64 +1097,103 @@ async function initCatalog(selected){
   renderCatDetail(cur);
 }
 
+let CATSEL = null;
+
 function renderCatDetail(cid){
   const c = CAT.find(x => x.id === cid);
   if(!c){ $('#catDetail').innerHTML = ''; return; }
-  const params = c.params.map(p => `
-    <div class="draft" data-p="${esc(p.id)}">
-      <h4>${esc(p.code)}　${esc(p.name)}</h4>
-      <div class="meta">${p.type === 'enum' ? '枚举' : '数值'}${p.unit ? ' · ' + esc(p.unit) : ''}
-        · ${isFreeValues(p.values) ? '自由取值（/ 占位）' : p.values.length + ' 个取值'}</div>
-      <div class="meta" style="margin-top:6px">${
-        p.values.length
-          ? p.values.map(v => `<code style="display:inline-block;margin:0 6px 4px 0">${esc(v.val)}</code>`).join('')
-          : '<span class="muted">（没有取值）</span>'}${
-        isFreeValues(p.values) ? '<span class="muted">　值不固定，由使用时填</span>' : ''}</div>
-      <div class="ops"><button class="btn ghost" data-op="vals" data-id="${esc(p.id)}">编辑取值</button></div>
-    </div>`).join('') || '<div class="muted" style="padding:16px">这个小类还没有参数</div>';
+  if(!c.params.some(p => p.id === CATSEL)) CATSEL = c.params[0] ? c.params[0].id : null;
+  const sel = c.params.find(p => p.id === CATSEL);
+
+  const paramRows = c.params.map((p, i) => `
+    <tr data-p="${esc(p.id)}" class="${p.id === CATSEL ? 'on' : ''}" style="cursor:pointer">
+      <td style="color:var(--muted)">${i + 1}</td>
+      <td><code>${esc(p.code)}</code></td>
+      <td>${esc(p.name)}</td>
+      <td style="color:var(--muted)">${isFreeValues(p.values) ? '自由取值'
+        : p.values.length + ' 个'}</td>
+    </tr>`).join('') || '<tr><td colspan="4" class="muted" style="padding:16px">还没有参数</td></tr>';
+
+  const valRows = !sel ? '' : (sel.values.length
+    ? sel.values.map((v, i) => `
+      <tr>
+        <td style="color:var(--muted)">${v.seq ?? i + 1}</td>
+        <td><code>${esc(v.sym ?? '')}</code></td>
+        <td>${esc(v.val ?? '')}${isFreeValues(sel.values)
+          ? '<span class="muted">（值不固定）</span>' : ''}</td>
+      </tr>`).join('')
+    : '<tr><td colspan="3" class="muted" style="padding:16px">这个参数还没有取值</td></tr>');
 
   $('#catDetail').innerHTML = `
     <div class="detail-title">${esc(c.name || c.code)}</div>
-    <div class="detail-sub">${esc(c.parent || '')}　·　小类代码 ${esc(c.code || '—')}</div>
-    <div class="summary" style="margin-bottom:10px">
+    <div class="detail-sub">${esc(c.parent || '')}　·　小类代码 ${esc(c.code || '—')}　·　${c.params.length} 个参数</div>
+    <div class="summary" style="margin-bottom:12px">
       <button class="btn ghost" id="btnAddParam">+ 新建参数</button>
       <button class="btn ghost" id="btnAttach">从参数名称表挂载</button>
       <span class="pill" style="margin-left:auto">参数名称与取值是全局的，一个小类用了不影响别的</span>
     </div>
-    ${params}
+
+    <div class="cat-grid">
+      <div>
+        <div class="panel-h"><b>参数名称</b><span class="lbl">点一行看取值</span></div>
+        <table class="analyze">
+          <thead><tr><th style="width:44px">#</th><th style="width:120px">参数代码</th>
+            <th>参数名称</th><th style="width:80px">取值</th></tr></thead>
+          <tbody id="catParams">${paramRows}</tbody>
+        </table>
+      </div>
+      <div>
+        <div class="panel-h"><b>参数取值</b>
+          <span class="lbl">${sel ? esc(sel.code) + '　' + esc(sel.name) : ''}</span>
+          ${sel ? '<button class="btn ghost" id="btnEditVals" style="margin-left:auto">编辑取值</button>' : ''}
+        </div>
+        <table class="analyze">
+          <thead><tr><th style="width:64px">顺序号</th><th style="width:140px">参数符号</th>
+            <th>参数定值</th></tr></thead>
+          <tbody>${valRows}</tbody>
+        </table>
+      </div>
+    </div>
+
     <div class="draft" id="attachBox" hidden>
       <h4>参数名称表</h4>
       <div class="meta">勾选后挂到「${esc(c.name || '')}」；取消勾选即解除</div>
       <div id="attachList" style="margin-top:8px"></div>
     </div>`;
-  $('#btnAddParam').onclick = () => addParamTo(c.id);
-  $('#btnAttach').onclick = async () => {
-    const box = $('#attachBox');
-    if(!box.hidden){ box.hidden = true; return; }
-    const all = await (await fetch('/api/params')).json();
-    const mine = new Set(c.params.map(p => p.id));
-    $('#attachList').innerHTML = all.map(p => `
-      <label style="display:block;padding:4px 0;cursor:pointer">
-        <input type="checkbox" class="atch" data-id="${esc(p.id)}" ${mine.has(p.id) ? 'checked' : ''}>
-        <b>${esc(p.code)}</b>　${esc(p.name)}
-        <span class="meta">${p.type === 'enum' ? '枚举' : '数值'} · ${
-          isFreeValues(p.values) ? '自由取值' : p.values.length + ' 个取值'}</span>
-      </label>`).join('') || '<div class="muted">参数名称表还是空的</div>';
-    box.hidden = false;
-    $('#attachList').onchange = async e => {
-      if(!e.target.classList.contains('atch')) return;
-      const pid = e.target.dataset.id;
-      const url = `/api/catalog/classes/${encodeURIComponent(c.id)}/params/${encodeURIComponent(pid)}`;
-      await fetch(url, {method: e.target.checked ? 'POST' : 'DELETE'});
-      initCatalog(c.id);
-    };
+
+  $('#catParams').onclick = e => {
+    const tr = e.target.closest('tr[data-p]');
+    if(!tr) return;
+    CATSEL = tr.dataset.p;
+    renderCatDetail(cid);
   };
-  $('#catDetail').onclick = e => {
-    const b = e.target.closest('[data-op="vals"]');
-    if(!b) return;
-    const p = c.params.find(x => x.id === b.dataset.id);
-    openVals({type: 'catalog', paramId: p.id, classId: c.id, title: p.code, sub: p.name,
-              list: p.values.map(v => ({sym: v.sym, val: v.val}))});
+  $('#btnEditVals') && ($('#btnEditVals').onclick = () => {
+    openVals({type: 'catalog', paramId: sel.id, classId: c.id, title: sel.code, sub: sel.name,
+              list: sel.values.map(v => ({sym: v.sym, val: v.val}))});
+  });
+  $('#btnAddParam').onclick = () => addParamTo(c.id);
+  $('#btnAttach').onclick = () => toggleAttach(c);
+}
+
+async function toggleAttach(c){
+  const box = $('#attachBox');
+  if(!box.hidden){ box.hidden = true; return; }
+  const all = await (await fetch('/api/params')).json();
+  const mine = new Set(c.params.map(p => p.id));
+  $('#attachList').innerHTML = all.map(p => `
+    <label style="display:block;padding:4px 0;cursor:pointer">
+      <input type="checkbox" class="atch" data-id="${esc(p.id)}" ${mine.has(p.id) ? 'checked' : ''}>
+      <b>${esc(p.code)}</b>　${esc(p.name)}
+      <span class="meta">${p.type === 'enum' ? '枚举' : '数值'} · ${
+        isFreeValues(p.values) ? '自由取值' : p.values.length + ' 个取值'}</span>
+    </label>`).join('') || '<div class="muted">参数名称表还是空的</div>';
+  box.hidden = false;
+  $('#attachList').onchange = async e => {
+    if(!e.target.classList.contains('atch')) return;
+    const pid = e.target.dataset.id;
+    const url = `/api/catalog/classes/${encodeURIComponent(c.id)}/params/${encodeURIComponent(pid)}`;
+    await fetch(url, {method: e.target.checked ? 'POST' : 'DELETE'});
+    initCatalog(c.id);
   };
 }
 
