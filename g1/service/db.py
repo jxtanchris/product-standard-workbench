@@ -81,7 +81,6 @@ CREATE TABLE IF NOT EXISTS limit_row (
 
 CREATE TABLE IF NOT EXISTS document (
     id            TEXT PRIMARY KEY,          -- sha256，天然去重
-    std_id        TEXT REFERENCES standard(id) ON DELETE CASCADE,
     job_id        TEXT,
     filename      TEXT,
     mime          TEXT DEFAULT 'application/pdf',
@@ -92,7 +91,15 @@ CREATE TABLE IF NOT EXISTS document (
     created_at    REAL
 );
 
-CREATE INDEX IF NOT EXISTS idx_doc_std ON document(std_id);
+-- 一份原件可以挂到多个标准上
+CREATE TABLE IF NOT EXISTS standard_document (
+    std_id     TEXT NOT NULL REFERENCES standard(id) ON DELETE CASCADE,
+    doc_id     TEXT NOT NULL REFERENCES document(id) ON DELETE CASCADE,
+    created_at REAL,
+    PRIMARY KEY (std_id, doc_id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_sd_doc ON standard_document(doc_id);
 CREATE INDEX IF NOT EXISTS idx_doc_job ON document(job_id);
 CREATE INDEX IF NOT EXISTS idx_lt_std ON limit_table(std_id);
 CREATE INDEX IF NOT EXISTS idx_lr_tbl ON limit_row(table_id);
@@ -114,10 +121,53 @@ def _columns(conn, table: str) -> set[str]:
     return {r[1] for r in conn.execute(f"PRAGMA table_info({table})")}
 
 
+def _migrate_document_links(conn: sqlite3.Connection) -> None:
+    """把 document.std_id（一份原件只能属于一个标准）迁到 standard_document。"""
+    cols = _columns(conn, "document")
+    if not cols or "std_id" not in cols:
+        return
+    conn.execute("PRAGMA foreign_keys = OFF")
+    conn.execute("CREATE TABLE IF NOT EXISTS _doc_links (std_id TEXT, doc_id TEXT)")
+    conn.execute("INSERT INTO _doc_links SELECT std_id, id FROM document WHERE std_id IS NOT NULL")
+    conn.executescript("""
+        ALTER TABLE document RENAME TO old_document;
+        CREATE TABLE document (
+            id            TEXT PRIMARY KEY,
+            job_id        TEXT,
+            filename      TEXT,
+            mime          TEXT DEFAULT 'application/pdf',
+            size          INTEGER,
+            storage       TEXT DEFAULT 'db',
+            path          TEXT,
+            content       BLOB,
+            created_at    REAL
+        );
+        INSERT INTO document(id, job_id, filename, mime, size, storage, path, content, created_at)
+            SELECT id, job_id, filename, mime, size, storage, path, content, created_at
+            FROM old_document;
+        DROP TABLE old_document;
+    """)
+    conn.executescript("""
+        CREATE TABLE IF NOT EXISTS standard_document (
+            std_id     TEXT NOT NULL REFERENCES standard(id) ON DELETE CASCADE,
+            doc_id     TEXT NOT NULL REFERENCES document(id) ON DELETE CASCADE,
+            created_at REAL,
+            PRIMARY KEY (std_id, doc_id)
+        );
+        CREATE INDEX IF NOT EXISTS idx_sd_doc ON standard_document(doc_id);
+    """)
+    conn.execute("INSERT OR IGNORE INTO standard_document(std_id, doc_id, created_at)"
+                 " SELECT std_id, doc_id, ? FROM _doc_links", (time.time(),))
+    conn.execute("DROP TABLE _doc_links")
+    conn.commit()
+    conn.execute("PRAGMA foreign_keys = ON")
+
+
 def _migrate(conn: sqlite3.Connection) -> None:
     """旧库（limit_table.id 为全局 TEXT 主键）→ 新库（标准内唯一 + 代理键）。"""
     cols = _columns(conn, "limit_table")
     if not cols or "local_id" in cols:
+        _migrate_document_links(conn)
         return
 
     conn.executescript("""
@@ -155,6 +205,7 @@ def _migrate(conn: sqlite3.Connection) -> None:
         DROP TABLE old_limit_table;
     """)
     conn.commit()
+    _migrate_document_links(conn)
 
 
 # ------------------------------------------------------------------ 工具
@@ -389,7 +440,7 @@ def stats(conn: sqlite3.Connection) -> dict:
 # ------------------------------------------------------------------ 文档（PDF 原件）
 def save_document(conn: sqlite3.Connection, sha: str, filename: str, size: int,
                   *, data: bytes | None = None, path: str | None = None,
-                  job_id: str | None = None, std_id: str | None = None) -> str:
+                  job_id: str | None = None) -> str:
     """按 sha256 入库；同内容只存一份。"""
     row = conn.execute("SELECT id, storage FROM document WHERE id=?", (sha,)).fetchone()
     if row:
@@ -400,9 +451,9 @@ def save_document(conn: sqlite3.Connection, sha: str, filename: str, size: int,
         return sha
     storage = "db" if data is not None else "file"
     conn.execute(
-        "INSERT INTO document(id, std_id, job_id, filename, size, storage, path, content, created_at)"
-        " VALUES (?,?,?,?,?,?,?,?,?)",
-        (sha, std_id, job_id, filename, size, storage,
+        "INSERT INTO document(id, job_id, filename, size, storage, path, content, created_at)"
+        " VALUES (?,?,?,?,?,?,?,?)",
+        (sha, job_id, filename, size, storage,
          path if data is None else None, data, time.time()))
     conn.commit()
     return sha
@@ -418,8 +469,9 @@ def document_for_job(conn: sqlite3.Connection, job_id: str):
 
 
 def document_for_standard(conn: sqlite3.Connection, std_id: str):
-    row = conn.execute("SELECT * FROM document WHERE std_id=? ORDER BY created_at DESC",
-                       (std_id,)).fetchone()
+    row = conn.execute(
+        "SELECT d.* FROM document d JOIN standard_document sd ON sd.doc_id = d.id"
+        " WHERE sd.std_id=? ORDER BY sd.created_at DESC", (std_id,)).fetchone()
     if row:
         return row
     s = conn.execute("SELECT source_json FROM standard WHERE id=?", (std_id,)).fetchone()
@@ -431,8 +483,18 @@ def document_for_standard(conn: sqlite3.Connection, std_id: str):
     return None
 
 
-def link_document(conn: sqlite3.Connection, job_id: str, std_id: str) -> None:
-    conn.execute("UPDATE document SET std_id=? WHERE job_id=?", (std_id, job_id))
+def link_document(conn: sqlite3.Connection, job_id: str, std_id: str) -> int:
+    """把某个作业的原件挂到标准上（可挂多个，不移动）。返回挂上的数量。"""
+    rows = list(conn.execute("SELECT id FROM document WHERE job_id=?", (job_id,)))
+    for r in rows:
+        conn.execute("INSERT OR IGNORE INTO standard_document(std_id, doc_id, created_at)"
+                     " VALUES (?,?,?)", (std_id, r["id"], time.time()))
+    conn.commit()
+    return len(rows)
+
+
+def unlink_document(conn: sqlite3.Connection, std_id: str, doc_id: str) -> None:
+    conn.execute("DELETE FROM standard_document WHERE std_id=? AND doc_id=?", (std_id, doc_id))
     conn.commit()
 
 

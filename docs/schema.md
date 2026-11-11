@@ -1,6 +1,6 @@
 # 数据结构
 
-数据库：SQLite，单文件 `data/app.db`。5 张表，全部逻辑关系由外键 + 级联删除表达。
+数据库：SQLite，单文件 `data/app.db`。6 张表，全部逻辑关系由外键 + 级联删除表达。
 
 ![数据逻辑视图](schema.png)
 
@@ -13,7 +13,8 @@
 | `limit_table` | 一张多维限值表的表头 | N:1 `standard` | 8 |
 | `limit_dim` | 表的一个自变量（维度） | N:1 `limit_table` | 18 |
 | `limit_row` | 维度组合 → 限值 | N:1 `limit_table` | 143 |
-| `document` | 标准原件（PDF） | N:1 `standard` | 1 |
+| `document` | 标准原件（PDF） | — | 1 |
+| `standard_document` | 标准 ↔ 原件（多对多） | 两边都 N:1 | 1 |
 
 ---
 
@@ -121,12 +122,11 @@
 
 ---
 
-## 5.1 document（原件）
+## 5.1 document（原件）+ standard_document（关联）
 
 | 字段 | 类型 | 约束 | 说明 |
 |---|---|---|---|
 | `id` | TEXT | **PK** | **sha256**，内容寻址，天然去重 |
-| `std_id` | TEXT | **FK** → `standard.id` `ON DELETE CASCADE` | 可为空（作业阶段还没标准） |
 | `job_id` | TEXT | | 来自哪次上传 |
 | `filename` | TEXT | | 原始文件名 |
 | `mime` | TEXT | | 默认 `application/pdf` |
@@ -140,8 +140,10 @@
 
 **去重**：id 就是 sha256，同一份文件重复上传只会有一行，且直接复用已有作业，不重复 OCR。
 
-**生命周期**：上传时 `std_id` 为空；发布成标准时由 `POST /api/standards/{id}/source` 或
-publish 流程回填。原件入库后，磁盘上的临时副本会在分析结束时删掉。
+**生命周期**：上传后只是一个"文档"，挂到哪个标准由 `standard_document` 决定。
+一份原件可以挂多个标准（同族标准共用一份附录）；删标准只删关联，原件保留。
+
+原件入库后，磁盘上的临时副本会在分析结束时删掉。
 
 ---
 
@@ -152,7 +154,8 @@ erDiagram
     standard ||--o{ limit_table : "std_id (CASCADE)"
     limit_table ||--o{ limit_dim  : "table_id (CASCADE)"
     limit_table ||--o{ limit_row  : "table_id (CASCADE)"
-    standard ||--o{ document      : "std_id (CASCADE)"
+    standard ||--o{ standard_document : "std_id (CASCADE)"
+    document ||--o{ standard_document : "doc_id (CASCADE)"
 
     standard {
         text id PK
@@ -179,7 +182,6 @@ erDiagram
     }
     document {
         text id PK "sha256"
-        text std_id FK
         text job_id
         text storage "db|file"
         blob content
@@ -197,7 +199,8 @@ erDiagram
     }
 ```
 
-- 删 `standard` → 级联删它的 `limit_table` 与 `document` → 再级联删 `limit_dim` / `limit_row`。
+- 删 `standard` → 级联删它的 `limit_table`（连带维度/行）与 `standard_document` 关联；
+  **原件本身保留**，还能挂到别的标准上。
 - `canonical` 的引用方向只有一条：**标准 → 表 → 维度/行**。检项通过 `item_json[].table` 指向 `local_id`。
 
 ---
@@ -258,7 +261,6 @@ CREATE TABLE limit_row (
 
 CREATE TABLE document (
     id            TEXT PRIMARY KEY,          -- sha256
-    std_id        TEXT REFERENCES standard(id) ON DELETE CASCADE,
     job_id        TEXT,
     filename      TEXT,
     mime          TEXT DEFAULT 'application/pdf',
@@ -269,7 +271,14 @@ CREATE TABLE document (
     created_at    REAL
 );
 
-CREATE INDEX idx_doc_std ON document(std_id);
+CREATE TABLE standard_document (
+    std_id     TEXT NOT NULL REFERENCES standard(id) ON DELETE CASCADE,
+    doc_id     TEXT NOT NULL REFERENCES document(id) ON DELETE CASCADE,
+    created_at REAL,
+    PRIMARY KEY (std_id, doc_id)
+);
+
+CREATE INDEX idx_sd_doc ON standard_document(doc_id);
 CREATE INDEX idx_doc_job ON document(job_id);
 CREATE INDEX idx_lt_std ON limit_table(std_id);
 CREATE INDEX idx_lr_tbl ON limit_row(table_id);

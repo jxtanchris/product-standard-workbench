@@ -59,11 +59,16 @@ ENTITIES = {
             ("kind", "TEXT", "", "enum 枚举 / range 区间"),
             ("values_json", "JSON", "", "取值：[\"A\",\"C\"] 或 [[0,4],[4,20]]"),
         ]),
+    "standard_document": dict(
+        x=30, y=0, w=330, title="standard_document", sub="标准 ↔ 原件（多对多）", rows=[
+            ("std_id", "TEXT", "PK", "→ standard.id"),
+            ("doc_id", "TEXT", "PK", "→ document.id"),
+            ("created_at", "REAL", "", "挂载时间"),
+        ]),
     "document": dict(
         x=30, y=470, w=330, title="document", sub="标准原件（PDF 存档）", rows=[
             ("id", "TEXT", "PK", "sha256，内容寻址"),
-            ("std_id", "TEXT", "FK", "→ standard.id（可空）"),
-            ("job_id", "TEXT", "FK", "来自哪次上传"),
+            ("job_id", "TEXT", "", "来自哪次上传"),
             ("filename", "TEXT", "", "原始文件名"),
             ("size", "INT", "", "字节数"),
             ("storage", "TEXT", "", "db：内容进库 / file：只存路径"),
@@ -133,26 +138,28 @@ def arrow(x1, y1, x2, y2, label, sub=""):
     <text x="{mid}" y="{y1+16}" text-anchor="middle" fill="{MUTED}" font-size="10.5">{esc(sub)}</text>'''
 
 
-def build_h() -> int:
-    dim = ENTITIES["limit_dim"]
-    row = ENTITIES["limit_row"]
+def layout() -> int:
+    """统一算一遍各卡的 y，返回画布高度。"""
+    std, dim, row = ENTITIES["standard"], ENTITIES["limit_dim"], ENTITIES["limit_row"]
     row["y"] = dim["y"] + card_h(dim) + 40
-    return max(ENTITIES["standard"]["y"] + card_h(ENTITIES["standard"]),
-               ENTITIES["limit_table"]["y"] + card_h(ENTITIES["limit_table"]),
-               row["y"] + card_h(row)) + 110
+    link, doc = ENTITIES["standard_document"], ENTITIES["document"]
+    link["y"] = std["y"] + card_h(std) + 46
+    doc["y"] = link["y"] + card_h(link) + 46
+    return max(std["y"] + card_h(std), ENTITIES["limit_table"]["y"] + card_h(ENTITIES["limit_table"]),
+               row["y"] + card_h(row), doc["y"] + card_h(doc)) + 110
 
 
-def _doc_arrow(std: dict, doc: dict) -> str:
-    """document → standard 的竖直箭头（自带标注，避免压到卡片标题）。"""
-    x = doc["x"] + 64
-    y_top = doc["y"] - 4
-    y_bottom = std["y"] + card_h(std) + 4
+def _up_arrow(lower: dict, upper: dict, label: str, sub: str, dx: int = 64) -> str:
+    """下方卡片 → 上方卡片的竖直箭头（自带标注，避免压到标题）。"""
+    x = lower["x"] + dx
+    y_top = lower["y"] - 4
+    y_bottom = upper["y"] + card_h(upper) + 4
     mid = (y_top + y_bottom) / 2
     return f'''
     <path d="M{x} {y_top} L{x} {y_bottom+9}" stroke="{LINE}" stroke-width="1.6" fill="none"/>
     <path d="M{x-5} {y_bottom+10} L{x} {y_bottom} L{x+5} {y_bottom+10} z" fill="{LINE}"/>
-    <text x="{x+12}" y="{mid-4}" fill="{TXT}" font-size="11.5" font-weight="600">N : 1</text>
-    <text x="{x+12}" y="{mid+12}" fill="{MUTED}" font-size="10.5">document.std_id</text>'''
+    <text x="{x+12}" y="{mid-4}" fill="{TXT}" font-size="11.5" font-weight="600">{label}</text>
+    <text x="{x+12}" y="{mid+12}" fill="{MUTED}" font-size="10.5">{sub}</text>'''
 
 
 def build() -> str:
@@ -160,11 +167,7 @@ def build() -> str:
     lt = ENTITIES["limit_table"]
     dim = ENTITIES["limit_dim"]
     row = ENTITIES["limit_row"]
-    row["y"] = dim["y"] + card_h(dim) + 40
-    doc = ENTITIES["document"]
-    doc["y"] = std["y"] + card_h(std) + 46
-    H = max(std["y"] + card_h(std), lt["y"] + card_h(lt),
-            row["y"] + card_h(row), doc["y"] + card_h(doc)) + 110
+    H = layout()
 
     parts = [
         f'<svg xmlns="http://www.w3.org/2000/svg" width="{W}" height="{H}" viewBox="0 0 {W} {H}" '
@@ -173,17 +176,19 @@ def build() -> str:
         f'<text x="30" y="34" fill="{TXT}" font-size="16" font-weight="700">'
         f'数据逻辑视图 · 产品标准分析工作台</text>',
         f'<text x="30" y="52" fill="{MUTED}" font-size="11.5">'
-        f'5 张表；标准持有参数与检项（JSON），限值表按 标准 → 表 → 维度/行 三级展开，原件按 sha256 存档</text>',
-        card(std), card(lt), card(dim), card(row), card(ENTITIES["document"]),
+        f'6 张表；标准持有参数与检项（JSON），限值表按 标准 → 表 → 维度/行 三级展开，原件按 sha256 存档、可挂多个标准</text>',
+        card(std), card(lt), card(dim), card(row),
+        card(ENTITIES["standard_document"]), card(ENTITIES["document"]),
         arrow(std["x"] + std["w"], 190, lt["x"], 190, "1 : N", "limit_table.std_id"),
         arrow(lt["x"] + lt["w"], 140, dim["x"], 140, "1 : N", "limit_dim.table_id"),
         arrow(lt["x"] + lt["w"], 230, row["x"], row["y"] + 90, "1 : N", "limit_row.table_id"),
-        _doc_arrow(std, ENTITIES["document"]),
+        _up_arrow(ENTITIES["standard_document"], std, "N : 1", "sd.std_id"),
+        _up_arrow(ENTITIES["document"], ENTITIES["standard_document"], "1 : N", "sd.doc_id"),
         # 说明
         f'<text x="30" y="{H-72}" fill="{MUTED}" font-size="11.5">'
-        f'· 级联：删 standard 自动删其 limit_table 与 document，再删 limit_dim / limit_row</text>',
+        f'· 级联：删 standard 删其 limit_table（连带维度/行）与 standard_document 关联，原件本身保留</text>',
         f'<text x="30" y="{H-52}" fill="{MUTED}" font-size="11.5">'
-        f'· 唯一：UNIQUE(std_id, local_id) —— 同一标准内表 id 唯一，跨标准可同名</text>',
+        f'· 唯一：UNIQUE(std_id, local_id)；standard_document 主键 (std_id, doc_id)</text>',
         f'<text x="30" y="{H-32}" fill="{MUTED}" font-size="11.5">'
         f'· 求值：按维度命中一行 → 取 lower/upper 或表达式 → deviation 时叠加 nominal_param</text>',
         "</svg>",
@@ -204,7 +209,7 @@ def main() -> int:
                     "--disable-crash-reporter", "--disable-breakpad",
                     "--hide-scrollbars", "--force-device-scale-factor=2",
                     f"--user-data-dir={profile}",
-                    f"--window-size={W},{build_h()}",
+                    f"--window-size={W},{layout()}",
                     f"--screenshot={OUT_PNG}", OUT_HTML.as_uri()],
                    check=True, capture_output=True, timeout=120)
     OUT_HTML.unlink(missing_ok=True)

@@ -220,6 +220,33 @@ def main():
     st, body2, _ = get(f"/api/standards/{std_id}/source.pdf")
     check("标准原件可下载且一致", st == 200 and body2 == PDF.read_bytes())
 
+    print("6b. 一份原件可挂多个标准")
+    pub2 = post("/api/standards/publish", {
+        "job_id": job_id, "code": "GB/T 8888-TEST", "title": "共用同一份原件的第二个标准",
+        "params": [{"code": "grade", "name": "等级", "type": "enum",
+                    "options": ["A"], "default": "A"}],
+        "items": [{"id": "x", "title": "示例检项", "clause": "3.1", "page": None, "selected": True}],
+        "limits": {"x": {"mode": "range", "lower": 0, "upper": 1}},
+    })
+    sid2 = pub2["std_id"]
+    flags = {x["id"]: x["has_source"] for x in getjson("/api/standards")}
+    check("两个标准都拿到同一份原件", flags.get(std_id) and flags.get(sid2), str(flags))
+
+    d1 = get(f"/api/standards/{std_id}/source.pdf")[1]
+    d2 = get(f"/api/standards/{sid2}/source.pdf")[1]
+    check("两个标准下载内容一致", d1 == d2 == PDF.read_bytes())
+
+    doc_row = [x for x in getjson("/api/documents") if x["id"] == mine[0]["id"]][0]
+    check("文档记录了多个标准", len(doc_row["std_ids"]) >= 2, str(doc_row["std_ids"]))
+
+    req = urllib.request.Request(f"{BASE}/api/standards/unpublish/{sid2}", method="POST")
+    with urllib.request.urlopen(req, timeout=10) as r:
+        r.read()
+    flags2 = {x["id"]: x["has_source"] for x in getjson("/api/standards")}
+    check("删掉一个标准，另一个仍有原件", flags2.get(std_id) is True, str(flags2))
+    still = [x for x in getjson("/api/documents") if x["id"] == mine[0]["id"]]
+    check("原件本身没被删", bool(still), str(still))
+
     print("7. 原文与清理")
     req = urllib.request.Request(f"{BASE}/api/standards/unpublish/{std_id}", method="POST")
     with urllib.request.urlopen(req, timeout=10) as r:

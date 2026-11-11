@@ -182,7 +182,8 @@ CREATE TABLE limit_row (
 | GET | `/api/card.xlsx?std=&<参数>` | 导出检验卡 |
 | GET | `/api/standards/{id}/source.pdf` | 下载标准原件（`#page=N` 可在浏览器定位到页） |
 | POST | `/api/standards/{id}/backfill-pages` | 按条款号在原件的 OCR 文本里回填页码 |
-| POST | `/api/standards/{id}/source` | 把某次上传的原件挂到该标准 |
+| POST | `/api/standards/{id}/source` | 把某次上传的原件挂到该标准（可挂多个标准） |
+| DELETE | `/api/standards/{id}/source` | 解除该标准与原件的关联（原件保留） |
 | GET | `/api/documents` | 已存档原件清单 |
 | GET | `/api/db/stats` | 库统计 |
 

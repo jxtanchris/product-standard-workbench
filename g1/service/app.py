@@ -358,6 +358,7 @@ def attach_source(std_id: str, payload: SourcePayload):
     except Exception:
         back = {"matched": 0, "changed": 0}
     return {"ok": True, "filename": doc["filename"], "sha256": doc["id"],
+            "linked": True,
             "pages_matched": back.get("matched", 0), "pages_changed": back.get("changed", 0)}
 
 
@@ -374,12 +375,27 @@ def job_source(job_id: str):
     return _send_document(dbmod.document_for_job(dbmod.connect(), job_id))
 
 
+@app.delete("/api/standards/{std_id}/source")
+def detach_source(std_id: str):
+    _std(std_id)
+    conn = dbmod.connect()
+    doc = dbmod.document_for_standard(conn, std_id)
+    if not doc:
+        raise HTTPException(404, "这个标准没有挂原件")
+    dbmod.unlink_document(conn, std_id, doc["id"])
+    return {"ok": True, "sha256": doc["id"]}
+
+
 @app.get("/api/documents")
 def documents():
     conn = dbmod.connect()
-    return [{"id": r["id"], "filename": r["filename"], "size": r["size"],
-             "storage": r["storage"], "std_id": r["std_id"], "job_id": r["job_id"]}
-            for r in conn.execute("SELECT * FROM document ORDER BY created_at DESC")]
+    out = []
+    for r in conn.execute("SELECT * FROM document ORDER BY created_at DESC"):
+        stds = [x["std_id"] for x in
+                conn.execute("SELECT std_id FROM standard_document WHERE doc_id=?", (r["id"],))]
+        out.append({"id": r["id"], "filename": r["filename"], "size": r["size"],
+                    "storage": r["storage"], "job_id": r["job_id"], "std_ids": stds})
+    return out
 
 
 @app.get("/api/db/stats")
