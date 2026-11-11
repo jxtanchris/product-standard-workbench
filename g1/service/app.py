@@ -457,11 +457,16 @@ def publish(payload: PublishPayload):
 
 @app.post("/api/standards/unpublish/{std_id}")
 def unpublish(std_id: str):
+    """下架自定义标准。幂等：内存里没有也照样清库，避免留下孤儿标准。"""
     std = REGISTRY.get(std_id)
-    if not std or not std.custom:
-        raise HTTPException(404, "只能下架自定义标准")
+    if std and not std.custom:
+        raise HTTPException(400, "内置标准不能下架")
     REGISTRY.pop(std_id, None)
-    dbmod.delete(dbmod.connect(), std_id)
+    conn = dbmod.connect()
+    found = conn.execute("SELECT id FROM standard WHERE id=?", (std_id,)).fetchone()
+    dbmod.delete(conn, std_id)
+    if not found:
+        raise HTTPException(404, "标准不存在")
     return {"ok": True}
 
 
