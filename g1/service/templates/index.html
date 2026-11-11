@@ -1,0 +1,1568 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>产品标准检验卡</title>
+<style>
+  :root{
+    --bg:#f4f6f9; --card:#fff; --line:#e3e8ef; --ink:#1b2430; --muted:#6b7785;
+    --brand:#1f4e79; --brand-2:#2f6fb0;
+    --ok:#0f7b4f; --bad:#b42318; --na:#6b7785; --warn:#8a5a00;
+  }
+  *{box-sizing:border-box}
+  [hidden]{display:none !important}
+  body{margin:0;background:var(--bg);color:var(--ink);
+       font-family:-apple-system,BlinkMacSystemFont,"PingFang SC","Microsoft YaHei",system-ui,sans-serif;
+       font-size:14px;line-height:1.55}
+  header{background:linear-gradient(135deg,#1f4e79,#2f6fb0);color:#fff;padding:18px 28px}
+  header .row{display:flex;align-items:baseline;gap:14px;flex-wrap:wrap}
+  header h1{margin:0;font-size:19px;font-weight:600;letter-spacing:.5px}
+  header .sub{font-size:13px;opacity:.85}
+  header select{margin-left:auto;background:rgba(255,255,255,.16);border:1px solid rgba(255,255,255,.3);
+                color:#fff;border-radius:8px;padding:5px 10px;font-size:12.5px}
+  header select option{color:#1b2430}
+  main{max-width:1240px;margin:0 auto;padding:20px 20px 40px}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:12px;
+        box-shadow:0 1px 2px rgba(16,24,40,.04);margin-bottom:16px}
+  .card-h{padding:14px 18px;border-bottom:1px solid var(--line);display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+  .card-h h2{margin:0;font-size:14px;font-weight:600}
+  .card-h .hint{margin-left:auto;color:var(--muted);font-size:12px}
+  .card-b{padding:16px 18px}
+
+  .params{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:16px 18px}
+  .fld label{display:flex;align-items:baseline;gap:6px;font-size:12px;color:var(--muted);margin-bottom:5px}
+  .fld label b{color:var(--ink);font-weight:600;font-size:12.5px}
+  .fld code{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:10.5px;
+            color:#5b6b7f;background:#edf1f6;border-radius:4px;padding:1px 6px;margin-left:2px}
+  .fld .help{display:block;color:#98a3b1;font-size:11px;margin-top:5px;min-height:15px}
+  .seg{display:inline-flex;border:1px solid var(--line);border-radius:8px;overflow:hidden}
+  .seg button{border:0;background:#fff;padding:7px 22px;font-size:13px;cursor:pointer;color:var(--muted)}
+  .seg button+button{border-left:1px solid var(--line)}
+  .seg button.on{background:var(--brand);color:#fff}
+  input[type=number],select{width:100%;padding:7px 10px;border:1px solid var(--line);
+       border-radius:8px;font-size:13px;background:#fff;color:var(--ink);font-variant-numeric:tabular-nums}
+  input[type=number]:focus,select:focus{outline:2px solid #bcd4ee;border-color:var(--brand-2)}
+  .actions{display:flex;gap:10px;align-items:center;margin-top:18px;flex-wrap:wrap}
+  .btn{border:0;border-radius:8px;padding:8px 18px;font-size:13px;cursor:pointer;font-weight:500}
+  .btn.primary{background:var(--brand);color:#fff}
+  .btn.primary:hover{background:#173d5f}
+  .btn.ghost{background:#fff;border:1px solid var(--line);color:var(--ink)}
+  .btn.ghost:hover{border-color:#c3cede}
+  .btn:disabled{opacity:.45;cursor:not-allowed}
+  .msg{margin-left:auto;font-size:12px;color:var(--muted)}
+  .msg.err{color:var(--bad)}
+
+  table{width:100%;border-collapse:collapse}
+  th,td{padding:10px;border-bottom:1px solid var(--line);vertical-align:middle;text-align:left}
+  th{font-size:12px;color:var(--muted);font-weight:600;background:#fafbfd;white-space:nowrap}
+  th:nth-child(1){width:36px} th:nth-child(3){width:62px}
+  th:nth-child(5){width:96px} th:nth-child(6){width:150px}
+  th:nth-child(7){width:96px} th:nth-child(8){width:44px}
+  tbody tr.item:hover{background:#fafcff}
+  td.idx{width:34px;color:var(--muted);font-variant-numeric:tabular-nums}
+  td.name{font-weight:600;white-space:nowrap}
+  td.name .sym{font-weight:400;color:var(--muted);margin-left:4px}
+  td.clause{width:52px;color:var(--muted)}
+  td.limit{font-variant-numeric:tabular-nums;white-space:nowrap}
+  td.meas input{padding:5px 8px;font-size:13px}
+  td.verdict{width:92px;font-weight:600}
+  td.more{width:34px;text-align:right}
+  .more button{border:0;background:none;cursor:pointer;color:var(--muted);font-size:15px;padding:2px 6px}
+  .badge{display:inline-block;padding:2px 9px;border-radius:999px;font-size:12px;white-space:nowrap}
+  .badge.ok{background:#e8f0f9;color:var(--brand)}
+  .badge.na{background:#eef1f5;color:var(--na)}
+  .badge.warn{background:#fdf4e3;color:var(--warn)}
+  .v-合格{color:var(--ok)} .v-不合格{color:var(--bad)} .v-不适用{color:var(--na)}
+  .v-未检测{color:#9aa6b2;font-weight:400} .v-无法判定{color:var(--warn)}
+  tr.detail td{background:#fafbfd;border-bottom:1px solid var(--line);padding:12px 14px 14px 48px}
+  .dt{display:grid;grid-template-columns:88px 1fr;gap:6px 12px;font-size:12.5px}
+  .dt dt{color:var(--muted)}
+  .dt dd{margin:0}
+  .dt code{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:11px;
+           background:#eef2f7;border-radius:4px;padding:1px 5px;color:#4a596b}
+  .trace{margin-top:10px;background:#0f1720;color:#c8d6e5;border-radius:8px;padding:10px 12px;
+         font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:11.5px;
+         white-space:pre-wrap;line-height:1.65}
+  .trace .t{color:#7f8fa3}
+
+  .summary{display:flex;align-items:center;gap:18px;flex-wrap:wrap;padding:12px 18px;
+           border-top:1px solid var(--line);background:#fafbfd;border-radius:0 0 12px 12px}
+  .summary .big{font-size:15px;font-weight:600}
+  .summary .big.合格{color:var(--ok)} .summary .big.不合格{color:var(--bad)}
+  .summary .big.待判定{color:var(--muted)}
+  .pill{display:inline-flex;gap:6px;align-items:center;font-size:12px;color:var(--muted)}
+  .pill b{color:var(--ink);font-variant-numeric:tabular-nums}
+  footer{max-width:1240px;margin:0 auto;padding:0 20px 40px;color:var(--muted);font-size:12px}
+  footer code{font-family:ui-monospace,Menlo,monospace;font-size:11px;background:#eceff4;
+              border-radius:4px;padding:1px 5px;color:#4a596b}
+
+  /* 顶部导航 */
+  nav.tabs{display:flex;gap:4px;padding:0 28px;background:#fff;border-bottom:1px solid var(--line)}
+  nav.tabs button{border:0;background:none;padding:12px 16px;font-size:13.5px;color:var(--muted);
+                  cursor:pointer;border-bottom:2px solid transparent;font-weight:500}
+  nav.tabs button.on{color:var(--brand);border-bottom-color:var(--brand)}
+  nav.tabs button:hover{color:var(--ink)}
+
+  /* 上传 */
+  .dropzone{border:1.5px dashed #c8d3e0;border-radius:12px;padding:34px 20px;text-align:center;
+            background:#fafcff;transition:.15s}
+  .dropzone.hot{border-color:var(--brand-2);background:#f2f7fd}
+  .dropzone .small{color:#98a3b1;font-size:12px;margin-top:8px}
+  .dropzone .big{font-size:14px;margin-bottom:6px}
+  .progress{margin-top:14px;display:flex;align-items:center;gap:12px}
+  .progress .bar{flex:1;height:6px;background:#e8edf4;border-radius:99px;overflow:hidden}
+  .progress .bar i{display:block;height:100%;width:0;background:var(--brand-2);transition:width .3s}
+  .progress span{font-size:12px;color:var(--muted);font-variant-numeric:tabular-nums;min-width:130px}
+  textarea{width:100%;min-height:140px;padding:10px;border:1px solid var(--line);border-radius:8px;
+           font-family:ui-monospace,Menlo,monospace;font-size:12px;line-height:1.6;resize:vertical}
+  .toggles{display:flex;gap:14px;align-items:center;flex-wrap:wrap;font-size:12px;color:var(--muted)}
+  .toggles label{display:flex;gap:5px;align-items:center;cursor:pointer}
+  .jobmeta{display:flex;gap:18px;flex-wrap:wrap;font-size:12px;color:var(--muted);
+           padding:10px 18px;border-bottom:1px solid var(--line);background:#fafbfd}
+  .jobmeta b{color:var(--ink);font-weight:600}
+  .stdline{display:flex;gap:10px;align-items:center;padding:12px 18px;border-bottom:1px solid var(--line)}
+  .stdline input{border:1px solid var(--line);border-radius:8px;padding:6px 10px;font-size:13px}
+  .stdline input.code{width:190px;font-variant-numeric:tabular-nums}
+  .stdline input.title{flex:1}
+  table.analyze td{padding:8px 10px}
+  table.analyze input[type=text]{width:100%;border:1px solid transparent;border-radius:6px;
+       padding:5px 7px;font-size:13px;background:transparent}
+  table.analyze input[type=text]:hover{border-color:var(--line);background:#fff}
+  table.analyze input[type=text]:focus{border-color:var(--brand-2);background:#fff;outline:2px solid #bcd4ee}
+  table.analyze select{border:1px solid transparent;border-radius:6px;padding:5px 4px;font-size:12.5px;background:transparent}
+  table.analyze select:hover{border-color:var(--line);background:#fff}
+  td.evi{max-width:420px;color:var(--muted);font-size:11.5px;line-height:1.5}
+  .chk{width:16px;height:16px;accent-color:var(--brand)}
+  .rowdel{border:0;background:none;color:#b8c2ce;cursor:pointer;font-size:15px}
+  .rowdel:hover{color:var(--bad)}
+  .muted{color:var(--muted)}
+  .split{display:grid;grid-template-columns:290px minmax(0,1fr)}
+  .pane-left{border-right:1px solid var(--line);background:#fafbfd;padding:12px;min-width:0}
+  .pane-left .pane-head{display:flex;flex-direction:column;gap:6px;margin-bottom:10px}
+  .tbl-list{list-style:none;margin:0;padding:0;max-height:560px;overflow:auto}
+  .tbl-list li{padding:9px 10px;border-radius:8px;cursor:pointer;border:1px solid transparent;margin-bottom:4px}
+  .tbl-list li:hover{background:#fff;border-color:var(--line)}
+  .tbl-list li.on{background:#e8f0f9;border-color:#bcd4ee}
+  .tbl-list .tname{display:block;font-size:13px;font-weight:600;line-height:1.35}
+  .tbl-list .tmeta{display:block;font-size:11.5px;color:var(--muted);margin-top:2px}
+  .tbl-list .tgroup{font-size:11.5px;color:#7b8794;font-weight:600;letter-spacing:.4px;
+                    padding:10px 10px 4px;border-top:1px solid var(--line);margin-top:4px}
+  .tbl-list .tgroup:first-child{border-top:0;margin-top:0;padding-top:2px}
+  .tbl-list .tgroup span{color:#a9b4c0;font-weight:400;margin-left:4px}
+  .pane-right{padding:14px 18px;min-width:0}
+  .det-head{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:10px}
+  .det-head b{font-size:15px}
+  .det-sub{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px}
+  @media (max-width:900px){ .split{grid-template-columns:1fr}
+    .pane-left{border-right:0;border-bottom:1px solid var(--line)} }
+  .modal{position:fixed;inset:0;background:rgba(15,23,32,.45);display:flex;align-items:center;
+         justify-content:center;z-index:50;padding:24px}
+  .modal .panel{background:#fff;border-radius:12px;width:min(1180px,100%);max-height:90vh;
+                display:flex;flex-direction:column;overflow:hidden;box-shadow:0 12px 40px rgba(16,24,40,.24)}
+  .modal .mhead{display:flex;align-items:center;gap:10px;padding:14px 18px;border-bottom:1px solid var(--line)}
+  .modal .mhead h3{margin:0;font-size:15px}
+  .modal .mbody{padding:16px 18px;overflow:auto}
+  .modal .mfoot{display:flex;gap:10px;align-items:center;padding:12px 18px;border-top:1px solid var(--line);background:#fafbfd}
+  .erow{display:grid;grid-template-columns:1.1fr 1fr 1.6fr 4fr 34px;gap:10px;align-items:center;margin-bottom:8px}
+  .erow .lbl{font-size:12px;color:var(--muted)}
+  .dimrow{display:grid;grid-template-columns:130px 110px 1fr 34px;gap:10px;align-items:center;margin-bottom:8px}
+  .edtable td input[type=text]{width:100%;border:1px solid var(--line);border-radius:6px;padding:4px 7px;font-size:12.5px}
+  .chip{display:inline-block;background:#eef2f7;color:#4a596b;border-radius:6px;padding:2px 8px;font-size:11.5px;margin-right:6px}
+  .tblcard{border:1px solid var(--line);border-radius:10px;padding:12px;margin-bottom:12px;background:#fff}
+  .tblhead{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:8px;font-size:13px}
+  .tblhead b{font-size:13.5px}
+  #tblWrap td{white-space:nowrap}
+  #tblDetail td{white-space:nowrap}
+  #tblDetail td.muted{white-space:normal}
+  #tblWrap td.muted{white-space:normal}
+  pre.ocr{max-height:360px;overflow:auto;background:#0f1720;color:#c8d6e5;border-radius:10px;
+          padding:14px 16px;font-size:11.5px;line-height:1.7;white-space:pre-wrap}
+</style>
+</head>
+<body>
+<header>
+  <div class="row">
+    <h1 id="stdTitle">正在加载…</h1>
+    <span class="sub" id="scope"></span>
+    <select id="stdSel" hidden></select>
+  </div>
+</header>
+
+<nav class="tabs">
+  <button data-view="card" class="on">按标准出检验卡</button>
+  <button data-view="analyze">上传标准做分析</button>
+  <button data-view="tables">限值表</button>
+</nav>
+
+<main>
+  <div class="view" id="view-card">
+  <section class="card">
+    <div class="card-h">
+      <h2>① 选择规格</h2>
+      <span class="hint" id="paramHint"></span>
+    </div>
+    <div class="card-b">
+      <div class="params" id="form"></div>
+      <div class="actions">
+        <button class="btn primary" id="btnResolve">重新解析</button>
+        <button class="btn ghost" id="btnDemo">填入示例值</button>
+        <button class="btn ghost" id="btnExport" disabled>导出检验卡 (xlsx)</button>
+        <span class="msg" id="msg"></span>
+      </div>
+    </div>
+  </section>
+
+  <section class="card">
+    <div class="card-h">
+      <h2>② 检验卡</h2>
+      <span class="hint">录入实测值即自动判定；点行尾 ⌄ 查看检查方法与解析轨迹</span>
+    </div>
+    <div style="overflow-x:auto">
+      <table>
+        <thead>
+          <tr>
+            <th>#</th><th>检查项目</th><th>条款</th><th>要求（当前规格）</th>
+            <th>状态</th><th>实测值</th><th>结论</th><th></th>
+          </tr>
+        </thead>
+        <tbody id="tbody">
+          <tr><td colspan="8" style="padding:28px;text-align:center;color:#9aa6b2">正在解析…</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="summary">
+      <span class="big" id="overall">—</span>
+      <span class="pill">合格 <b id="c-ok">0</b></span>
+      <span class="pill">不合格 <b id="c-bad">0</b></span>
+      <span class="pill">未检测 <b id="c-none">0</b></span>
+      <span class="pill">不适用 <b id="c-na">0</b></span>
+      <span class="pill" style="margin-left:auto" id="note"></span>
+    </div>
+  </section>
+  </div><!-- /view-card -->
+
+  <div class="view" id="view-analyze" hidden>
+    <section class="card">
+      <div class="card-h">
+        <h2>① 上传标准</h2>
+        <span class="hint">PDF 扫描件可直接上传；分析在本机完成，文件不出本机</span>
+      </div>
+      <div class="card-b">
+        <div class="dropzone" id="drop">
+          <div class="big">把标准 PDF 拖到这里，或 <button class="btn primary" id="pick" style="margin-left:6px">选择文件</button></div>
+          <div class="small">支持扫描件（离线 OCR，中文识别）；也可以
+            <a href="#" id="toPaste" style="color:var(--brand-2)">直接粘贴文本</a></div>
+          <input type="file" id="file" accept="application/pdf,.pdf" hidden>
+        </div>
+
+        <div id="pasteWrap" hidden style="margin-top:14px">
+          <textarea id="pasteText" placeholder="把标准正文粘贴到这里（按行分隔，条款号在行首更好识别）"></textarea>
+          <div class="actions"><button class="btn primary" id="btnPaste">分析文本</button></div>
+        </div>
+
+        <div class="progress" id="prog" hidden>
+          <div class="bar"><i id="progBar"></i></div>
+          <span id="progText">准备中…</span>
+        </div>
+        <div class="toggles" id="recent" style="margin-top:12px"></div>
+      </div>
+    </section>
+
+    <section class="card" id="resultCard" hidden>
+      <div class="card-h">
+        <h2>② 确认检项</h2>
+        <span class="hint">系统只给候选，勾选与改名由人决定；每条都能回溯到页码与原文</span>
+      </div>
+      <div class="stdline">
+        <span style="font-size:12px;color:var(--muted)">标准号</span>
+        <input class="code" id="stdCode" placeholder="如 GB/T 3103.3—2000">
+        <span style="font-size:12px;color:var(--muted)">名称</span>
+        <input class="title" id="stdTitle2" placeholder="标准名称">
+      </div>
+      <div class="jobmeta" id="jobmeta"></div>
+      <div style="overflow-x:auto">
+        <table class="analyze">
+          <thead>
+            <tr>
+              <th style="width:36px"><input type="checkbox" id="checkAll" class="chk" checked></th>
+              <th style="width:64px">条款</th>
+              <th style="width:230px">检查项目</th>
+              <th style="width:86px">类别</th>
+              <th style="width:72px">判定</th>
+              <th>原文依据</th>
+              <th style="width:56px">页</th>
+              <th style="width:34px"></th>
+            </tr>
+          </thead>
+          <tbody id="atbody"></tbody>
+        </table>
+      </div>
+      <div class="summary">
+        <span class="big" id="astat">—</span>
+        <button class="btn ghost" id="btnAddRow">+ 新增检项</button>
+        <button class="btn ghost" id="btnSave">保存确认</button>
+        <button class="btn primary" id="btnExportStd">导出检验卡 (xlsx)</button>
+        <span class="pill" style="margin-left:auto" id="amsg"></span>
+      </div>
+      <div class="summary">
+        <span class="pill">下一步：定义第 2 步要填的参数，再给每个检项设限值</span>
+      </div>
+      <div class="card-b" id="textWrap" hidden>
+        <details>
+          <summary style="cursor:pointer;font-size:12.5px;color:var(--muted)">查看系统取到的原文（OCR 结果）</summary>
+          <pre class="ocr" id="ocrText"></pre>
+        </details>
+      </div>
+    </section>
+
+    <section class="card" id="specCard" hidden>
+      <div class="card-h">
+        <h2>③ 选择规格参数</h2>
+        <span class="hint">第 2 步做检验时，先填这些参数；代码建议 *_nom，枚举型填可选值</span>
+      </div>
+      <div style="overflow-x:auto">
+        <table class="analyze">
+          <thead>
+            <tr>
+              <th style="width:150px">代码</th>
+              <th style="width:170px">名称</th>
+              <th style="width:110px">类型</th>
+              <th style="width:70px">单位</th>
+              <th style="width:60px">必填</th>
+              <th>可选值（逗号分隔；数值型留空）</th>
+              <th style="width:34px"></th>
+            </tr>
+          </thead>
+          <tbody id="ptbody"></tbody>
+        </table>
+      </div>
+      <div class="summary">
+        <button class="btn ghost" id="btnAddParam">+ 新增参数</button>
+        <span class="pill" style="margin-left:auto">系统已从标准正文中猜出这些参数，请按产品实际用途增删</span>
+      </div>
+    </section>
+
+    <section class="card" id="limitCard" hidden>
+      <div class="card-h">
+        <h2>④ 限值</h2>
+        <span class="hint">第 2 步的判定就按这里来；留空表示只记录、不判定</span>
+      </div>
+      <div style="overflow-x:auto">
+        <table class="analyze">
+          <thead>
+            <tr>
+              <th style="width:64px">条款</th>
+              <th style="width:240px">检查项目</th>
+              <th style="width:120px">判定方式</th>
+              <th style="width:110px">下限</th>
+              <th style="width:110px">上限</th>
+              <th style="width:70px">单位</th>
+            </tr>
+          </thead>
+          <tbody id="ltbody"></tbody>
+        </table>
+      </div>
+      <div class="summary">
+        <span class="pill">上下限可填数字或表达式（如 <code>d_nom+0.27</code>）；选「规则」可按参数分档，
+          每行写 <code>条件 =&gt; 下限 ~ 上限</code></span>
+        <button class="btn primary" id="btnPublish" style="margin-left:auto">发布为标准</button>
+        <span class="pill" id="pmsg"></span>
+      </div>
+    </section>
+  </div><!-- /view-analyze -->
+
+  <div class="view" id="view-tables" hidden>
+    <section class="card">
+      <div class="card-h">
+        <h2>标准的限值表</h2>
+        <span class="hint">左选表、右看明细；标准表 1 拆成的多维查询表</span>
+        <button class="btn ghost" id="btnFromSource">从原文建表</button>
+        <button class="btn ghost" id="btnNewTable">+ 新建限值表</button>
+      </div>
+      <div class="split">
+        <aside class="pane-left">
+          <div class="pane-head">
+            <select id="tblStd"></select>
+            <span class="pill" id="tblStat"></span>
+          </div>
+          <ul class="tbl-list" id="tblList"></ul>
+        </aside>
+        <div class="pane-right" id="tblDetail"></div>
+      </div>
+    </section>
+  </div><!-- /view-tables -->
+</main>
+
+<div class="modal" id="srcModal" hidden>
+  <div class="panel">
+    <div class="mhead">
+      <h3>从原文建表</h3>
+      <span class="pill">OCR → 识别表格 → 指定列含义 → 生成草稿</span>
+      <button class="btn ghost" id="sClose" style="margin-left:auto">关闭</button>
+    </div>
+    <div class="mbody">
+      <div class="erow">
+        <div style="grid-column:1/3"><div class="lbl">来源作业（上传的标准）</div>
+          <select id="sJob" style="width:100%"></select></div>
+        <div style="grid-column:3/5"><div class="lbl">检测到的表格</div>
+          <select id="sTable" style="width:100%"></select></div>
+        <div></div>
+      </div>
+      <div id="sPreview" style="overflow:auto;max-height:34vh;margin:10px 0"></div>
+      <div style="margin:12px 0 6px"><b style="font-size:13px">列含义</b>
+        <span class="lbl">系统只给网格，哪列是维度、哪列是限值由你指定</span></div>
+      <div id="sMap"></div>
+      <div class="erow" style="margin-top:12px">
+        <div><div class="lbl">值解释（怎么读限值列）</div>
+          <select id="sValMode" style="width:100%">
+            <option value="auto">自动（看符号判断）</option>
+            <option value="sym">±x → 上下对称</option>
+            <option value="plus">+x → 上偏差</option>
+            <option value="minus">−x → 下偏差</option>
+            <option value="max">单值当上限</option>
+            <option value="min">单值当下限</option>
+            <option value="range">a~b → 区间</option>
+          </select></div>
+        <div style="grid-column:2/3"><div class="lbl">&nbsp;</div>
+          <span class="pill" id="sValHint">按 ± / + / ~ 判断</span></div>
+        <div style="grid-column:3/5"><div class="lbl">新表名称</div><input type="text" id="sName" placeholder="例如 平面度 t₂（按 h 分档）"></div>
+        <div style="grid-column:3/5"><div class="lbl">服务检项</div><select id="sItem" style="width:100%"></select></div>
+      </div>
+    </div>
+    <div class="mfoot">
+      <button class="btn primary" id="sBuild">生成草稿并编辑</button>
+      <button class="btn ghost" id="sCancel">取消</button>
+      <span class="pill" id="sMsg" style="margin-left:auto"></span>
+    </div>
+  </div>
+</div>
+
+<div class="modal" id="modal" hidden>
+  <div class="panel">
+    <div class="mhead">
+      <h3 id="mTitle">编辑限值表</h3>
+      <span class="pill" id="mSub"></span>
+      <button class="btn ghost" id="mClose" style="margin-left:auto">关闭</button>
+    </div>
+    <div class="mbody">
+      <div class="erow">
+        <div><div class="lbl">表 id</div><input type="text" id="eId" placeholder="T-XXX"></div>
+        <div><div class="lbl">单位</div><input type="text" id="eUnit" placeholder="mm"></div>
+        <div><div class="lbl">值类型</div>
+          <select id="eForm" style="width:100%">
+            <option value="absolute">绝对值</option>
+            <option value="deviation">偏差（叠加公称值）</option>
+          </select></div>
+        <div><div class="lbl">公称参数（偏差型必填）</div>
+          <select id="eNominal" style="width:100%"><option value="">—</option></select></div>
+        <div></div>
+      </div>
+      <div class="erow">
+        <div style="grid-column:1/3"><div class="lbl">表名称</div><input type="text" id="eName"></div>
+        <div style="grid-column:3/5"><div class="lbl">服务检项</div>
+          <select id="eItem" style="width:100%"></select></div>
+        <div></div>
+      </div>
+
+      <div style="margin:16px 0 8px;display:flex;align-items:center;gap:10px">
+        <b style="font-size:13px">维度</b>
+        <span class="lbl">取值：枚举写 <code>A,C</code>；区间写 <code>0~4,4~20</code>（左开右闭）</span>
+        <button class="btn ghost" id="eAddDim" style="margin-left:auto">+ 加维度</button>
+        <button class="btn primary" id="eExpand">按维度展开</button>
+      </div>
+      <div id="eDims"></div>
+
+      <div style="margin:16px 0 8px;display:flex;align-items:center;gap:10px">
+        <b style="font-size:13px">限值行</b>
+        <span class="lbl" id="eRowCount"></span>
+      </div>
+      <div style="overflow:auto;max-height:38vh">
+        <table class="analyze edtable"><thead id="eThead"></thead><tbody id="eTbody"></tbody></table>
+      </div>
+    </div>
+    <div class="mfoot">
+      <button class="btn primary" id="eSave">保存到库</button>
+      <button class="btn ghost" id="eCancel">取消</button>
+      <span class="pill" id="eMsg" style="margin-left:auto"></span>
+    </div>
+  </div>
+</div>
+
+<footer id="foot"></footer>
+
+<script>
+const S = { std:null, meta:null, rows:[], params:{}, measured:{}, expanded:new Set() };
+const $ = s => document.querySelector(s);
+const esc = s => String(s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+
+/* ---------------- 表单：完全由标准声明的 params 生成 ---------------- */
+function fieldHtml(p){
+  const head = `<label><b>${esc(p.name)}</b>${p.unit ? `（${p.unit}）` : ''}<code>${esc(p.code)}</code></label>`;
+  const help = p.help ? `<span class="help">${esc(p.help)}</span>` : '';
+  if(p.type === 'enum'){
+    if(p.options.length <= 3){
+      const btns = p.options.map(o =>
+        `<button data-val="${esc(o)}" class="${o === p.default ? 'on' : ''}">${esc(o)}</button>`).join('');
+      return `<div class="fld">${head}<div class="seg" data-code="${esc(p.code)}">${btns}</div>${help}</div>`;
+    }
+    const opts = p.options.map(o =>
+      `<option ${o === p.default ? 'selected' : ''}>${esc(o)}</option>`).join('');
+    return `<div class="fld">${head}<select data-code="${esc(p.code)}">${opts}</select>${help}</div>`;
+  }
+  const min = p.min !== null && p.min !== undefined ? `min="${p.min}"` : '';
+  const max = p.max !== null && p.max !== undefined ? `max="${p.max}"` : '';
+  const val = p.default !== null && p.default !== undefined ? p.default : '';
+  return `<div class="fld">${head}
+    <input type="number" step="0.01" ${min} ${max} data-code="${esc(p.code)}" value="${val}">${help}</div>`;
+}
+
+function renderForm(){
+  const form = $('#form');
+  form.innerHTML = S.meta.params.map(fieldHtml).join('');
+  form.querySelectorAll('.seg').forEach(seg => {
+    seg.onclick = e => {
+      const b = e.target.closest('button'); if(!b) return;
+      [...seg.children].forEach(x => x.classList.toggle('on', x === b));
+      onChange();
+    };
+  });
+  form.querySelectorAll('input,select').forEach(el => el.addEventListener('input', onChange));
+
+  // 链接里带的规格参数直接预填，例如 ?std=xxx&d_nom=13&h_nom=2
+  const q = new URLSearchParams(location.search);
+  S.meta.params.forEach(p => {
+    const v = q.get(p.code);
+    if(v === null) return;
+    if(p.type === 'enum'){
+      const seg = form.querySelector(`.seg[data-code="${p.code}"]`);
+      const sel = form.querySelector(`select[data-code="${p.code}"]`);
+      if(seg) seg.querySelectorAll('button').forEach(b => b.classList.toggle('on', b.dataset.val === v));
+      else if(sel) sel.value = v;
+    } else {
+      const el = form.querySelector(`input[data-code="${p.code}"]`);
+      if(el) el.value = v;
+    }
+  });
+  $('#paramHint').textContent =
+    `本标准的规格参数由注册表声明，共 ${S.meta.params.length} 个（换标准即换表单，代码不变）`;
+  $('#note').textContent = S.meta.note || '';
+  $('#foot').innerHTML =
+    `标准：${esc(S.meta.code)}　检项由 <code>items</code> 声明，限值由 <code>tables</code> 解析；` +
+    `参数命名 <code>*_nom</code> 公称、<code>*_act</code> 实测，只有公称值可以用于查表分档。`;
+}
+
+function readParams(){
+  const out = {};
+  S.meta.params.forEach(p => {
+    if(p.type === 'enum'){
+      const seg = document.querySelector(`.seg[data-code="${p.code}"]`);
+      const sel = document.querySelector(`select[data-code="${p.code}"]`);
+      const v = seg ? seg.querySelector('.on')?.dataset.val : sel?.value;
+      if(v !== undefined && v !== '') out[p.code] = v;
+    } else {
+      const el = document.querySelector(`input[data-code="${p.code}"]`);
+      const raw = el.value.trim();
+      if(raw !== '') out[p.code] = Number(raw);
+    }
+  });
+  return out;
+}
+
+/* ---------------- 检验卡 ---------------- */
+function rowHtml(r, i){
+  const cls = {'可判定':'ok','不要求':'na','无法判定':'warn'}[r.status_text] || 'na';
+  const v = S.measured[r.measured_key];
+  const nom = r.nominal_value !== null && r.nominal_value !== undefined
+      ? `由 ${r.nominal_param} = ${r.nominal_value} 展开` : '';
+  return `
+  <tr class="item" data-id="${r.id}">
+    <td class="idx">${i+1}</td>
+    <td class="name">${esc(r.name)}<span class="sym">${esc(r.symbol)}</span></td>
+    <td class="clause">${esc(r.clause)}</td>
+    <td class="limit">${esc(r.limit_text)}</td>
+    <td><span class="badge ${cls}">${esc(r.status_text)}</span></td>
+    <td class="meas">${r.status === 'OK'
+        ? `<input type="number" step="0.001" data-mkey="${esc(r.measured_key)}"
+                  value="${v ?? ''}" placeholder="${esc(r.measured_hint)}">`
+        : ''}</td>
+    <td class="verdict" data-v="${r.id}">—</td>
+    <td class="more"><button data-toggle="${r.id}">⌄</button></td>
+  </tr>
+  <tr class="detail" data-detail="${r.id}" ${S.expanded.has(r.id) ? '' : 'hidden'}>
+    <td colspan="8">
+      <dl class="dt">
+        <dt>检查方法</dt><dd>${esc(r.method)}</dd>
+        <dt>测量部位</dt><dd>${esc(r.position)}</dd>
+        <dt>测点分布</dt><dd>${esc(r.points)}</dd>
+        <dt>量具 / 设备</dt><dd>${esc(r.gauge)}</dd>
+        <dt>实测说明</dt><dd>${esc(r.measured_hint)}</dd>
+        <dt>限值依据</dt><dd>${nom ? esc(nom) + '，代号已按尺寸档展开' : '与本项公称值无关（常量）'}</dd>
+      </dl>
+      ${r.trace && r.trace.length ? `<div class="trace"><span class="t"># 解析轨迹 ${esc(r.id)}</span>
+${r.trace.map(esc).join('\n')}</div>` : ''}
+    </td>
+  </tr>`;
+}
+
+function render(){
+  const tb = $('#tbody');
+  tb.innerHTML = S.rows.map(rowHtml).join('');
+  tb.oninput = e => {
+    const k = e.target.dataset.mkey;
+    if(k) S.measured[k] = e.target.value === '' ? null : Number(e.target.value);
+  };
+  tb.onclick = e => {
+    const t = e.target.closest('[data-toggle]'); if(!t) return;
+    const id = t.dataset.toggle;
+    const d = tb.querySelector(`[data-detail="${id}"]`);
+    d.hidden = !d.hidden;
+    d.hidden ? S.expanded.delete(id) : S.expanded.add(id);
+  };
+}
+
+/* ---------------- 请求 ---------------- */
+async function resolve(){
+  S.params = readParams();
+  $('#msg').classList.remove('err');
+  $('#msg').textContent = '解析中…';
+  const res = await fetch('/api/resolve', {
+    method:'POST', headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({std:S.std, params:S.params})
+  });
+  const data = await res.json();
+  if(!res.ok){
+    const errs = data.detail?.errors || [data.detail || '解析失败'];
+    $('#msg').classList.add('err');
+    $('#msg').textContent = errs.join('；');
+    S.rows = [];
+    $('#tbody').innerHTML = `<tr><td colspan="8" style="padding:28px;text-align:center;color:#9aa6b2">
+      先填写上面的规格参数，限值会自动解析出来</td></tr>`;
+    $('#btnExport').disabled = true;
+    return;
+  }
+  S.rows = data.rows;
+  render();
+  $('#btnExport').disabled = false;
+  const ok = S.rows.filter(r => r.status === 'OK').length;
+  $('#msg').textContent = `${S.rows.length} 项中 ${ok} 项可判定`;
+  await judge();
+}
+
+async function judge(){
+  if(!S.rows.length) return;
+  const res = await fetch('/api/judge', {
+    method:'POST', headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({std:S.std, params:S.params, measured:S.measured})
+  });
+  if(!res.ok) return;
+  const data = await res.json();
+  data.rows.forEach(r => {
+    const cell = document.querySelector(`[data-v="${r.id}"]`);
+    if(cell){ cell.textContent = r.verdict; cell.className = 'verdict v-' + r.verdict; cell.title = r.note || ''; }
+  });
+  $('#c-ok').textContent = data.counts['合格'] || 0;
+  $('#c-bad').textContent = data.counts['不合格'] || 0;
+  $('#c-none').textContent = data.counts['未检测'] || 0;
+  $('#c-na').textContent = data.counts['不适用'] || 0;
+  const ov = $('#overall');
+  ov.textContent = data.overall === '合格' ? '判定：合格'
+                 : data.overall === '不合格' ? '判定：不合格' : '判定：待判定';
+  ov.className = 'big ' + data.overall;
+}
+
+const DEMO_ACT = { d1_act:13.12, h1_act:1.20, d2_act:23.90, h_act:2.05,
+                   e_act:0.70, dh_act:0.06, t1_act:0.30, t2_act:0.12 };
+function fillDemo(){
+  S.measured = {};
+  Object.entries(DEMO_ACT).forEach(([k, v]) => {
+    if(S.rows.some(r => r.measured_key === k)) S.measured[k] = v;
+  });
+  S.expanded.add('t1');
+  render();
+  judge();
+}
+
+let timer;
+function onChange(){ clearTimeout(timer); timer = setTimeout(resolve, 260); }
+
+$('#btnResolve').onclick = resolve;
+$('#btnDemo').onclick = fillDemo;
+$('#btnExport').onclick = () => {
+  const p = new URLSearchParams(Object.assign({std:S.std}, S.params));
+  window.location = '/api/card.xlsx?' + p.toString();
+};
+
+let cardReady = false;
+async function initCard(){
+  if(cardReady) return; cardReady = true;
+  const list = await (await fetch('/api/standards')).json();
+  const want = new URLSearchParams(location.search).get('std');
+  S.std = (want && list.some(s => s.id === want)) ? want : list[0].id;
+  if(list.length > 1){
+    const sel = $('#stdSel');
+    sel.hidden = false;
+    sel.innerHTML = list.map(s =>
+      `<option value="${s.id}" ${s.id === S.std ? 'selected' : ''}>${esc(s.code)}${s.custom ? '（自定义）' : ''}</option>`).join('');
+    sel.onchange = async () => { S.std = sel.value; await loadMeta(); await resolve(); };
+  }
+  await loadMeta();
+  await resolve();
+  if(new URLSearchParams(location.search).get('demo') === '1') fillDemo();
+}
+
+async function loadMeta(){
+  S.meta = await (await fetch('/api/meta?std=' + encodeURIComponent(S.std))).json();
+  $('#stdTitle').textContent = `${S.meta.code}　${S.meta.title}`;
+  $('#scope').textContent = S.meta.scope;
+  document.title = S.meta.code + ' 检验卡';
+  S.measured = {};
+  S.expanded = new Set();
+  renderForm();
+}
+
+
+/* ================= 视图路由 ================= */
+function setView(name, push=true){
+  document.querySelectorAll('.view').forEach(v => { v.hidden = (v.id !== 'view-' + name); });
+  document.querySelectorAll('nav.tabs button').forEach(b =>
+    b.classList.toggle('on', b.dataset.view === name));
+  if(push) history.replaceState(null, '', '#/' + name);
+  if(name === 'card') initCard();
+  if(name === 'tables'){
+    $('#stdTitle').textContent = '限值表';
+    $('#scope').textContent = '标准表 1 拆成的多维查询表：维度 × 展开行 × 限值';
+    $('#stdSel').hidden = true;
+    initTables();
+  }
+  if(name === 'analyze'){
+    loadRecent();
+    if(!A.job){
+      $('#stdTitle').textContent = '标准分析';
+      $('#scope').textContent = '上传 PDF → 识别检项 → 人工确认 → 导出检验卡';
+      $('#stdSel').hidden = true;
+    }
+  }
+}
+document.querySelectorAll('nav.tabs button').forEach(b =>
+  b.onclick = () => setView(b.dataset.view));
+function route(){
+  const raw = (location.hash || '').replace('#/', '') || 'card';
+  const [name, jobId] = raw.split('/');
+  setView(name, false);
+  if(name === 'tables' && jobId === 'source'){
+    setTimeout(async () => { await ensureEditorData(); openSource(); }, 400);
+  } else if(name === 'tables' && jobId){
+    setTimeout(async () => { PENDING = jobId; await initTables(); }, 300);
+  }
+  if(name === 'analyze' && jobId){
+    $('#prog').hidden = false;
+    setProg(100, '加载作业…');
+    pollJob(jobId);
+  }
+}
+window.addEventListener('hashchange', route);
+
+/* ================= 从原文建表 ================= */
+const SRC = { job:null, table:null, tables:[], map:[] };
+
+function detectTol(text){
+  const s = String(text || '').trim();
+  if(/^[A-Za-z]{1,2}\s*\d/.test(s)) return null;   // H13 / h14 / IT12 这类代号，不当数值
+  let m = s.match(/[±士]\s*(\d+(?:\.\d+)?)/);
+  if(m) return {kind: 'sym', v: Number(m[1])};
+  m = s.match(/(?:^|[\s（(＋])\+\s*(\d+(?:\.\d+)?)/);
+  if(m) return {kind: 'plus', v: Number(m[1])};
+  m = s.match(/(?:^|[\s（(])[-−]\s*(\d+(?:\.\d+)?)/);
+  if(m) return {kind: 'minus', v: Number(m[1])};
+  m = s.match(/(\d+(?:\.\d+)?)\s*[~～]\s*(\d+(?:\.\d+)?)/);
+  if(m) return {kind: 'range', a: Number(m[1]), b: Number(m[2])};
+  m = s.match(/(\d+(?:\.\d+)?)/);
+  if(m) return {kind: 'single', v: Number(m[1])};
+  return null;
+}
+
+// 返回 [下限, 上限]；mode 为空或 auto 时按单元格里的符号判断
+function parseValue(text, mode){
+  const d = detectTol(text);
+  if(!d) return [null, null];
+  const k = (!mode || mode === 'auto') ? d.kind : mode;
+  const v = d.v ?? 0;
+  switch(k){
+    case 'sym':   return [-Math.abs(v), Math.abs(v)];
+    case 'plus':  return [0, Math.abs(v)];
+    case 'minus': return [-Math.abs(v), 0];
+    case 'max':   return [null, Math.abs(v)];
+    case 'min':   return [Math.abs(v), null];
+    case 'range': return d.kind === 'range' ? [d.a, d.b] : [null, Math.abs(v)];
+    default:      return [null, Math.abs(v)];
+  }
+}
+
+async function openSource(){
+  $('#srcModal').hidden = false;
+  $('#sMsg').textContent = '';
+  const jobs = await (await fetch('/api/analyze/jobs')).json();
+  if(!jobs.length){ $('#sMsg').textContent = '还没有作业，先去「上传标准做分析」传一份'; return; }
+  $('#sJob').innerHTML = jobs.map(j =>
+    `<option value="${j.id}">${esc(j.code || j.filename)}（${j.pages} 页）</option>`).join('');
+  $('#sJob').onchange = () => loadSourceTables($('#sJob').value);
+  $('#sItem').innerHTML = '<option value="">—</option>' + E.items.map(i =>
+    `<option value="${i.code}">${esc(i.clause)} ${esc(i.name)}</option>`).join('');
+  await loadSourceTables(jobs[0].id);
+}
+
+async function loadSourceTables(jobId){
+  SRC.job = jobId;
+  const d = await (await fetch(`/api/analyze/jobs/${encodeURIComponent(jobId)}/tables`)).json();
+  SRC.tables = d.tables || [];
+  if(!SRC.tables.length){ $('#sTable').innerHTML = ''; $('#sPreview').innerHTML =
+    '<div class="lbl">这份文件没检测到表格</div>'; return; }
+  $('#sTable').innerHTML = SRC.tables.map((t, i) =>
+    `<option value="${i}">第 ${t.page} 页 · ${t.rows} 行 × ${t.cols} 列</option>`).join('');
+  $('#sTable').onchange = () => selectSourceTable(Number($('#sTable').value));
+  selectSourceTable(0);
+}
+
+function selectSourceTable(i){
+  SRC.table = SRC.tables[i];
+  const t = SRC.table;
+  $('#sPreview').innerHTML = `<table class="analyze edtable"><tbody>${
+    t.grid.slice(0, 8).map(r => `<tr>${r.map(c => `<td>${esc(c || '')}</td>`).join('')}</tr>`).join('')
+  }</tbody></table>`;
+
+  const opts = (sel) => ['<option value="">忽略</option>']
+    .concat(E.params.map(p => `<option value="dim:${p.code}" ${sel === 'dim:' + p.code ? 'selected' : ''}>维度 · ${esc(p.code)}</option>`))
+    .concat([`<option value="lower" ${sel === 'lower' ? 'selected' : ''}>下限</option>`,
+             `<option value="upper" ${sel === 'upper' ? 'selected' : ''}>上限</option>`]).join('');
+
+  // 猜测：数字列 → 上限；最左侧 2 个"取值不多"的文本列 → 维度；其余忽略
+  let dimSeen = 0;
+  SRC.map = Array.from({length: t.cols}, (_, c) => {
+    const vals = t.grid.map(r => (r[c] || '').trim()).filter(Boolean);
+    if(!vals.length) return '';
+    const numeric = vals.filter(v => /^[±+\-]?\s*\d+(\.\d+)?$|^[±+]?\d/.test(v)).length;
+    if(numeric / vals.length >= 0.6) return 'upper';
+    const uniq = new Set(vals).size;
+    if(uniq <= 8 && dimSeen < 2){
+      const p = E.params[dimSeen];
+      if(p){ dimSeen += 1; return 'dim:' + p.code; }
+    }
+    return '';
+  });
+
+  $('#sMap').innerHTML = `<div class="dimrow" style="grid-template-columns:80px 1fr">
+      <span class="lbl">列</span><span class="lbl">含义</span></div>` +
+    Array.from({length: t.cols}, (_, c) => `
+      <div class="dimrow" style="grid-template-columns:80px 1fr" data-c="${c}">
+        <span class="chip">第 ${c + 1} 列</span>
+        <select class="smap">${opts(SRC.map[c])}</select>
+      </div>`).join('');
+  $('#sMap').onchange = e => {
+    if(!e.target.classList.contains('smap')) return;
+    const c = Number(e.target.closest('[data-c]').dataset.c);
+    SRC.map[c] = e.target.value;
+  };
+  $('#sName').value = `第 ${t.page} 页表格（${t.rows}×${t.cols}）`;
+}
+
+function buildDraftFromSource(){
+  const t = SRC.table;
+  const dimIdx = SRC.map.map((m, i) => [m, i]).filter(([m]) => m && m.startsWith('dim:'));
+  if(!dimIdx.length){ $('#sMsg').textContent = '至少要指定一列作为维度'; return null; }
+  const dims = dimIdx.map(([m]) => ({code: m.slice(4), kind: 'enum', values: []}));
+  const rows = [];
+  for(const line of t.grid){
+    const key = {};
+    dimIdx.forEach(([m, i], k) => {
+      const v = (line[i] || '').trim();
+      key[m.slice(4)] = v;
+      if(v && !dims[k].values.includes(v)) dims[k].values.push(v);
+    });
+    if(!Object.keys(key).length) continue;
+    let lo = null, hi = null;
+    const mode = $('#sValMode').value;
+    SRC.map.forEach((m, i) => {
+      if(m !== 'lower' && m !== 'upper') return;
+      const [l, h] = parseValue(line[i], mode);
+      if(l !== null) lo = l;
+      if(h !== null) hi = h;
+    });
+    const raw = line.filter(Boolean).join(' | ') || '';
+    const show = [lo === null ? '' : `下 ${lo}`, hi === null ? '' : `上 ${hi}`]
+      .filter(Boolean).join('，');
+    rows.push({key, lower: lo, upper: hi, lower_expr: '', upper_expr: '',
+               na: false, note: (show ? show + '  ←  ' : '') + raw.slice(0, 60)});
+  }
+  return {
+    id: 'T-' + Date.now().toString(36),
+    name: $('#sName').value.trim() || '原文导入',
+    unit: 'mm', value_form: 'absolute', nominal_param: null,
+    item_code: $('#sItem').value || '', dims, rows,
+  };
+}
+
+const VAL_HINT = {
+  auto: '按 ± / + / ~ 判断',
+  sym: '±0.05 → −0.05~+0.05',
+  plus: '+0.1 → 0~+0.1',
+  minus: '−0.2 → −0.2~0',
+  max: '单值当上限',
+  min: '单值当下限',
+  range: '0.1~0.2 → 区间',
+};
+$('#sValMode').onchange = e => { $('#sValHint').textContent = VAL_HINT[e.target.value] || ''; };
+
+$('#btnFromSource').onclick = async () => { await ensureEditorData(); openSource(); };
+$('#sClose').onclick = $('#sCancel').onclick = () => { $('#srcModal').hidden = true; };
+$('#sBuild').onclick = () => {
+  const draft = buildDraftFromSource();
+  if(!draft) return;
+  $('#srcModal').hidden = true;
+  openEditor(E.std, draft, true);
+  $('#eMsg').textContent = `已从原文生成 ${draft.rows.length} 行草稿，核对后再保存`;
+};
+
+/* ================= 限值表编辑 ================= */
+const E = { std:null, params:[], items:[], t:null, isNew:false, dirty:false };
+
+function dimValuesText(dim){
+  const vals = dim.values || [];
+  return dim.kind === 'enum'
+    ? vals.join(',')
+    : vals.map(v => Array.isArray(v) ? `${v[0]}~${v[1]}` : v).join(', ');
+}
+
+function parseDimValues(text, kind){
+  const parts = text.split(/[,，]/).map(x => x.trim()).filter(Boolean);
+  if(kind === 'enum') return parts;
+  return parts.map(p => {
+    const [a, b] = p.split(/[~～-]/).map(x => Number(x.trim()));
+    return [Number.isFinite(a) ? a : 0, Number.isFinite(b) ? b : 0];
+  });
+}
+
+function openEditor(stdId, table, isNew){
+  E.std = stdId; E.isNew = !!isNew;
+  E.t = table ? JSON.parse(JSON.stringify(table)) : {
+    id: 'T-' + Date.now().toString(36), name: '', unit: 'mm', value_form: 'absolute',
+    nominal_param: null, item_code: '', dims: [], rows: [],
+  };
+  $('#mTitle').textContent = isNew ? '新建限值表' : '编辑限值表';
+  $('#mSub').textContent = stdId;
+  $('#eId').value = E.t.id || '';
+  $('#eName').value = E.t.name || '';
+  $('#eUnit').value = E.t.unit || 'mm';
+  $('#eForm').value = E.t.value_form || 'absolute';
+  $('#eItem').innerHTML = '<option value="">—</option>' + E.items.map(i =>
+    `<option value="${i.code}" ${i.code === E.t.item_code ? 'selected' : ''}>${esc(i.clause)} ${esc(i.name)}</option>`).join('');
+  $('#eNominal').innerHTML = '<option value="">—</option>' + E.params.map(x =>
+    `<option value="${x.code}" ${x.code === E.t.nominal_param ? 'selected' : ''}>${esc(x.code)}</option>`).join('');
+  $('#modal').hidden = false;
+  renderDims(); renderRows();
+}
+
+function renderDims(){
+  $('#eDims').innerHTML = (E.t.dims || []).map((d, i) => `
+    <div class="dimrow" data-i="${i}">
+      <select class="dcode">${E.params.map(x =>
+        `<option value="${x.code}" ${x.code === d.code ? 'selected' : ''}>${esc(x.code)}</option>`).join('')}</select>
+      <select class="dkind">
+        <option value="enum" ${d.kind === 'enum' ? 'selected' : ''}>枚举</option>
+        <option value="range" ${d.kind === 'range' ? 'selected' : ''}>区间</option>
+      </select>
+      <input type="text" class="dvals" value="${esc(dimValuesText(d))}"
+             placeholder="${d.kind === 'range' ? '0~4, 4~20' : 'A, C'}">
+      <button class="rowdel" data-del="${i}">×</button>
+    </div>`).join('') || '<div class="lbl">还没有维度，点「+ 加维度」</div>';
+}
+
+function readDims(){
+  return [...document.querySelectorAll('#eDims .dimrow')].map(r => ({
+    code: r.querySelector('.dcode').value,
+    kind: r.querySelector('.dkind').value,
+    values: parseDimValues(r.querySelector('.dvals').value, r.querySelector('.dkind').value),
+  }));
+}
+
+function expandRows(){
+  const dims = readDims();
+  if(!dims.length){ $('#eMsg').textContent = '先加至少一个维度'; return; }
+  const bad = dims.find(d => !d.values.length);
+  if(bad){ $('#eMsg').textContent = `维度 ${bad.code} 没有取值`; return; }
+  let combos = [{}];
+  for(const d of dims){
+    const next = [];
+    for(const c of combos){
+      for(const v of d.values) next.push(Object.assign({}, c, {[d.code]: v}));
+    }
+    combos = next;
+  }
+  const old = new Map((E.t.rows || []).map(r => [JSON.stringify(r.key), r]));
+  E.t.dims = dims;
+  E.t.rows = combos.map(k => {
+    const prev = old.get(JSON.stringify(k));
+    return prev ? Object.assign({}, prev, {key: k})
+                : {key: k, lower: null, upper: null, lower_expr: '', upper_expr: '', na: false, note: ''};
+  });
+  renderRows();
+  $('#eMsg').textContent = `已展开 ${E.t.rows.length} 行`;
+}
+
+function keyText(v){
+  return Array.isArray(v) ? `(${v[0]}, ${v[1]}]` : esc(v);
+}
+
+function renderRows(){
+  const dims = E.t.dims || [];
+  $('#eThead').innerHTML = `<tr>${dims.map(d => `<th>${esc(d.code)}</th>`).join('')}
+    <th style="width:130px">下限</th><th style="width:130px">上限</th>
+    <th style="width:64px">不要求</th><th style="width:150px">备注</th></tr>`;
+  $('#eTbody').innerHTML = (E.t.rows || []).map((r, i) => `
+    <tr data-i="${i}">
+      ${dims.map(d => `<td>${keyText(r.key[d.code])}</td>`).join('')}
+      <td><input type="text" class="rl" value="${esc(r.lower_expr || (r.lower ?? ''))}" ${r.na ? 'disabled' : ''}></td>
+      <td><input type="text" class="ru" value="${esc(r.upper_expr || (r.upper ?? ''))}" ${r.na ? 'disabled' : ''}></td>
+      <td style="text-align:center"><input type="checkbox" class="chk rna" ${r.na ? 'checked' : ''}></td>
+      <td><input type="text" class="rn" value="${esc(r.note || '')}"></td>
+    </tr>`).join('');
+  $('#eRowCount').textContent = `${(E.t.rows || []).length} 行`;
+}
+
+function readRows(){
+  const dims = E.t.dims || [];
+  return [...document.querySelectorAll('#eTbody tr')].map((tr, i) => {
+    const key = E.t.rows[i].key;
+    const val = el => {
+      const v = el.disabled ? '' : el.value.trim();
+      if(v === '') return null;
+      return /^-?\d+(\.\d+)?$/.test(v) ? Number(v) : {expr: v};
+    };
+    const lo = val(tr.querySelector('.rl'));
+    const hi = val(tr.querySelector('.ru'));
+    return {
+      key, na: tr.querySelector('.rna').checked, note: tr.querySelector('.rn').value.trim(),
+      lower: typeof lo === 'number' ? lo : null,     // 注意 0 不是空
+      upper: typeof hi === 'number' ? hi : null,
+      lower_expr: (lo && typeof lo === 'object') ? lo.expr : null,
+      upper_expr: (hi && typeof hi === 'object') ? hi.expr : null,
+    };
+  });
+}
+
+async function saveEditor(){
+  const rows = readRows();
+  const payload = {
+    id: $('#eId').value.trim(),
+    name: $('#eName').value.trim() || $('#eId').value.trim(),
+    unit: $('#eUnit').value.trim() || 'mm',
+    value_form: $('#eForm').value,
+    nominal_param: $('#eNominal').value || null,
+    item_code: $('#eItem').value || '',
+    dims: E.t.dims || [],
+    rows,
+  };
+  if(!payload.id){ $('#eMsg').textContent = '表 id 不能为空'; return; }
+  if(!rows.length){ $('#eMsg').textContent = '没有行，先按维度展开'; return; }
+  const r = await fetch(`/api/standards/${encodeURIComponent(E.std)}/tables/${encodeURIComponent(payload.id)}`, {
+    method: 'PUT', headers: {'Content-Type':'application/json'},
+    body: JSON.stringify(payload)
+  });
+  const d = await r.json().catch(() => ({}));
+  if(!r.ok){ $('#eMsg').textContent = '保存失败：' + (d.detail || r.status); return; }
+  $('#eMsg').textContent = `已保存 ${d.rows} 行`;
+  $('#modal').hidden = true;
+  loadTables();
+}
+
+$('#eAddDim').onclick = () => {
+  E.t.dims = readDims();
+  E.t.dims.push({code: E.params[0].code, kind: 'enum', values: []});
+  renderDims();
+};
+$('#eExpand').onclick = expandRows;
+$('#eSave').onclick = saveEditor;
+$('#eCancel').onclick = () => { $('#modal').hidden = true; };
+$('#mClose').onclick = () => { $('#modal').hidden = true; };
+$('#eDims').onchange = () => { E.t.dims = readDims(); renderDims(); };
+
+/* ================= 限值表浏览 ================= */
+let tablesReady = false;
+async function initTables(){
+  if(!tablesReady){
+    const list = await (await fetch('/api/standards')).json();
+    $('#tblStd').innerHTML = list.map(s =>
+      `<option value="${s.id}">${esc(s.code)}${s.custom ? '（自定义）' : ''}</option>`).join('');
+    $('#tblStd').onchange = loadTables;
+    tablesReady = true;
+  }
+  await loadTables();
+}
+
+let CURRENT = null;
+let PENDING = null;
+
+async function loadTables(){
+  const id = $('#tblStd').value;
+  const d = await (await fetch(`/api/standards/${encodeURIComponent(id)}/editor`)).json();
+  E.std = id; E.params = d.params || []; E.items = d.items || []; E.allTables = d.tables || [];
+  $('#tblStat').textContent = `${d.code} · ${E.allTables.length} 张表`;
+  if(!E.allTables.length){
+    $('#tblList').innerHTML = '';
+    $('#tblDetail').innerHTML = '<div class="muted" style="padding:24px">这个标准还没有限值表</div>';
+    return;
+  }
+  const pick = PENDING && E.allTables.some(t => t.id === PENDING) ? PENDING : E.allTables[0].id;
+  PENDING = null;
+  selectTable(pick);
+}
+
+const KIND_ORDER = ['尺寸', '形位', '性能', '表面', '标记', '其他'];
+
+function groupedTables(){
+  const kindOf = {};
+  (E.items || []).forEach(i => { kindOf[i.code] = i.kind || '其他'; });
+  const groups = new Map();
+  (E.allTables || []).forEach(t => {
+    const k = kindOf[t.item_code] || '其他';
+    if(!groups.has(k)) groups.set(k, []);
+    groups.get(k).push(t);
+  });
+  const keys = [...groups.keys()].sort((a, b) => {
+    const ia = KIND_ORDER.indexOf(a), ib = KIND_ORDER.indexOf(b);
+    return (ia < 0 ? 99 : ia) - (ib < 0 ? 99 : ib);
+  });
+  return keys.map(k => ({kind: k, tables: groups.get(k)}));
+}
+
+function renderTableList(){
+  $('#tblList').innerHTML = groupedTables().map(g => `
+    <li class="tgroup">${esc(g.kind)}<span>${g.tables.length} 张</span></li>
+    ${g.tables.map(t => `
+      <li data-t="${esc(t.id)}" class="${t.id === CURRENT ? 'on' : ''}">
+        <span class="tname">${esc(t.name || t.id)}</span>
+        <span class="tmeta">${esc(t.id)} · ${t.dims.length} 维 · ${t.rows.length} 行</span>
+      </li>`).join('')}`).join('');
+  $('#tblList').onclick = e => {
+    const li = e.target.closest('[data-t]');
+    if(li) selectTable(li.dataset.t);
+  };
+}
+
+function selectTable(id){
+  CURRENT = id;
+  renderTableList();
+  renderTableDetail(id);
+}
+
+function renderTableDetail(id){
+  const t = E.allTables.find(x => x.id === id);
+  if(!t){ $('#tblDetail').innerHTML = ''; return; }
+  const form = t.value_form === 'deviation'
+    ? `偏差型（叠加 <code>${esc(t.nominal_param || '')}</code>）` : '绝对值';
+  const dims = t.dims.map(d => `${d.code}`).join(' × ') || '无维度';
+  const head = t.dims.map(d => `<th>${esc(d.code)}</th>`).join('');
+  const body = t.rows.slice(0, 200).map(r => `
+    <tr>${t.dims.map(d => {
+      const v = r.key[d.code];
+      return `<td>${Array.isArray(v) ? `(${v[0]}, ${v[1]}]` : esc(v ?? '—')}</td>`;
+    }).join('')}
+    <td>${r.na ? '—' : (r.lower_expr ? `<code>${esc(r.lower_expr)}</code>` : (r.lower ?? ''))}</td>
+    <td>${r.na ? '不要求' : (r.upper_expr ? `<code>${esc(r.upper_expr)}</code>` : (r.upper ?? ''))}</td>
+    <td class="muted">${esc(r.note || '')}</td></tr>`).join('');
+
+  $('#tblDetail').innerHTML = `
+    <div class="det-head">
+      <b>${esc(t.name || t.id)}</b>
+      <span class="pill"><code>${esc(t.id)}</code></span>
+      <button class="btn ghost" id="btnEditTable" style="margin-left:auto">编辑这张表</button>
+    </div>
+    <div class="det-sub">
+      <span class="pill">维度 ${esc(dims)}</span>
+      <span class="pill">${t.rows.length} 行</span>
+      <span class="pill">${form}</span>
+      <span class="pill">单位 ${esc(t.unit || 'mm')}</span>
+      ${t.item_code ? `<span class="pill">检项 ${esc(t.item_code)}</span>` : ''}
+    </div>
+    <div style="overflow:auto;max-height:560px">
+      <table class="analyze"><thead><tr>${head}<th>下限</th><th>上限</th><th>说明</th></tr></thead>
+      <tbody>${body}</tbody></table>
+    </div>
+    ${t.rows.length > 200 ? `<div class="muted" style="padding:6px">仅显示前 200 行，共 ${t.rows.length} 行</div>` : ''}`;
+
+  $('#btnEditTable').onclick = () => openEditor(E.std, t, false);
+}
+
+async function ensureEditorData(){
+  const id = $('#tblStd').value;
+  if(E.std === id && E.params.length) return;
+  const d = await (await fetch(`/api/standards/${encodeURIComponent(id)}/editor`)).json();
+  E.std = id; E.params = d.params || []; E.items = d.items || []; E.allTables = d.tables || [];
+}
+
+$('#btnNewTable').onclick = async () => {
+  await ensureEditorData();
+  openEditor(E.std, null, true);
+};
+
+/* ================= 上传标准做分析 ================= */
+const A = { job:null, timer:null };
+const CATS = ['尺寸', '形位', '性能', '表面', '标记', '其他'];
+
+function clip(s, n){ s = s || ''; return s.length > n ? s.slice(0, n) + '…' : s; }
+
+function setProg(p, text){
+  $('#progBar').style.width = Math.max(2, Math.min(100, p)) + '%';
+  $('#progText').textContent = text;
+}
+
+async function uploadFile(file){
+  if(!file) return;
+  $('#resultCard').hidden = true;
+  $('#prog').hidden = false;
+  setProg(6, '上传中…');
+  const fd = new FormData();
+  fd.append('file', file);
+  let r;
+  try { r = await fetch('/api/analyze/upload', {method:'POST', body:fd}); }
+  catch(e){ setProg(100, '上传失败：网络错误'); return; }
+  const d = await r.json().catch(() => ({}));
+  if(!r.ok){ setProg(100, '上传失败：' + (d.detail || r.status)); return; }
+  pollJob(d.job_id);
+}
+
+async function pollJob(id){
+  clearTimeout(A.timer);
+  const j = await (await fetch('/api/analyze/jobs/' + id)).json();
+  A.job = j;
+  if(j.status === 'done'){
+    setProg(100, `完成：${j.pages} 页 · ${j.items.length} 个候选检项`);
+    renderJob();
+  } else if(j.status === 'error'){
+    setProg(100, '分析失败：' + (j.error || '未知错误'));
+  } else {
+    const txt = j.status === 'ocr' ? '文字识别中（扫描件较慢）…'
+              : j.status === 'analyzing' ? '条款与检项识别中…' : '排队中…';
+    setProg(j.progress || 10, txt);
+    A.timer = setTimeout(() => pollJob(id), 900);
+  }
+}
+
+function renderJob(){
+  const j = A.job;
+  $('#resultCard').hidden = false;
+  $('#stdCode').value = j.code || '';
+  $('#stdTitle2').value = j.title || j.filename || '';
+  $('#jobmeta').innerHTML = [
+    `文件 <b>${esc(j.filename)}</b>`,
+    `页数 <b>${j.pages}</b>`,
+    `取文 <b>${esc(j.engine || '—')}</b>`,
+    `质量 <b>${(j.quality * 100).toFixed(0)}%</b>`,
+    `候选 <b>${j.items.length}</b>`,
+  ].join('');
+  $('#stdTitle').textContent = (j.code || '标准分析') + (j.title ? '　' + j.title : '');
+  $('#scope').textContent = `来源：${j.filename}`;
+
+  const tb = $('#atbody');
+  tb.innerHTML = j.items.map((it, i) => `
+    <tr data-i="${i}">
+      <td><input type="checkbox" class="chk sel" ${it.selected ? 'checked' : ''}></td>
+      <td><input type="text" class="cl" value="${esc(it.clause)}"></td>
+      <td><input type="text" class="ti" value="${esc(it.title)}"></td>
+      <td><select class="cat">${CATS.map(c =>
+        `<option ${c === it.category ? 'selected' : ''}>${c}</option>`).join('')}</select></td>
+      <td style="text-align:center"><input type="checkbox" class="chk ms" ${it.measurable ? 'checked' : ''}></td>
+      <td class="evi" title="${esc(it.evidence)}">${esc(clip(it.evidence, 72))}</td>
+      <td style="text-align:center;color:var(--muted)">${it.page || '—'}</td>
+      <td><button class="rowdel" title="删除">×</button></td>
+    </tr>`).join('');
+
+  tb.oninput = syncItems;
+  tb.onchange = syncItems;
+  tb.onclick = e => {
+    if(!e.target.classList.contains('rowdel')) return;
+    const tr = e.target.closest('tr');
+    tr.remove();
+    syncItems();
+  };
+  renderParams();
+  renderLimits();
+  $('#specCard').hidden = false;
+  $('#limitCard').hidden = false;
+  $('#textWrap').hidden = !j.has_text;
+  if(j.has_text) loadOcrText(j.id);
+  updateStat();
+}
+
+const P_TYPES = ['number', 'enum'];
+
+function renderParams(){
+  const list = A.job.params_spec || [];
+  $('#ptbody').innerHTML = list.map((p, i) => `
+    <tr data-i="${i}">
+      <td><input type="text" class="pcode" value="${esc(p.code || '')}" placeholder="d_nom"></td>
+      <td><input type="text" class="pname" value="${esc(p.name || '')}" placeholder="公称直径 d"></td>
+      <td><select class="ptype">${P_TYPES.map(t =>
+        `<option ${t === (p.type || 'number') ? 'selected' : ''}>${t}</option>`).join('')}</select></td>
+      <td><input type="text" class="punit" value="${esc(p.unit || '')}" placeholder="${p.type === 'enum' ? '—' : 'mm'}"></td>
+      <td style="text-align:center"><input type="checkbox" class="chk preq" ${p.required ? 'checked' : ''}></td>
+      <td><input type="text" class="popts" value="${esc((p.options || []).join(','))}"
+                 ${p.type === 'enum' ? 'placeholder="如：A,B,C"' : 'disabled placeholder="—（数值型不需要）"'}></td>
+      <td><button class="rowdel" title="删除">×</button></td>
+    </tr>`).join('');
+  $('#ptbody').oninput = syncParams;
+  $('#ptbody').onchange = e => {
+    if(e.target.classList.contains('ptype')){
+      const tr = e.target.closest('tr');
+      const num = e.target.value !== 'enum';
+      const opts = tr.querySelector('.popts');
+      opts.disabled = num;
+      if(num) opts.value = '';
+      opts.placeholder = num ? '—（数值型不需要）' : '如：A,B,C';
+    }
+    syncParams();
+  };
+  $('#ptbody').onclick = e => {
+    if(!e.target.classList.contains('rowdel')) return;
+    e.target.closest('tr').remove();
+    syncParams();
+  };
+}
+
+function syncParams(){
+  const rows = [...document.querySelectorAll('#ptbody tr')];
+  A.job.params_spec = rows.map(tr => {
+    const opts = tr.querySelector('.popts').value.split(/[,，]/).map(x => x.trim()).filter(Boolean);
+    const isEnum = tr.querySelector('.ptype').value === 'enum';
+    return {
+      code: tr.querySelector('.pcode').value.trim(),
+      name: tr.querySelector('.pname').value.trim(),
+      type: tr.querySelector('.ptype').value,
+      unit: tr.querySelector('.punit').value.trim(),
+      required: tr.querySelector('.preq').checked,
+      options: isEnum ? opts : [],
+      default: isEnum ? (opts[0] ?? null) : null,
+      min: null, max: null, help: '',
+    };
+  });
+}
+
+function rulesToText(rules){
+  return (rules || []).map(r => r.na
+    ? `${r.if || 'else'} => 不要求`
+    : `${r.if || 'else'} => ${r.lower ?? ''} ~ ${r.upper ?? ''}`).join('\n');
+}
+
+function parseRules(txt){
+  return txt.split('\n').map(l => l.trim()).filter(Boolean).map(line => {
+    const [cond, rest] = line.split('=>');
+    const c = (cond || '').trim();
+    const body = (rest || '').trim();
+    const ifCond = (c && c.toLowerCase() !== 'else') ? c : null;
+    if(body.includes('不要求')) return {if: ifCond, na: true, lower: '', upper: ''};
+    const [lo, hi] = body.split('~');
+    return {if: ifCond, lower: (lo || '').trim(), upper: (hi || '').trim()};
+  });
+}
+
+const MODE_TEXT = {range:'范围', max:'上限', min:'下限', none:'仅记录', rule:'规则'};
+
+function renderLimits(){
+  const its = A.job.items || [];
+  const lim = A.job.limits || {};
+  $('#ltbody').innerHTML = its.map(it => {
+    const L = lim[it.id] || {mode: it.measurable ? 'range' : 'none', lower: null, upper: null, unit: 'mm'};
+    const head = `
+      <td style="color:var(--muted)">${esc(it.clause || '')}</td>
+      <td>${esc(it.title || '')}</td>
+      <td><select class="lmode">
+        ${Object.keys(MODE_TEXT).map(m =>
+          `<option value="${m}" ${m === L.mode ? 'selected' : ''}>${MODE_TEXT[m]}</option>`).join('')}
+      </select></td>`;
+    if(L.mode === 'rule'){
+      return `<tr data-id="${esc(it.id)}">${head}
+        <td colspan="3"><textarea class="lrule" rows="3"
+          placeholder="h_nom<=4 and d_nom<=18 => d_nom ~ d_nom+0.27">${esc(rulesToText(L.rules))}</textarea></td>
+      </tr>`;
+    }
+    const dis = L.mode === 'none' ? 'disabled' : '';
+    return `<tr data-id="${esc(it.id)}">${head}
+      <td><input type="text" class="llow" value="${esc(L.lower ?? '')}" ${dis}
+                 placeholder="数字或表达式，如 0.25*h_nom"></td>
+      <td><input type="text" class="lup" value="${esc(L.upper ?? '')}" ${dis}
+                 placeholder="数字或表达式，如 d_nom+0.27"></td>
+      <td><input type="text" class="lunit" value="${esc(L.unit || 'mm')}" style="width:52px"></td>
+    </tr>`;
+  }).join('');
+
+  $('#ltbody').oninput = syncLimits;
+  $('#ltbody').onchange = e => {
+    if(e.target.classList.contains('lmode')){
+      syncLimits();
+      renderLimits();          // 切换模式后重绘该行（规则/数值两种形态）
+    }
+  };
+}
+
+function syncLimits(){
+  const out = {};
+  document.querySelectorAll('#ltbody tr').forEach(tr => {
+    const mode = tr.querySelector('.lmode').value;
+    const unitEl = tr.querySelector('.lunit');
+    const unit = unitEl && unitEl.value.trim() ? unitEl.value.trim() : 'mm';
+    if(mode === 'rule'){
+      out[tr.dataset.id] = {mode, rules: parseRules(tr.querySelector('.lrule').value), unit};
+      return;
+    }
+    const val = el => {
+      if(!el) return null;
+      const v = el.value.trim();
+      if(v === '') return null;
+      return /^-?\d+(\.\d+)?$/.test(v) ? Number(v) : v;   // 数字或表达式
+    };
+    out[tr.dataset.id] = {mode, lower: val(tr.querySelector('.llow')),
+                          upper: val(tr.querySelector('.lup')), unit};
+  });
+  A.job.limits = out;
+}
+
+function syncItems(){
+  const rows = [...document.querySelectorAll('#atbody tr')];
+  A.job.items = rows.map((tr, i) => {
+    const old = A.job.items[i] || {};
+    return Object.assign({}, old, {
+      selected: tr.querySelector('.sel').checked,
+      clause: tr.querySelector('.cl').value,
+      title: tr.querySelector('.ti').value,
+      category: tr.querySelector('.cat').value,
+      measurable: tr.querySelector('.ms').checked,
+    });
+  });
+  updateStat();
+  renderLimits();
+}
+
+function updateStat(){
+  const its = A.job ? A.job.items : [];
+  const sel = its.filter(x => x.selected).length;
+  const ms = its.filter(x => x.selected && x.measurable).length;
+  $('#astat').textContent = `已选 ${sel} 项，其中可判定 ${ms} 项`;
+  $('#checkAll').checked = its.length > 0 && sel === its.length;
+}
+
+async function loadOcrText(id){
+  if(A._textFor === id) return;
+  const r = await fetch(`/api/analyze/jobs/${id}/text`);
+  const d = await r.json();
+  A._textFor = id;
+  $('#ocrText').textContent = d.text || '（无）';
+}
+
+async function saveItems(quiet=true){
+  syncItems(); syncParams(); syncLimits();
+  const body = {
+    items: A.job.items,
+    params_spec: A.job.params_spec,
+    limits: A.job.limits,
+    code: $('#stdCode').value.trim(),
+    title: $('#stdTitle2').value.trim(),
+  };
+  const r = await fetch(`/api/analyze/jobs/${A.job.id}/items`, {
+    method:'PUT', headers:{'Content-Type':'application/json'},
+    body: JSON.stringify(body)
+  });
+  if(!r.ok) throw new Error('保存失败');
+  if(!quiet) $('#amsg').textContent = '已保存 ' + new Date().toLocaleTimeString();
+  return true;
+}
+
+$('#pick').onclick = () => $('#file').click();
+$('#file').onchange = e => uploadFile(e.target.files[0]);
+
+const drop = $('#drop');
+['dragenter','dragover'].forEach(ev => drop.addEventListener(ev, e => {
+  e.preventDefault(); drop.classList.add('hot');
+}));
+['dragleave','drop'].forEach(ev => drop.addEventListener(ev, e => {
+  e.preventDefault(); drop.classList.remove('hot');
+}));
+drop.addEventListener('drop', e => uploadFile(e.dataTransfer.files[0]));
+
+$('#toPaste').onclick = e => {
+  e.preventDefault();
+  $('#pasteWrap').hidden = !$('#pasteWrap').hidden;
+};
+$('#btnPaste').onclick = async () => {
+  const text = $('#pasteText').value.trim();
+  if(text.length < 20){ $('#amsg').textContent = '文本太短'; return; }
+  $('#prog').hidden = false; setProg(40, '识别中…');
+  const r = await fetch('/api/analyze/text', {
+    method:'POST', headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({text, filename:'粘贴的文本'})
+  });
+  const d = await r.json();
+  pollJob(d.job_id);
+};
+
+$('#checkAll').onchange = e => {
+  document.querySelectorAll('#atbody .sel').forEach(c => c.checked = e.target.checked);
+  syncItems();
+};
+$('#btnAddRow').onclick = () => {
+  if(!A.job) return;
+  A.job.items.push({id:'m' + Date.now(), clause:'', title:'', category:'其他',
+                    measurable:true, selected:true, page:0, evidence:'（手工新增）'});
+  renderJob();
+};
+$('#btnSave').onclick = () => saveItems(false).catch(() => $('#amsg').textContent = '保存失败');
+$('#btnAddParam').onclick = () => {
+  if(!A.job) return;
+  A.job.params_spec = A.job.params_spec || [];
+  A.job.params_spec.push({code:'', name:'', type:'number', unit:'mm',
+                          required:true, options:[], default:null});
+  renderParams();
+};
+$('#btnPublish').onclick = async () => {
+  try { await saveItems(); } catch(e){ $('#pmsg').textContent = '保存失败'; return; }
+  const payload = {
+    job_id: A.job.id,
+    code: $('#stdCode').value.trim(),
+    title: $('#stdTitle2').value.trim(),
+    category: '自定义',
+    scope: '',
+    params: A.job.params_spec,
+    items: A.job.items.filter(x => x.selected),
+    limits: A.job.limits,
+    source: {job_id: A.job.id, filename: A.job.filename, pages: A.job.pages},
+  };
+  const r = await fetch('/api/standards/publish', {
+    method:'POST', headers:{'Content-Type':'application/json'},
+    body: JSON.stringify(payload)
+  });
+  const d = await r.json().catch(() => ({}));
+  if(!r.ok){
+    $('#pmsg').textContent = '发布失败：' + (d.detail || r.status);
+    return;
+  }
+  A.job.published_id = d.std_id;
+  $('#pmsg').innerHTML = `已发布（${d.params} 个参数 / ${d.items} 个检项）　`
+    + `<a href="/?std=${encodeURIComponent(d.std_id)}#/card" style="color:var(--brand-2)">去出检验卡 →</a>`;
+};
+$('#btnExportStd').onclick = async () => {
+  try { await saveItems(); } catch(e){ $('#amsg').textContent = '保存失败'; return; }
+  window.location = `/api/analyze/jobs/${A.job.id}/card.xlsx`;
+};
+
+async function loadRecent(){
+  const list = await (await fetch('/api/analyze/jobs')).json();
+  if(!list.length){ $('#recent').innerHTML = ''; return; }
+  $('#recent').innerHTML = '最近的作业：' + list.slice(0, 6).map(j =>
+    `<a href="#/analyze/${j.id}" style="color:var(--brand-2)">${esc(j.code || j.filename)}</a>`
+  ).join(' · ');
+}
+
+/* 启动 */
+route();
+</script>
+</body>
+</html>
