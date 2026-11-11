@@ -538,6 +538,7 @@
       <div id="sPreview" style="overflow:auto;max-height:34vh;margin:10px 0"></div>
       <div style="margin:12px 0 6px"><b style="font-size:13px">列含义</b>
         <span class="lbl">系统只给网格，哪列是维度、哪列是限值由你指定</span></div>
+      <div id="sHint" class="lbl" style="margin:2px 0 6px"></div>
       <div id="sMap"></div>
       <div class="erow" style="margin-top:12px">
         <div><div class="lbl">值解释（怎么读限值列）</div>
@@ -1066,6 +1067,9 @@ function renderDrafts(){
 
 function openDraftEditor(t){
   DRAFT = t;
+  E.params = (JOB.params_spec || []).map(p => ({code: p.code, name: p.name}));
+  E.items = (JOB.items || []).filter(i => i.selected)
+    .map(i => ({code: i.id, clause: i.clause, name: i.title}));
   openEditor(null, t, true);
   $('#mSub').textContent = '作业草稿（发布时落库）';
   E.items = (JOB.items || []).filter(i => i.selected).map(i => ({code: i.id, clause: i.clause, name: i.title}));
@@ -1085,6 +1089,7 @@ $('#limTabs').onclick = e => {
 
 $('#btnImportTable').onclick = () => {
   SRC.draftMode = true;
+  E.params = (JOB.params_spec || []).map(p => ({code: p.code, name: p.name}));
   $('#srcModal').hidden = false;
   $('#sMsg').textContent = '';
   $('#sJob').innerHTML = `<option value="${JOB.id}">${esc(JOB.code || JOB.filename)}</option>`;
@@ -1215,11 +1220,110 @@ async function loadSourceTables(jobId){
   selectSourceTable(0);
 }
 
+/* ---------- 列映射的自动识别 ---------- */
+const HDR_RE = /(等级|规格|公称|尺寸|螺纹|螺距|厚度|长度|宽度|材料|表面|镀层|项目|名称|序号|编号|No\.?|min|max|上限|下限|最大|最小|公差|偏差|性能)/i;
+const UP_RE = /(上限|最大|max|上偏差|最大极限|max\.)/i;
+const LO_RE = /(下限|最小|min|下偏差|最小极限|min\.)/i;
+const TOL_RE = /(公差|偏差|±)/;
+
+const DIM_HINTS = [
+  [/性能等级|强度等级|等级|grade/i, "grade"],
+  [/螺纹规格|螺纹公称|公称直径|规格|直径|d\\b/i, "d_nom"],
+  [/厚度|板厚|h\\b/i, "h_nom"],
+  [/长度|L\\b/i, "l_nom"],
+  [/螺距|pitch/i, "pitch"],
+  [/材料|material|钢/i, "material"],
+  [/表面处理|镀层|涂层|coating/i, "coating"],
+];
+
+function normCell(v){ return String(v || '').replace(/\s+/g, '').trim(); }
+
+function looksHeaderRow(cells){
+  const hit = cells.filter(c => HDR_RE.test(c || '')).length;
+  const texty = cells.filter(c => c && !/^[\d.,%±+\-—~～\/\s]+$/.test(c)).length;
+  return hit >= 2 || (hit >= 1 && texty >= Math.max(2, Math.ceil(cells.length / 2)));
+}
+
+function matchDimParam(text, params){
+  for(const [re, code] of DIM_HINTS){
+    if(re.test(text) && params.some(p => p.code === code)) return code;
+  }
+  const byName = params.find(p => (p.name && text.includes(p.name.replace(/^公称/, ''))) || text.includes(p.code));
+  return byName ? byName.code : null;
+}
+
+function guessMapping(t, params){
+  const grid = t.grid || [];
+  // 表头可能跨 1~2 行：在前 3 行里找命中关键词最多的一行
+  let hi = -1, best = 0;
+  for(let r = 0; r < Math.min(3, grid.length); r++){
+    const hit = (grid[r] || []).filter(c => HDR_RE.test(c || '')).length;
+    if(hit > best && hit >= 2){ best = hit; hi = r; }
+  }
+  const header = hi >= 0 ? grid[hi] : null;
+  const body = header ? grid.slice(hi + 1) : grid;
+  const notes = [];
+  const used = new Set();
+  let dimCount = 0;
+
+  const map = Array.from({length: t.cols}, (_, c) => {
+    const vals = body.map(r => normCell(r[c])).filter(Boolean);
+    if(!vals.length) return '';
+    const h = header ? normCell(header[c]) : '';
+
+    // 1) 表头里写了上下限/公差
+    if(h && UP_RE.test(h)){ notes.push(`第 ${c+1} 列「${h}」→ 上限`); return 'upper'; }
+    if(h && LO_RE.test(h)){ notes.push(`第 ${c+1} 列「${h}」→ 下限`); return 'lower'; }
+    if(h && TOL_RE.test(h)){ notes.push(`第 ${c+1} 列「${h}」→ 公差（按 ± 解释）`); return 'upper'; }
+
+    // 2) 表头里写了参数名
+    if(h){
+      const code = matchDimParam(h, params);
+      if(code && !used.has(code)){ used.add(code); notes.push(`第 ${c+1} 列「${h}」→ 维度 ${code}`); return 'dim:' + code; }
+    }
+
+    // 3) 没表头线索时保守猜：数字多的当上限，短文本且取值少的才当维度（最多 2 个）
+    const numeric = vals.filter(v => /^[±+\-]?\s*\d+(\.\d+)?$|^[±+]?\d/.test(v)).length;
+    if(numeric / vals.length >= 0.6) return 'upper';
+    const uniq = new Set(vals).size;
+    const longest = Math.max(...vals.map(v => v.length));
+    if(dimCount < 2 && uniq >= 2 && uniq <= 8 && longest <= 16){
+      const code = params.map(p => p.code).find(c => !used.has(c));
+      if(code){
+        used.add(code); dimCount += 1;
+        notes.push(`第 ${c+1} 列 → 维度 ${code}（按取值个数猜，需要时改）`);
+        return 'dim:' + code;
+      }
+    }
+    return '';
+  });
+
+  // 4) 只猜到一列上限、但左右各有数字列 → 补一个下限
+  return {map, header: !!header, headerRows: hi >= 0 ? hi + 1 : 0, notes};
+}
+
+function dimKindOf(values){
+  const rs = values.map(v => v.match(/^[>≥]?\s*(\d+(?:\.\d+)?)\s*[~～\-—]\s*(\d+(?:\.\d+)?)$/));
+  if(rs.every(Boolean) && rs.length){
+    return {kind: 'range', values: rs.map(m => [Number(m[1]), Number(m[2])])};
+  }
+  return {kind: 'enum', values};
+}
+
 function selectSourceTable(i){
   SRC.table = SRC.tables[i];
   const t = SRC.table;
+  const hdrRows = (() => {
+    let hi = -1, best = 0;
+    for(let r = 0; r < Math.min(3, t.grid.length); r++){
+      const hit = (t.grid[r] || []).filter(c => HDR_RE.test(c || '')).length;
+      if(hit > best && hit >= 2){ best = hit; hi = r; }
+    }
+    return hi + 1;
+  })();
   $('#sPreview').innerHTML = `<table class="analyze edtable"><tbody>${
-    t.grid.slice(0, 8).map(r => `<tr>${r.map(c => `<td>${esc(c || '')}</td>`).join('')}</tr>`).join('')
+    t.grid.slice(0, 8).map((r, i) => `<tr${i < hdrRows ? ' style="background:#eef4fb;font-weight:600"' : ''}>${
+      r.map(c => `<td>${esc(c || '')}</td>`).join('')}</tr>`).join('')
   }</tbody></table>`;
 
   const opts = (sel) => ['<option value="">忽略</option>']
@@ -1227,20 +1331,11 @@ function selectSourceTable(i){
     .concat([`<option value="lower" ${sel === 'lower' ? 'selected' : ''}>下限</option>`,
              `<option value="upper" ${sel === 'upper' ? 'selected' : ''}>上限</option>`]).join('');
 
-  // 猜测：数字列 → 上限；最左侧 2 个"取值不多"的文本列 → 维度；其余忽略
-  let dimSeen = 0;
-  SRC.map = Array.from({length: t.cols}, (_, c) => {
-    const vals = t.grid.map(r => (r[c] || '').trim()).filter(Boolean);
-    if(!vals.length) return '';
-    const numeric = vals.filter(v => /^[±+\-]?\s*\d+(\.\d+)?$|^[±+]?\d/.test(v)).length;
-    if(numeric / vals.length >= 0.6) return 'upper';
-    const uniq = new Set(vals).size;
-    if(uniq <= 8 && dimSeen < 2){
-      const p = E.params[dimSeen];
-      if(p){ dimSeen += 1; return 'dim:' + p.code; }
-    }
-    return '';
-  });
+  const g = guessMapping(t, E.params);
+  SRC.map = g.map;
+  SRC.headerRows = g.headerRows || 0;
+  $('#sHint').innerHTML = (g.headerRows ? `识别到表头，导入时跳过前 ${g.headerRows} 行。` : '没识别到表头。')
+    + (g.notes.length ? '自动映射：' + g.notes.map(esc).join('；') : '没有可用线索，请手动指定。');
 
   $('#sMap').innerHTML = `<div class="dimrow" style="grid-template-columns:80px 1fr">
       <span class="lbl">列</span><span class="lbl">含义</span></div>` +
@@ -1261,9 +1356,10 @@ function buildDraftFromSource(){
   const t = SRC.table;
   const dimIdx = SRC.map.map((m, i) => [m, i]).filter(([m]) => m && m.startsWith('dim:'));
   if(!dimIdx.length){ $('#sMsg').textContent = '至少要指定一列作为维度'; return null; }
+  const dataRows = t.grid.slice(SRC.headerRows || 0);
   const dims = dimIdx.map(([m]) => ({code: m.slice(4), kind: 'enum', values: []}));
   const rows = [];
-  for(const line of t.grid){
+  for(const line of dataRows){
     const key = {};
     dimIdx.forEach(([m, i], k) => {
       const v = (line[i] || '').trim();
@@ -1285,6 +1381,20 @@ function buildDraftFromSource(){
     rows.push({key, lower: lo, upper: hi, lower_expr: '', upper_expr: '',
                na: false, note: (show ? show + '  ←  ' : '') + raw.slice(0, 60)});
   }
+  // 维度：值是 "0~3" 这种就按区间存，否则枚举；顺手滤掉"续表/单位"这类噪声
+  dims.forEach(d => {
+    const vals = d.values.filter(v => v && !/^(续表|表\s?\d|注[：:]|单位)/.test(v));
+    const k = dimKindOf(vals);
+    d.kind = k.kind;
+    d.values = k.values;
+    if(k.kind === 'range'){                 // 行 key 也跟着换成 [a,b]，否则对不上维度取值
+      rows.forEach(r => {
+        const m = String(r.key[d.code] || '').match(/^[>≥]?\s*(\d+(?:\.\d+)?)\s*[~～\-—]\s*(\d+(?:\.\d+)?)$/);
+        if(m) r.key[d.code] = [Number(m[1]), Number(m[2])];
+      });
+    }
+  });
+  if(!rows.length){ $('#sMsg').textContent = '这一页没有可导入的行'; return null; }
   return {
     id: 'T-' + Date.now().toString(36),
     name: $('#sName').value.trim() || '原文导入',
@@ -1752,6 +1862,22 @@ function renderJob(){
   $('#textWrap').hidden = !j.has_text;
   syncSteps();
   showStep(S.step || 1, false);
+
+  const srcIdx = new URLSearchParams(location.search).get('src');
+  if(srcIdx !== null && JOB){
+    setTimeout(async () => {
+      SRC.draftMode = true;
+      E.params = (JOB.params_spec || []).map(p => ({code: p.code, name: p.name}));
+      $('#srcModal').hidden = false;
+      $('#sMsg').textContent = '';
+      $('#sJob').innerHTML = `<option>${esc(JOB.code || JOB.filename)}</option>`;
+      $('#sItem').innerHTML = '<option value="">—</option>' + (JOB.items || []).filter(i => i.selected)
+        .map(i => `<option value="${i.id}">${esc(i.clause)} ${esc(i.title)}</option>`).join('');
+      await loadSourceTables(JOB.id);
+      const n = Number(srcIdx || 0);
+      if(SRC.tables[n]){ $('#sTable').value = String(n); selectSourceTable(n); }
+    }, 250);
+  }
   if(j.has_text) loadOcrText(j.id);
   updateStat();
 }
