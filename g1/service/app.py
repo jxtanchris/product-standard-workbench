@@ -811,8 +811,7 @@ def publish(payload: PublishPayload):
             if it.get("table"):
                 dbmod.bind_table(conn, std.id, it["id"], it["table"])
     register(std, replace=True)
-    if payload.job_id:
-        _reload(std.id)          # 草稿表绑定改的是库，内存里的标准要重读
+    _reload(std.id)              # 分层/绑定都以库为准，内存里的标准重读一遍
     if payload.job_id:
         jobstore.STORE.update(payload.job_id, published_id=std.id,
                               params_spec=data["params"], limits=data["limits"])

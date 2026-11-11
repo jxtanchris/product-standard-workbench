@@ -51,6 +51,17 @@ class Param:
 
 
 @dataclass
+class Layer:
+    """标准 × 产品小类：这一层下有自己的参数、检项、限值。"""
+    id: str
+    class_id: str = ""
+    name: str = ""
+    params: list = field(default_factory=list)
+    items: list = field(default_factory=list)
+    limits: dict = field(default_factory=dict)
+
+
+@dataclass
 class Standard:
     id: str
     code: str
@@ -64,6 +75,7 @@ class Standard:
     note: str = ""
     custom: bool = False          # 由“上传分析”发布的标准
     classes: list = field(default_factory=list)   # 覆盖的产品小类 id
+    layers: list = field(default_factory=list)    # 标准 × 小类 分层
     source: dict = field(default_factory=dict)   # 来源作业、文件名等
 
     # ---------- 参数校验：把用户输入整理成引擎上下文 ----------
@@ -108,6 +120,12 @@ class Standard:
             "source": self.source,
             "params": [p.meta() for p in self.params],
             "classes": self.classes,
+            "layers": [{"id": l.id if hasattr(l, "id") else l.get("id"),
+                        "class_id": getattr(l, "class_id", None) if hasattr(l, "class_id") else l.get("class_id", ""),
+                        "name": getattr(l, "name", "") if hasattr(l, "name") else l.get("name", ""),
+                        "params": len(getattr(l, "params", []) if hasattr(l, "params") else l.get("params") or []),
+                        "items": len(getattr(l, "items", []) if hasattr(l, "items") else l.get("items") or [])}
+                       for l in (self.layers or [])],
             "items": [{**{k: i[k] for k in
                         ("id", "name", "symbol", "clause", "kind", "measured_key",
                          "nominal_param", "requires") if k in i},
@@ -280,6 +298,10 @@ def from_loaded(entry: dict) -> Standard:
         note=entry.get("note", ""), params=params, items=entry["items"],
         tables=entry["tables"], symbols={}, custom=bool(entry.get("custom")),
         classes=entry.get("classes") or [],
+        layers=[Layer(id=l["id"], class_id=l.get("class_id", ""), name=l.get("name", ""),
+                      params=l.get("params") or [], items=l.get("items") or [],
+                      limits=l.get("limits") or {})
+                for l in (entry.get("layers") or [])],
         source=entry.get("source") or {},
     )
 

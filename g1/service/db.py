@@ -56,6 +56,7 @@ CREATE TABLE IF NOT EXISTS limit_table (
     nominal_param TEXT,
     item_code     TEXT,
     sort          INTEGER DEFAULT 0,
+    sc_id         TEXT,
     UNIQUE (std_id, local_id)
 );
 
@@ -102,6 +103,18 @@ CREATE TABLE IF NOT EXISTS standard_document (
 
 CREATE INDEX IF NOT EXISTS idx_sd_doc ON standard_document(doc_id);
 CREATE INDEX IF NOT EXISTS idx_doc_job ON document(job_id);
+
+-- 标准 × 产品小类 这一层：检项、参数、限值都挂在它下面
+CREATE TABLE IF NOT EXISTS standard_class (
+    id          TEXT PRIMARY KEY,
+    std_id      TEXT NOT NULL REFERENCES standard(id) ON DELETE CASCADE,
+    class_id    TEXT,
+    name        TEXT,
+    sort        INTEGER DEFAULT 0,
+    param_json  TEXT DEFAULT '[]',
+    item_json   TEXT DEFAULT '[]',
+    limits_json TEXT DEFAULT '{}'
+);
 
 -- 产品小类下的参数库：小类 → 参数定义 → 参数值（最大集）
 CREATE TABLE IF NOT EXISTS product_class (
@@ -307,8 +320,42 @@ def save_payload(conn: sqlite3.Connection, payload: dict) -> str:
          json.dumps(payload.get("source") or {}, ensure_ascii=False),
          json.dumps(payload.get("classes") or [], ensure_ascii=False),
          time.time()))
+    # 标准 × 小类：按参数/检项上的 class_id 分层
+    classes = []
+    for p in payload.get("params") or []:
+        cid = p.get("class_id") or ""
+        if cid and cid not in classes:
+            classes.append(cid)
+    if not classes:
+        classes = [""]
+    conn.execute("DELETE FROM standard_class WHERE std_id=?", (sid,))
+    sc_of_class = {}
+    for i, cid in enumerate(classes):
+        sc_id = f"sc-{sid}-{cid or 'all'}"
+        sc_of_class[cid] = sc_id
+        ps = [p for p in (payload.get("params") or []) if (p.get("class_id") or "") == cid]
+        its = [it for it in (payload.get("items") or [])
+               if (it.get("class_id") or "") in ("", cid)]
+        conn.execute("INSERT INTO standard_class(id, std_id, class_id, name, sort,"
+                     " param_json, item_json, limits_json) VALUES (?,?,?,?,?,?,?,?)",
+                     (sc_id, sid, cid, payload.get("title") or "", i,
+                      json.dumps(ps, ensure_ascii=False),
+                      json.dumps(its, ensure_ascii=False),
+                      json.dumps(payload.get("limits") or {}, ensure_ascii=False)))
+
     for t in payload.get("tables") or []:
+        item_class = ""
+        for it in payload.get("items") or []:
+            if it.get("id") == t.get("item_code"):
+                item_class = it.get("class_id") or ""
+                break
+        t = {**t, "sc_id": sc_of_class.get(item_class) or sc_of_class.get("") or
+             next(iter(sc_of_class.values()))}
         _insert_table(conn, sid, t)
+    # 老表没有 sc_id 的兜底挂到第一层
+    first_sc = next(iter(sc_of_class.values()))
+    conn.execute("UPDATE limit_table SET sc_id=? WHERE std_id=? AND (sc_id IS NULL OR sc_id='')",
+                 (first_sc, sid))
     conn.commit()
     return sid
 
@@ -394,12 +441,23 @@ def _simple_table(code: str, lim: dict) -> LimitTable:
     return tbl
 
 
+def layers_of(conn: sqlite3.Connection, std_id: str) -> list[dict]:
+    out = []
+    for r in conn.execute("SELECT * FROM standard_class WHERE std_id=? ORDER BY sort, id", (std_id,)):
+        out.append({"id": r["id"], "class_id": r["class_id"] or "", "name": r["name"] or "",
+                    "params": json.loads(r["param_json"] or "[]"),
+                    "items": json.loads(r["item_json"] or "[]"),
+                    "limits": json.loads(r["limits_json"] or "{}")})
+    return out
+
+
 def load_all(conn: sqlite3.Connection) -> list[dict]:
     out = []
     for s in conn.execute("SELECT * FROM standard ORDER BY created_at"):
         tables = {}
         for t in conn.execute("SELECT * FROM limit_table WHERE std_id=? ORDER BY sort", (s["id"],)):
             tables[t["local_id"]] = _build_table(conn, t)
+        layers = layers_of(conn, s["id"])
         limits_json = json.loads(s["limits_json"] or "{}")
         items = json.loads(s["item_json"] or "[]")
         for code, lim in limits_json.items():
@@ -439,6 +497,7 @@ def load_all(conn: sqlite3.Connection) -> list[dict]:
             "source": json.loads(s["source_json"] or "{}"),
             "params": json.loads(s["param_json"] or "[]"),
             "classes": json.loads(s["classes_json"] or "[]") if "classes_json" in s.keys() else [],
+            "layers": layers,
             "items": items, "tables": tables,
         })
     return out
@@ -568,6 +627,24 @@ def update_item_pages(conn: sqlite3.Connection, std_id: str, pages: dict[str, in
 
 
 # ------------------------------------------------------------------ 参数库（产品小类 → 参数 → 值）
+def migrate_layers(conn: sqlite3.Connection) -> None:
+    """把老标准包成一层「标准 × 小类」，限值表挂到这一层上。"""
+    _ensure_column(conn, "limit_table", "sc_id", "TEXT")
+    for s in conn.execute("SELECT * FROM standard"):
+        n = conn.execute("SELECT COUNT(*) FROM standard_class WHERE std_id=?", (s["id"],)).fetchone()[0]
+        if n:
+            continue
+        classes = json.loads(s["classes_json"] or "[]") if "classes_json" in s.keys() else []
+        sc_id = f"sc-{s['id']}-{classes[0] if classes else 'all'}"
+        conn.execute("INSERT INTO standard_class(id, std_id, class_id, name, sort,"
+                     " param_json, item_json, limits_json) VALUES (?,?,?,?,?,?,?,?)",
+                     (sc_id, s["id"], classes[0] if classes else "", s["title"] or s["code"], 0,
+                      s["param_json"] or "[]", s["item_json"] or "[]", s["limits_json"] or "{}"))
+        conn.execute("UPDATE limit_table SET sc_id=? WHERE std_id=? AND sc_id IS NULL",
+                     (sc_id, s["id"]))
+    conn.commit()
+
+
 def migrate_catalog(conn: sqlite3.Connection) -> None:
     """旧的两层半结构（param_def 挂小类）→ 参数名称表 + 关联表。"""
     if not _columns(conn, "param_def"):
