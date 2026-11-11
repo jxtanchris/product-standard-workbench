@@ -344,7 +344,8 @@
     <section class="card" id="resultCard" data-pane="1" hidden>
       <div class="card-h">
         <h2>② 确认检项</h2>
-        <span class="hint">系统只给候选，勾选与改名由人决定；每条都能回溯到页码与原文</span>
+        <span class="hint">系统只给候选，勾选与改名由人决定；点「依据」看判定过程</span>
+        <button class="btn ghost" id="btnRules">识别规则</button>
       </div>
       <div class="stdline">
         <span style="font-size:12px;color:var(--muted)">标准号</span>
@@ -409,6 +410,7 @@
               <th style="width:70px">单位</th>
               <th style="width:60px">必填</th>
               <th>可选值（逗号分隔；数值型留空）</th>
+              <th style="width:240px">依据</th>
               <th style="width:34px"></th>
             </tr>
           </thead>
@@ -519,6 +521,17 @@
     </section>
   </div><!-- /view-tables -->
 </main>
+
+<div class="modal" id="whyModal" hidden>
+  <div class="panel" style="max-width:820px">
+    <div class="mhead">
+      <h3 id="whyTitle">判定依据</h3>
+      <span class="pill" id="whySub"></span>
+      <button class="btn ghost" id="whyClose" style="margin-left:auto">关闭</button>
+    </div>
+    <div class="mbody"><div id="whyBody" style="font-size:13px;line-height:1.9"></div></div>
+  </div>
+</div>
 
 <div class="modal" id="srcModal" hidden>
   <div class="panel">
@@ -968,6 +981,72 @@ async function initCard(stdId){
   renderForm();
   await resolve();
   if(new URLSearchParams(location.search).get('demo') === '1') fillDemo();
+}
+
+/* ================= 判定依据 ================= */
+function showWhy(it){
+  $('#whyTitle').textContent = `为什么「${it.clause}　${it.title}」` +
+    (it.selected ? '被算作检查项' : '没被算作检查项');
+  $('#whySub').textContent = it.selected ? '已选' : (it.reason || '');
+  $('#whyBody').innerHTML =
+    '<ol style="margin:0;padding-left:20px">' +
+      (it.trace || ['（没有记录）']).map(x => `<li style="margin-bottom:4px">${esc(x)}</li>`).join('') +
+    '</ol>' +
+    (it.words && it.words.length
+      ? `<div style="margin-top:10px">命中词：${it.words.map(w => `<code>${esc(w)}</code>`).join(' ')}</div>` : '') +
+    `<div style="margin-top:10px;color:var(--muted)">原文依据：${esc(it.evidence || '—')}</div>`;
+  $('#whyModal').hidden = false;
+}
+if($('#whyClose')) $('#whyClose').onclick = () => { $('#whyModal').hidden = true; };
+
+async function showRules(){
+  $('#whyTitle').textContent = '识别规则（改代码即可调整）';
+  $('#whySub').textContent = '检项 / 参数 / 限值表';
+  $('#whyBody').innerHTML = '加载中…';
+  $('#whyModal').hidden = false;
+  let d;
+  try{
+    d = await (await fetch('/api/rules')).json();
+  }catch(e){
+    $('#whyBody').textContent = '读取规则失败：' + e;
+    return;
+  }
+  try{
+  const list = (arr) => arr.map(x =>
+    `<code style="display:inline-block;margin:0 6px 4px 0">${esc(x)}</code>`).join('');
+  const ruleRows = (d.params || []).map(p =>
+    `<tr><td><code>${esc(p.code)}</code></td><td>${esc(p.名称)}</td>
+      <td class="evi"><code>${esc(p.正则)}</code></td></tr>`).join('');
+  $('#whyBody').innerHTML = `
+    <h4 style="margin:0 0 6px">一、检查项怎么认</h4>
+    <div>${esc(d.items.一句话)}</div>
+    <ol style="margin:8px 0 10px;padding-left:20px">
+      ${d.items.步骤.map(x => `<li>${esc(x)}</li>`).join('')}
+    </ol>
+    <div style="line-height:2">
+      <div><b>条款号正则</b> <code>${esc(d.items.条款号正则)}</code></div>
+      <div><b>章节标题（排除）</b> ${list(d.items.章节标题)}</div>
+      <div><b>过程性小节（排除）</b> ${list(d.items.过程性小节)}</div>
+      <div><b>性能等级写法（排除）</b> ${list(d.items['性能等级（与条款号同形）'])}</div>
+      <div><b>可测对象词</b> ${list(d.items.可测对象词)}</div>
+      <div><b>检验动作词</b> ${list(d.items.检验动作词)}</div>
+      <div><b>上级算检项的特征</b> <code>${esc(d.items.上级算检项的标题特征)}</code></div>
+      <div><b>数值判定</b> <code>${esc(d.items.数值判定)}</code></div>
+    </div>
+
+    <h4 style="margin:18px 0 6px">二、规格参数怎么猜</h4>
+    <table class="analyze"><thead><tr><th style="width:110px">参数</th>
+      <th style="width:130px">名称</th><th>命中正则（正文任一页出现即建议）</th></tr></thead>
+      <tbody>${ruleRows}</tbody></table>
+
+    <h4 style="margin:18px 0 6px">三、限值表怎么建</h4>
+    <div>${esc(d.tables.一句话)}</div>
+    <ol style="margin:8px 0 0;padding-left:20px">
+      ${d.tables.步骤.map(x => `<li>${esc(x)}</li>`).join('')}
+    </ol>`;
+  }catch(e){
+    $('#whyBody').textContent = '渲染规则失败：' + (e && e.message ? e.message : e);
+  }
 }
 
 /* ================= 分步向导 ================= */
@@ -1648,6 +1727,8 @@ $('#sConfirm').onclick = async () => {
   $('#sMsg').textContent = `已生成 ${n}/${drafts.length} 张表，可在列表里逐张编辑`;
 };
 
+if($('#btnRules')) $('#btnRules').onclick = () => showRules();
+
 $('#sBuild').onclick = () => {
   const drafts = buildDraftsFromSource();
   if(!drafts || !drafts.length) return;
@@ -2051,7 +2132,10 @@ function renderJob(){
           : `<span style="color:#b26a00">✕ ${esc(it.reason || '未通过判定')}</span>
              <span class="muted" style="font-size:11px"> · 勾选左侧即可加回</span>`}</td>
       <td style="text-align:center;color:var(--muted)">${it.page || '—'}</td>
-      <td><button class="rowdel" title="删除">×</button></td>
+      <td style="white-space:nowrap">
+        <button class="rowwhy" data-i="${i}" title="看判定依据">依据</button>
+        <button class="rowdel" title="删除">×</button>
+      </td>
     </tr>`).join('');
 
   tb.oninput = syncItems;
@@ -2068,6 +2152,12 @@ function renderJob(){
     syncItems();
   };
   tb.onclick = e => {
+    const why = e.target.closest('.rowwhy');
+    if(why){
+      const it = (JOB.items || [])[Number(why.dataset.i)];
+      if(it) showWhy(it);
+      return;
+    }
     if(!e.target.classList.contains('rowdel')) return;
     const tr = e.target.closest('tr');
     tr.remove();
@@ -2089,7 +2179,16 @@ function renderJob(){
   syncSteps();
   showStep(S.step || 1, false);
 
-  const srcIdx = new URLSearchParams(location.search).get('src');
+  const qs = new URLSearchParams(location.search);
+  if(qs.get('rules') === '1') setTimeout(() => showRules(), 300);
+  if(qs.get('why') !== null){
+    setTimeout(() => {
+      const it = (JOB.items || []).filter(x => x.selected)[Number(qs.get('why') || 0)];
+      if(it) showWhy(it);
+    }, 300);
+  }
+
+  const srcIdx = qs.get('src');
   if(srcIdx !== null && JOB){
     setTimeout(async () => {
       SRC.draftMode = true;
@@ -2125,6 +2224,7 @@ function renderParams(){
       <td style="text-align:center"><input type="checkbox" class="chk preq" ${p.required ? 'checked' : ''}></td>
       <td><input type="text" class="popts" value="${esc((p.options || []).join(','))}"
                  ${p.type === 'enum' ? 'placeholder="如：A,B,C"' : 'disabled placeholder="—（数值型不需要）"'}></td>
+      <td class="evi" title="${esc((p.trace || []).join(' / '))}">${esc((p.trace || ['—'])[0])}</td>
       <td><button class="rowdel" title="删除">×</button></td>
     </tr>`).join('');
   $('#ptbody').oninput = syncParams;

@@ -78,6 +78,8 @@ class Candidate:
     evidence: str = ""
     table_ref: str = ""
     selected: bool = True
+    trace: list = field(default_factory=list)      # 判定过程，逐条给人看
+    words: list = field(default_factory=list)      # 命中的关键词
     method: str = ""          # 由人补充
     note: str = ""
 
@@ -195,22 +197,39 @@ def parse(pages: list[dict], min_score: float = 0.35) -> list[Candidate]:
         # −−− 最终判断：这条到底算不算"检查项目" −−−
         metric = [w for w in METRIC_WORDS if w in title]
         action = [w for w in ACTION_WORDS if w in title]
+        trace = [
+            f"① 行首匹配条款号：{num}（后面紧跟汉字「{title[:6]}」）",
+            f"② 标题：{title}",
+            f"③ 类别：{cat}" + (f"（正文命中「{cat}」关键词）" if hit else "（没命中任何类别关键词）"),
+            f"④ 正文含限值/符号：{'是' if numeric else '否'}（先剥掉 GB/T 5276 这类标准号再判断）",
+            f"⑤ 提到表格：{tbl.group(0) if tbl else '没有'}　层级：{depth} 级　分数：{score}",
+        ]
+        if metric or action:
+            trace.append(f"⑥ 标题含可测对象/检验动作：{'、'.join(metric + action)}")
+        else:
+            trace.append("⑥ 标题里没有可测对象，也没有检验动作")
         reason = ""
         if num in GRADE_CLAUSES or title.startswith("级"):
+            trace.append(f"⑦ 判为排除：{num} 是性能等级写法或断行碎片")
             reason = "性能等级或断行碎片，不是条款"
         elif (title.endswith("/") or title.endswith("、")
               or re.search(r"[/=]", title) or "，" in title):
             reason = "表格单元格被当成条款"
+            trace.append("⑦ 判为排除：标题像表格单元格（带 / = ，或结尾是斜杠）")
         elif title in SECTION_TITLES or any(t in title for t in
                                             ("术语", "符号", "代号", "标记制度", "标记示例")):
             reason = "章节标题（讲规矩，不是要量的东西）"
+            trace.append("⑦ 判为排除：章节标题（范围/术语/标记/材料这类整章）")
         elif title in PROCESS_TITLES or any(t in title for t in
                                             ("试验结果", "交付", "供方的控制", "需方的控制",
                                              "技术要求", "仪器", "装置", "制备", "试件")):
             reason = "过程性小节（讲怎么做，不是检什么）"
+            trace.append("⑦ 判为排除：过程性小节（设备/程序/试验结果/技术要求）")
         elif not (metric or action):
             reason = "标题里没有可测量的对象"
+            trace.append("⑦ 判为排除：标题里没有可测量的对象")
         selected = not reason
+        trace.append("⑧ 结论：" + ("算检查项目" if selected else "不算，" + reason))
 
         out.append(Candidate(
             id=f"c{len(out) + 1:03d}", clause=num, title=title, category=cat,
@@ -219,6 +238,8 @@ def parse(pages: list[dict], min_score: float = 0.35) -> list[Candidate]:
             table_ref=tbl.group(0) if tbl else "",
             selected=selected,
             reason=reason,
+            trace=trace,
+            words=sorted(set(metric + action + [cat] if hit else metric + action)),
         ))
 
     # −−− 父子折叠：上级已经是检项时，下级是它的方法步骤，不再单列 −−−
@@ -244,6 +265,7 @@ def parse(pages: list[dict], min_score: float = 0.35) -> list[Candidate]:
         if a is not None:
             c.selected = False
             c.reason = f"属于 {a.clause}「{a.title}」的方法步骤"
+            c.trace.append(f"⑨ 上级 {a.clause}「{a.title}」已经是检项 → 本条折叠为它的方法步骤")
 
     out.sort(key=lambda c: [int(x) for x in c.clause.split(".")])
     return out
@@ -263,18 +285,73 @@ PARAM_RULES: list[tuple[str, str, str, str, str, list[str] | None]] = [
 
 
 def suggest_params(pages: list[dict], limit: int = 6) -> list[dict]:
-    text = " ".join(ln for p in pages for ln in p.get("lines", []))
+    """从正文猜规格参数，并记录是"哪一行、命中哪个词"猜出来的。"""
+    lines = [(int(p.get("page", 0)), ln.strip()) for p in pages for ln in p.get("lines", []) if ln.strip()]
     out, seen = [], set()
     for pat, code, name, typ, unit, options in PARAM_RULES:
-        if re.search(pat, text) and code not in seen:
-            seen.add(code)
-            out.append({"code": code, "name": name, "type": typ, "unit": unit,
-                        "required": typ == "number" or code in ("grade",),
-                        "options": options or [], "default": (options or [None])[0],
-                        "min": None, "max": None, "help": ""})
+        if code in seen:
+            continue
+        hit = None
+        for page, ln in lines:
+            m = re.search(pat, ln)
+            if m:
+                hit = (page, ln, m.group(0))
+                break
+        if not hit:
+            continue
+        seen.add(code)
+        page, ln, word = hit
+        out.append({"code": code, "name": name, "type": typ, "unit": unit,
+                    "required": typ == "number" or code in ("grade",),
+                    "options": options or [], "default": (options or [None])[0],
+                    "min": None, "max": None, "help": "",
+                    "trace": [f"正文第 {page} 页命中「{word}」",
+                              f"原文：{ln[:60]}",
+                              f"规则：/{pat}/ → {code}"]})
         if len(out) >= limit:
             break
     return out
+
+
+def rules_catalog() -> dict:
+    """把判定规则原样吐出来，界面上照着调。"""
+    return {
+        "items": {
+            "一句话": "先按行首切条款，再用五条硬规则排除，最后看标题有没有可测对象。",
+            "步骤": [
+                "① 行首匹配 数字(.)数字，且后面紧跟汉字 → 当成一个条款",
+                "② 取条款后面的正文当证据（跳过表格碎片行）",
+                "③ 按关键词判类别（尺寸/形位/性能/表面/标记/其他）",
+                "④ 计算分数：0.2 + 0.4*命中类别 + 0.2*有数值 + 0.2*层级≥2 + 0.1*提到表",
+                "⑤ 五条硬规则排除：性能等级写法 / 表格单元格 / 章节标题 / 过程性小节 / 标题无可测对象",
+                "⑥ 上级已经是检项时，下级折叠为它的方法步骤",
+            ],
+            "条款号正则": CLAUSE_RE.pattern,
+            "章节标题": list(SECTION_TITLES),
+            "过程性小节": list(PROCESS_TITLES),
+            "性能等级（与条款号同形）": sorted(GRADE_CLAUSES),
+            "可测对象词": list(METRIC_WORDS),
+            "检验动作词": list(ACTION_WORDS),
+            "上级算检项的标题特征": TESTISH_RE.pattern,
+            "数值判定": "先剥掉标准号，再看 " + LIMIT_HINT.pattern,
+        },
+        "params": [
+            {"正则": pat, "code": code, "名称": name, "类型": typ,
+             "可选值": options or [], "说明": "正文任一页命中即建议"}
+            for pat, code, name, typ, unit, options in PARAM_RULES
+        ],
+        "tables": {
+            "一句话": "OCR 只还原网格，谁当维度、谁当上下限，先按表头猜，再给人改。",
+            "步骤": [
+                "① 在前 3 行里找表头（命中关键词最多且 ≥2 个表头词的那行）",
+                "② 表头含 上限/最大/max/公差 → 上限；含 下限/最小/min → 下限",
+                "③ 表头含 性能等级/螺纹规格/公称直径/厚度/螺距/材料 → 对应维度参数",
+                "④ 没表头线索时保守猜：数字列→上限，短文本且取值≤8 的最多 2 列→维度",
+                "⑤ 表内分段：整列空白 / 表头混排(max 直径d) / 维度表头重复 → 拆成多张表",
+                "⑥ 生成后先预览，逐行标问题（维度值可疑 / 缺下限 / 缺上限 / 下限>上限）",
+            ],
+        },
+    }
 
 
 def summarize(cands: list[Candidate]) -> dict:

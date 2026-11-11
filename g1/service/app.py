@@ -26,6 +26,7 @@ from fastapi.exceptions import RequestValidationError  # noqa: E402
 from fastapi.responses import FileResponse, JSONResponse, Response  # noqa: E402
 from pydantic import BaseModel, Field  # noqa: E402
 
+import analyze  # noqa: E402
 import card_std  # noqa: E402
 import db as dbmod  # noqa: E402
 import extract_doc  # noqa: E402
@@ -537,6 +538,12 @@ def analyze_text(payload: TextPayload):
     job = jobstore.STORE.create(payload.filename)
     jobstore.run_from_text(job.id, payload.text)
     return {"job_id": job.id, "status": "done"}
+
+
+@app.get("/api/rules")
+def rules():
+    """识别规则原样返回，界面上照着调。"""
+    return analyze.rules_catalog()
 
 
 @app.get("/api/analyze/jobs")
