@@ -147,6 +147,9 @@
   .jobmeta{display:flex;gap:18px;flex-wrap:wrap;font-size:12px;color:var(--muted);
            padding:10px 18px;border-bottom:1px solid var(--line);background:#fafbfd}
   .jobmeta b{color:var(--ink);font-weight:600}
+  .jobmeta .jid{cursor:pointer;font-family:Menlo,monospace;font-size:11.5px;
+                padding:1px 6px;border-radius:5px;background:#eef2f7;color:var(--brand)}
+  .jobmeta .jid:hover{background:#e0eaf5}
   .stdline{display:flex;gap:10px;align-items:center;padding:12px 18px;border-bottom:1px solid var(--line)}
   .stdline input{border:1px solid var(--line);border-radius:8px;padding:6px 10px;font-size:13px}
   .stdline input.code{width:190px;font-variant-numeric:tabular-nums}
@@ -1672,6 +1675,7 @@ function renderJob(){
   $('#stdCode').value = j.code || '';
   $('#stdTitle2').value = j.title || j.filename || '';
   $('#jobmeta').innerHTML = [
+    `作业 <b class="jid" title="点击复制" data-id="${esc(j.id)}">${esc(j.id)}</b>`,
     `文件 <b>${esc(j.filename)}</b>`,
     `页数 <b>${j.pages}</b>`,
     `取文 <b>${esc(j.engine || '—')}</b>`,
@@ -1680,6 +1684,12 @@ function renderJob(){
   ].join('');
   JOB = j;
   JOB.links = j.links || {};
+  const jid = document.querySelector('#jobmeta .jid');
+  if(jid) jid.onclick = () => {
+    navigator.clipboard?.writeText(jid.dataset.id);
+    const t = jid.textContent; jid.textContent = '已复制';
+    setTimeout(() => { jid.textContent = t; }, 900);
+  };
   $('#stdTitle').textContent = (j.code || '标准分析') + (j.title ? '　' + j.title : '');
   $('#scope').textContent = `来源：${j.filename}`;
 
