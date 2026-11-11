@@ -583,7 +583,8 @@
     <div class="mbody">
       <div class="summary" style="margin-bottom:8px">
         <button class="btn ghost" id="valsAdd">+ 新增一行</button>
-        <span class="lbl">符号与定值通常相同；不同时分别填</span>
+        <button class="btn ghost" id="valsFree">+ 加「/」占位</button>
+        <span class="lbl">数值型参数用 / 占位：有这个参数，但值不固定</span>
       </div>
       <table class="analyze">
         <thead><tr>
@@ -1097,11 +1098,12 @@ function renderCatDetail(cid){
     <div class="draft" data-p="${esc(p.id)}">
       <h4>${esc(p.code)}　${esc(p.name)}</h4>
       <div class="meta">${p.type === 'enum' ? '枚举' : '数值'}${p.unit ? ' · ' + esc(p.unit) : ''}
-        · ${p.values.length} 个取值</div>
+        · ${isFreeValues(p.values) ? '自由取值（/ 占位）' : p.values.length + ' 个取值'}</div>
       <div class="meta" style="margin-top:6px">${
         p.values.length
           ? p.values.map(v => `<code style="display:inline-block;margin:0 6px 4px 0">${esc(v.val)}</code>`).join('')
-          : '<span class="muted">（没有取值）</span>'}</div>
+          : '<span class="muted">（没有取值）</span>'}${
+        isFreeValues(p.values) ? '<span class="muted">　值不固定，由使用时填</span>' : ''}</div>
       <div class="ops"><button class="btn ghost" data-op="vals" data-id="${esc(p.id)}">编辑取值</button></div>
     </div>`).join('') || '<div class="muted" style="padding:16px">这个小类还没有参数</div>';
 
@@ -2109,11 +2111,12 @@ $('#cpOk').onclick = () => {
   let n = 0;
   picked.forEach(p => {
     if(have.has(p.code)) return;
+    const free = isFreeValues(p.values);
     A.job.params_spec.push({
-      code: p.code, name: p.name, type: p.type, unit: p.unit || '',
-      required: !!p.required, options: (p.values || []).map(v => v.val),
+      code: p.code, name: p.name, type: free ? 'number' : p.type, unit: p.unit || '',
+      required: !!p.required, options: free ? [] : (p.values || []).map(v => v.val),
       values_list: (p.values || []).map(v => ({sym: v.sym, val: v.val})),
-      default: (p.values || [])[0] ? p.values[0].val : null,
+      default: free ? null : ((p.values || [])[0] ? p.values[0].val : null),
       min: null, max: null, help: p.help || '',
     });
     n += 1;
@@ -2484,7 +2487,9 @@ function renderParams(){
       <td><input type="text" class="popts" value="${esc((p.options || []).join(','))}"
                  ${p.type === 'enum' ? 'placeholder="如：A,B,C"' : 'disabled placeholder="—（数值型不需要）"'}></td>
       <td style="white-space:nowrap">
-        <button class="rowvals" data-i="${i}">${(p.values_list || []).length || (p.options || []).length} 个 · 编辑</button>
+        <button class="rowvals" data-i="${i}">${
+          isFreeValues(p.values_list) ? '自由取值' :
+          ((p.values_list || []).length || (p.options || []).length) + ' 个'} · 编辑</button>
       </td>
       <td class="evi" title="${esc((p.trace || []).join(' / '))}">${esc((p.trace || ['—'])[0])}</td>
       <td><button class="rowdel" title="删除">×</button></td>
@@ -2533,6 +2538,13 @@ function syncParams(){
 /* ---------- 参数取值（该参数可能的全部值） ---------- */
 let VALS = {index: -1};
 
+const FREE_MARKS = ['/', '／', '—', '-', '－'];
+
+function isFreeValues(list){
+  if(!list || !list.length) return false;
+  return list.every(v => FREE_MARKS.includes(String(v.val ?? '').trim()));
+}
+
 function openVals(target){
   VALS.target = target;
   VALS.list = (target.list || []).map(v => ({sym: v.sym ?? v.val, val: v.val ?? v.sym}));
@@ -2573,6 +2585,11 @@ function readVals(){
 $('#valsAdd').onclick = () => {
   VALS.list = readVals();
   VALS.list.push({sym: '', val: ''});
+  renderVals();
+};
+$('#valsFree').onclick = () => {
+  VALS.list = readVals();
+  VALS.list.push({sym: '/', val: '/'});
   renderVals();
 };
 $('#valsBody').oninput = () => { VALS.list = readVals(); };
