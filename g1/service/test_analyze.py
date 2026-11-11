@@ -184,7 +184,31 @@ def main():
     check("判定生效：区间内判合格",
           sum(1 for r in jd["rows"] if r["verdict"] == "合格") >= 1, str(jd["counts"]))
 
-    print("6. 原文与清理")
+    print("6. 原件入库与去重")
+    st, body, _ = get(f"/api/analyze/jobs/{job_id}/source.pdf")
+    check("作业原件可下载", st == 200 and body[:4] == b"%PDF", body[:8].hex())
+    check("下载内容与原文件一致", body == PDF.read_bytes(), f"{len(body)} vs {PDF.stat().st_size}")
+
+    docs = getjson("/api/documents")
+    mine = [d for d in docs if d["job_id"] == job_id]
+    check("原件已入库", bool(mine), str(docs[:2]))
+    check("按 sha256 存储且记录大小",
+          mine and len(mine[0]["id"]) == 64 and mine[0]["size"] == PDF.stat().st_size,
+          str(mine[0]) if mine else "")
+
+    again = upload(PDF)
+    check("同一文件重复上传 → 复用作业",
+          again.get("reused") is True and again.get("job_id") == job_id, str(again))
+    check("同一 sha 只存一份", len([d for d in getjson("/api/documents")
+                                   if d["id"] == mine[0]["id"]]) == 1)
+
+    stds = getjson("/api/standards")
+    mine_std = [x for x in stds if x["id"] == std_id]
+    check("发布后的标准带原件标记", mine_std and mine_std[0]["has_source"], str(mine_std))
+    st, body2, _ = get(f"/api/standards/{std_id}/source.pdf")
+    check("标准原件可下载且一致", st == 200 and body2 == PDF.read_bytes())
+
+    print("7. 原文与清理")
     req = urllib.request.Request(f"{BASE}/api/standards/unpublish/{std_id}", method="POST")
     with urllib.request.urlopen(req, timeout=10) as r:
         check("下架自定义标准", r.status == 200)

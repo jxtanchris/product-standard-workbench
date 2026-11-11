@@ -6,7 +6,9 @@
 """
 from __future__ import annotations
 
+import hashlib
 import os
+import shutil
 import sys
 import uuid
 from pathlib import Path
@@ -32,6 +34,7 @@ from standards import (  # noqa: E402
 )
 
 APP_DIR = Path(__file__).resolve().parent
+DOC_INLINE_LIMIT = 20 * 1024 * 1024      # ≤20MB 直接入库，超过的只存路径
 STATUS_TEXT = {
     Status.OK: "可判定",
     Status.NOT_REQUIRED: "不要求",
@@ -251,6 +254,65 @@ def delete_limit_table(std_id: str, table_id: str):
     return {"ok": True}
 
 
+def _send_document(doc):
+    if doc is None:
+        raise HTTPException(404, "没有存档原件")
+    name = doc["filename"] or "source.pdf"
+    if doc["storage"] == "db" and doc["content"] is not None:
+        return Response(content=bytes(doc["content"]), media_type=doc["mime"] or "application/pdf",
+                        headers={"Content-Disposition":
+                                 f"inline; filename*=UTF-8''{quote(name)}"})
+    p = Path(doc["path"] or "")
+    if not p.exists():
+        raise HTTPException(410, "原件文件已丢失（库里只有路径）")
+    return FileResponse(p, media_type=doc["mime"] or "application/pdf", filename=name)
+
+
+class SourcePayload(BaseModel):
+    job_id: str
+
+
+@app.post("/api/standards/{std_id}/source")
+def attach_source(std_id: str, payload: SourcePayload):
+    """把某次上传的原件挂到这个标准上（人工整理的标准也能有原件）。"""
+    _std(std_id)
+    conn = dbmod.connect()
+    doc = dbmod.document_for_job(conn, payload.job_id)
+    if not doc:
+        raise HTTPException(404, "该作业没有存档原件")
+    dbmod.link_document(conn, payload.job_id, std_id)
+    row = conn.execute("SELECT source_json FROM standard WHERE id=?", (std_id,)).fetchone()
+    import json as _json
+    src = _json.loads(row[0] or "{}") if row else {}
+    src.update({"job_id": payload.job_id, "filename": doc["filename"],
+                "size": doc["size"], "sha256": doc["id"]})
+    conn.execute("UPDATE standard SET source_json=? WHERE id=?",
+                 (_json.dumps(src, ensure_ascii=False), std_id))
+    conn.commit()
+    return {"ok": True, "filename": doc["filename"], "sha256": doc["id"]}
+
+
+@app.get("/api/standards/{std_id}/source.pdf")
+def standard_source(std_id: str):
+    _std(std_id)
+    return _send_document(dbmod.document_for_standard(dbmod.connect(), std_id))
+
+
+@app.get("/api/analyze/jobs/{job_id}/source.pdf")
+def job_source(job_id: str):
+    if not jobstore.STORE.get(job_id):
+        raise HTTPException(404, "作业不存在")
+    return _send_document(dbmod.document_for_job(dbmod.connect(), job_id))
+
+
+@app.get("/api/documents")
+def documents():
+    conn = dbmod.connect()
+    return [{"id": r["id"], "filename": r["filename"], "size": r["size"],
+             "storage": r["storage"], "std_id": r["std_id"], "job_id": r["job_id"]}
+            for r in conn.execute("SELECT * FROM document ORDER BY created_at DESC")]
+
+
 @app.get("/api/db/stats")
 def db_stats():
     return dbmod.stats(dbmod.connect())
@@ -258,9 +320,14 @@ def db_stats():
 
 @app.get("/api/standards")
 def standards():
-    return [{"id": s.id, "code": s.code, "title": s.title,
-             "category": s.category, "param_count": len(s.params),
-             "item_count": len(s.items)} for s in REGISTRY.values()]
+    conn = dbmod.connect()
+    out = []
+    for s in REGISTRY.values():
+        out.append({"id": s.id, "code": s.code, "title": s.title,
+                    "category": s.category, "param_count": len(s.params),
+                    "item_count": len(s.items), "custom": s.custom,
+                    "has_source": dbmod.document_for_standard(conn, s.id) is not None})
+    return out
 
 
 @app.get("/api/meta")
@@ -334,13 +401,42 @@ async def analyze_upload(file: UploadFile = File(...)):
     name = file.filename or "standard.pdf"
     if not name.lower().endswith(".pdf"):
         raise HTTPException(400, "目前仅支持 PDF；扫描件也可以（走离线 OCR）")
+
+    # 1) 落到临时文件，同时算 sha256
+    tmp = jobstore.UPLOADS / f"tmp-{uuid.uuid4().hex}.pdf"
+    digest, size = hashlib.sha256(), 0
+    with open(tmp, "wb") as f:
+        while chunk := await file.read(1 << 20):
+            digest.update(chunk)
+            size += len(chunk)
+            f.write(chunk)
+    sha = digest.hexdigest()
+
+    conn = dbmod.connect()
+
+    # 2) 同一份文件传过、且作业还在 → 直接复用，不重复 OCR
+    existing = dbmod.find_document(conn, sha)
+    if existing and existing["job_id"]:
+        job = jobstore.STORE.get(existing["job_id"])
+        if job:
+            tmp.unlink(missing_ok=True)
+            return {"job_id": job.id, "status": job.status, "reused": True,
+                    "sha256": sha, "size": size}
+
+    # 3) 建作业 + 归档原件
     job = jobstore.STORE.create(name)
     path = jobstore.STORE.pdf_path(job.id)
-    with open(path, "wb") as f:
-        while chunk := await file.read(1 << 20):
-            f.write(chunk)
+    shutil.move(str(tmp), path)
+
+    inline = size <= DOC_INLINE_LIMIT
+    dbmod.save_document(
+        conn, sha, name, size,
+        data=path.read_bytes() if inline else None,
+        path=None if inline else str(path),
+        job_id=job.id)
     jobstore.start(job.id, path)
-    return {"job_id": job.id, "status": job.status}
+    return {"job_id": job.id, "status": job.status, "sha256": sha, "size": size,
+            "storage": "db" if inline else "file"}
 
 
 @app.post("/api/analyze/text")
@@ -446,7 +542,16 @@ def publish(payload: PublishPayload):
         raise HTTPException(422, str(e))
     data["custom"] = 1
     conn = dbmod.connect()
+    if payload.job_id:
+        doc = dbmod.document_for_job(conn, payload.job_id)
+        if doc:
+            data["source"] = {**(data.get("source") or {}),
+                              "job_id": payload.job_id,
+                              "filename": doc["filename"],
+                              "size": doc["size"], "sha256": doc["id"]}
     dbmod.save_payload(conn, data)          # 落库：参数 + 检项 + 限值
+    if payload.job_id:
+        dbmod.link_document(conn, payload.job_id, std.id)
     register(std, replace=True)
     if payload.job_id:
         jobstore.STORE.update(payload.job_id, published_id=std.id,

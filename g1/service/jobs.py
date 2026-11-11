@@ -103,6 +103,17 @@ class Store:
 STORE = Store()
 
 
+def _drop_file_if_stored(job_id: str, pdf_path: Path) -> None:
+    """原件已经进库了，磁盘上的副本可以删。"""
+    try:
+        import db as _db
+        doc = _db.document_for_job(_db.connect(), job_id)
+        if doc and doc["storage"] == "db":
+            Path(pdf_path).unlink(missing_ok=True)
+    except Exception:
+        pass
+
+
 def _default_limits(cands) -> dict:
     """默认定价：能判定的给区间空值，其余记为仅记录。"""
     out = {}
@@ -124,6 +135,7 @@ def _run(job_id: str, pdf_path: Path):
                      engine=data.get("engine", ""), text=text,
                      quality=extract_doc.quality(pages),
                      code=guess["code"], title=guess["title"])
+        _drop_file_if_stored(job_id, pdf_path)
         cands = analyze.parse(pages)
         STORE.update(job_id, status="done", progress=100,
                      items=[c.to_dict() for c in cands],

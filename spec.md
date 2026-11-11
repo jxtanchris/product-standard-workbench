@@ -170,6 +170,9 @@ CREATE TABLE limit_row (
 | POST | `/api/resolve` | `{std, params}` → 逐项限值（含 trace） |
 | POST | `/api/judge` | `{std, params, measured}` → 逐项结论 |
 | GET | `/api/card.xlsx?std=&<参数>` | 导出检验卡 |
+| GET | `/api/standards/{id}/source.pdf` | 下载标准原件 |
+| POST | `/api/standards/{id}/source` | 把某次上传的原件挂到该标准 |
+| GET | `/api/documents` | 已存档原件清单 |
 | GET | `/api/db/stats` | 库统计 |
 
 `/api/resolve` 响应片段：
@@ -204,7 +207,7 @@ CREATE TABLE limit_row (
 
 | 方法 | 路径 | 说明 |
 |---|---|---|
-| POST | `/api/analyze/upload` | 上传 PDF（multipart），异步返回 `job_id` |
+| POST | `/api/analyze/upload` | 上传 PDF（multipart），返回 `job_id`；同 sha256 直接复用 |
 | POST | `/api/analyze/text` | 直接分析粘贴文本 |
 | GET | `/api/analyze/jobs` | 作业列表 |
 | GET | `/api/analyze/jobs/{id}` | 状态 + 候选检项 + 参数建议 |

@@ -79,6 +79,21 @@ CREATE TABLE IF NOT EXISTS limit_row (
     note          TEXT
 );
 
+CREATE TABLE IF NOT EXISTS document (
+    id            TEXT PRIMARY KEY,          -- sha256，天然去重
+    std_id        TEXT REFERENCES standard(id) ON DELETE CASCADE,
+    job_id        TEXT,
+    filename      TEXT,
+    mime          TEXT DEFAULT 'application/pdf',
+    size          INTEGER,
+    storage       TEXT DEFAULT 'db',         -- db: 内容在库里 | file: 只有路径
+    path          TEXT,
+    content       BLOB,
+    created_at    REAL
+);
+
+CREATE INDEX IF NOT EXISTS idx_doc_std ON document(std_id);
+CREATE INDEX IF NOT EXISTS idx_doc_job ON document(job_id);
 CREATE INDEX IF NOT EXISTS idx_lt_std ON limit_table(std_id);
 CREATE INDEX IF NOT EXISTS idx_lr_tbl ON limit_row(table_id);
 """
@@ -369,3 +384,53 @@ def stats(conn: sqlite3.Connection) -> dict:
         "dims": one("SELECT COUNT(*) FROM limit_dim"),
         "rows": one("SELECT COUNT(*) FROM limit_row"),
     }
+
+
+# ------------------------------------------------------------------ 文档（PDF 原件）
+def save_document(conn: sqlite3.Connection, sha: str, filename: str, size: int,
+                  *, data: bytes | None = None, path: str | None = None,
+                  job_id: str | None = None, std_id: str | None = None) -> str:
+    """按 sha256 入库；同内容只存一份。"""
+    row = conn.execute("SELECT id FROM document WHERE id=?", (sha,)).fetchone()
+    if row:
+        if job_id:
+            conn.execute("UPDATE document SET job_id=? WHERE id=? AND job_id IS NULL",
+                         (job_id, sha))
+        conn.commit()
+        return sha
+    storage = "db" if data is not None else "file"
+    conn.execute(
+        "INSERT INTO document(id, std_id, job_id, filename, size, storage, path, content, created_at)"
+        " VALUES (?,?,?,?,?,?,?,?,?)",
+        (sha, std_id, job_id, filename, size, storage,
+         path if data is None else None, data, time.time()))
+    conn.commit()
+    return sha
+
+
+def find_document(conn: sqlite3.Connection, sha: str):
+    return conn.execute("SELECT * FROM document WHERE id=?", (sha,)).fetchone()
+
+
+def document_for_job(conn: sqlite3.Connection, job_id: str):
+    return conn.execute("SELECT * FROM document WHERE job_id=? ORDER BY created_at DESC",
+                        (job_id,)).fetchone()
+
+
+def document_for_standard(conn: sqlite3.Connection, std_id: str):
+    row = conn.execute("SELECT * FROM document WHERE std_id=? ORDER BY created_at DESC",
+                       (std_id,)).fetchone()
+    if row:
+        return row
+    s = conn.execute("SELECT source_json FROM standard WHERE id=?", (std_id,)).fetchone()
+    if not s:
+        return None
+    src = json.loads(s[0] or "{}")
+    if src.get("job_id"):
+        return document_for_job(conn, src["job_id"])
+    return None
+
+
+def link_document(conn: sqlite3.Connection, job_id: str, std_id: str) -> None:
+    conn.execute("UPDATE document SET std_id=? WHERE job_id=?", (std_id, job_id))
+    conn.commit()

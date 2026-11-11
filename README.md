@@ -56,8 +56,8 @@ python3 -m venv .venv
 
 ## 数据结构
 
-4 张表：`standard`（标准 + 参数 + 检项）、`limit_table`（限值表头）、
-`limit_dim`（维度）、`limit_row`（限值行）。
+5 张表：`standard`（标准 + 参数 + 检项）、`limit_table`（限值表头）、
+`limit_dim`（维度）、`limit_row`（限值行）、`document`（原件，按 sha256 存档）。
 完整字段、DDL、JSON 结构与示例见 **[docs/schema.md](docs/schema.md)**。
 
 ![数据逻辑视图](docs/schema.png)

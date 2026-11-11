@@ -59,6 +59,17 @@ ENTITIES = {
             ("kind", "TEXT", "", "enum 枚举 / range 区间"),
             ("values_json", "JSON", "", "取值：[\"A\",\"C\"] 或 [[0,4],[4,20]]"),
         ]),
+    "document": dict(
+        x=30, y=470, w=330, title="document", sub="标准原件（PDF 存档）", rows=[
+            ("id", "TEXT", "PK", "sha256，内容寻址"),
+            ("std_id", "TEXT", "FK", "→ standard.id（可空）"),
+            ("job_id", "TEXT", "FK", "来自哪次上传"),
+            ("filename", "TEXT", "", "原始文件名"),
+            ("size", "INT", "", "字节数"),
+            ("storage", "TEXT", "", "db：内容进库 / file：只存路径"),
+            ("path", "TEXT", "", "storage=file 时用"),
+            ("content", "BLOB", "", "≤20MB 的 PDF 原文"),
+        ]),
     "limit_row": dict(
         x=930, w=390,
         title="limit_row", sub="限值行（维度组合 → 限值）", rows=[
@@ -131,14 +142,29 @@ def build_h() -> int:
                row["y"] + card_h(row)) + 110
 
 
+def _doc_arrow(std: dict, doc: dict) -> str:
+    """document → standard 的竖直箭头（自带标注，避免压到卡片标题）。"""
+    x = doc["x"] + 64
+    y_top = doc["y"] - 4
+    y_bottom = std["y"] + card_h(std) + 4
+    mid = (y_top + y_bottom) / 2
+    return f'''
+    <path d="M{x} {y_top} L{x} {y_bottom+9}" stroke="{LINE}" stroke-width="1.6" fill="none"/>
+    <path d="M{x-5} {y_bottom+10} L{x} {y_bottom} L{x+5} {y_bottom+10} z" fill="{LINE}"/>
+    <text x="{x+12}" y="{mid-4}" fill="{TXT}" font-size="11.5" font-weight="600">N : 1</text>
+    <text x="{x+12}" y="{mid+12}" fill="{MUTED}" font-size="10.5">document.std_id</text>'''
+
+
 def build() -> str:
     std = ENTITIES["standard"]
     lt = ENTITIES["limit_table"]
     dim = ENTITIES["limit_dim"]
     row = ENTITIES["limit_row"]
     row["y"] = dim["y"] + card_h(dim) + 40
+    doc = ENTITIES["document"]
+    doc["y"] = std["y"] + card_h(std) + 46
     H = max(std["y"] + card_h(std), lt["y"] + card_h(lt),
-            row["y"] + card_h(row)) + 110
+            row["y"] + card_h(row), doc["y"] + card_h(doc)) + 110
 
     parts = [
         f'<svg xmlns="http://www.w3.org/2000/svg" width="{W}" height="{H}" viewBox="0 0 {W} {H}" '
@@ -147,14 +173,15 @@ def build() -> str:
         f'<text x="30" y="34" fill="{TXT}" font-size="16" font-weight="700">'
         f'数据逻辑视图 · 产品标准分析工作台</text>',
         f'<text x="30" y="52" fill="{MUTED}" font-size="11.5">'
-        f'4 张表；标准持有参数与检项（JSON），限值表按 标准 → 表 → 维度/行 三级展开</text>',
-        card(std), card(lt), card(dim), card(row),
+        f'5 张表；标准持有参数与检项（JSON），限值表按 标准 → 表 → 维度/行 三级展开，原件按 sha256 存档</text>',
+        card(std), card(lt), card(dim), card(row), card(ENTITIES["document"]),
         arrow(std["x"] + std["w"], 190, lt["x"], 190, "1 : N", "limit_table.std_id"),
         arrow(lt["x"] + lt["w"], 140, dim["x"], 140, "1 : N", "limit_dim.table_id"),
         arrow(lt["x"] + lt["w"], 230, row["x"], row["y"] + 90, "1 : N", "limit_row.table_id"),
+        _doc_arrow(std, ENTITIES["document"]),
         # 说明
         f'<text x="30" y="{H-72}" fill="{MUTED}" font-size="11.5">'
-        f'· 级联：删 standard 自动删其 limit_table，再删 limit_dim / limit_row</text>',
+        f'· 级联：删 standard 自动删其 limit_table 与 document，再删 limit_dim / limit_row</text>',
         f'<text x="30" y="{H-52}" fill="{MUTED}" font-size="11.5">'
         f'· 唯一：UNIQUE(std_id, local_id) —— 同一标准内表 id 唯一，跨标准可同名</text>',
         f'<text x="30" y="{H-32}" fill="{MUTED}" font-size="11.5">'

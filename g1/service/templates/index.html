@@ -787,10 +787,10 @@ async function initStandards(selected){
     const li = e.target.closest('[data-s]');
     if(li) location.hash = '#/standards/' + li.dataset.s;
   };
-  await renderStdDetail(cur);
+  await renderStdDetail(cur, list.find(s => s.id === cur));
 }
 
-async function renderStdDetail(id){
+async function renderStdDetail(id, info){
   const meta = await (await fetch('/api/meta?std=' + encodeURIComponent(id))).json();
   const params = meta.params || [];
   $('#stdDetail').innerHTML = `
@@ -805,6 +805,10 @@ async function renderStdDetail(id){
       <dt>规格参数</dt><dd>${params.map(p => `<code>${esc(p.code)}</code>`).join(' ') || '—'}</dd>
       <dt>检项</dt><dd>${(meta.items || []).length} 项</dd>
       <dt>说明</dt><dd>${esc(meta.note || '—')}</dd>
+      <dt>原件</dt><dd>${(info && info.has_source)
+        ? `<a href="/api/standards/${encodeURIComponent(id)}/source.pdf" target="_blank"
+              style="color:var(--brand-2)">查看标准原件（PDF）</a>`
+        : '<span class="muted">未存档</span>'}</dd>
     </dl>`;
   $('#goCard').onclick = () => { location.hash = '#/card/' + id; };
   $('#goTables').onclick = () => { location.hash = '#/tables/' + id; };
