@@ -112,11 +112,29 @@ product_class ── class_param ── param_name ── param_value（参数�
 ## 清空数据
 
 ```bash
-.venv/bin/python g1/service/tools/reset_db.py --jobs   # 标准/限值表/作业/上传件全清，保留表结构
-.venv/bin/python g1/service/tools/load_gb3103.py       # 想要回样例标准
+# 只看会清掉什么，不动手
+.venv/bin/python g1/service/tools/reset_db.py --dry-run
+
+# 清空分析数据：标准、标准×小类层、限值表/维度/行、原件（参数库保留）
+.venv/bin/python g1/service/tools/reset_db.py
+
+# 连分析作业与上传的 PDF 一起清
+.venv/bin/python g1/service/tools/reset_db.py --jobs
+
+# 连参数库（产品小类 / 参数名称 / 参数取值）一起清
+.venv/bin/python g1/service/tools/reset_db.py --all
+
+# 想要回样例标准
+.venv/bin/python g1/service/tools/load_gb3103.py
 ```
 
-> 直接删 `data/app.db` 会让 `run.sh` 下次启动时重新灌样例。
+清完需要重启服务（标准放在内存注册表里）：
+
+```bash
+kill $(lsof -nP -iTCP:8022 -sTCP:LISTEN -t) && ./g1/service/run.sh
+```
+
+> 直接删 `data/app.db` 也行，但 `run.sh` 下次启动会自动重新灌样例。
 
 ## 目录
 

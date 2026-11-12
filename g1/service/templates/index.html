@@ -566,7 +566,7 @@
   <div class="panel" style="max-width:780px">
     <div class="mhead">
       <h3>从参数库导入</h3>
-      <span class="pill">勾选要用的参数，取值会一起带过来</span>
+      <span class="pill">勾参数、再勾要带过来的取值</span>
       <button class="btn ghost" id="cpClose" style="margin-left:auto">关闭</button>
     </div>
     <div class="mbody">
@@ -2208,23 +2208,111 @@ function dimFromParam(code){
   };
 }
 
-/* 从参数库导入到第 2 步 */
+/* 从参数库导入到第 2 步：先勾参数，再勾这一参数下要带过来的取值 */
+const CP = { params: [], sel: new Map() };   // code → Set(取值的下标)
+
+function cpSyncCard(pi){
+  const p = CP.params[pi];
+  if(!p) return;
+  const sel = CP.sel.get(p.code) || new Set();
+  const card = document.querySelector(`#cpList .cpcard[data-p="${pi}"]`);
+  if(!card) return;
+  const head = card.querySelector('.cpchk');
+  head.checked = sel.size > 0 && sel.size === p.values.length;
+  head.indeterminate = sel.size > 0 && sel.size < p.values.length;
+  card.querySelectorAll('.cpvchk').forEach(chk => {
+    chk.checked = sel.has(Number(chk.dataset.v));
+  });
+  const cnt = card.querySelector('.cpcount');
+  if(cnt) cnt.textContent = `已选 ${sel.size}/${p.values.length}`;
+  card.style.borderColor = sel.size ? 'var(--brand)' : 'var(--line)';
+}
+
+function cpSetSel(pi, indices){
+  const p = CP.params[pi];
+  if(!p) return;
+  if(indices.size) CP.sel.set(p.code, indices);
+  else CP.sel.delete(p.code);
+  cpSyncCard(pi);
+}
+
+$('#cpList').onclick = e => {
+  const btn = e.target.closest('.cpact');
+  if(!btn) return;
+  const pi = Number(btn.closest('[data-p]')?.dataset.p);
+  const p = CP.params[pi];
+  if(!p) return;
+  if(btn.dataset.act === 'all') cpSetSel(pi, new Set(p.values.map((_, i) => i)));
+  else cpSetSel(pi, new Set());
+};
+
+$('#cpList').oninput = e => {
+  if(!e.target.classList.contains('cpfilter')) return;
+  const card = e.target.closest('[data-p]');
+  const q = e.target.value.trim().toLowerCase();
+  card.querySelectorAll('.cpvchk-lbl').forEach(lbl => {
+    const code = lbl.querySelector('code');
+    const hit = !q || (code ? code.textContent.toLowerCase().includes(q) : false);
+    lbl.style.display = hit ? 'inline-flex' : 'none';
+  });
+};
+
+$('#cpList').onchange = e => {
+  const el = e.target;
+  const pi = Number(el.closest('[data-p]')?.dataset.p);
+  const p = CP.params[pi];
+  if(!p) return;
+  if(el.classList.contains('cpchk')){
+    cpSetSel(pi, el.checked
+      ? new Set(p.values.map((_, i) => i))
+      : new Set());
+    return;
+  }
+  if(el.classList.contains('cpvchk')){
+    const sel = new Set(CP.sel.get(p.code) || []);
+    const vi = Number(el.dataset.v);
+    if(el.checked) sel.add(vi); else sel.delete(vi);
+    cpSetSel(pi, sel);
+  }
+};
+
 async function openCatalogPicker(){
   const cat = await (await fetch('/api/catalog')).json();
   if(!cat.length){ $('#cpMsg').textContent = '参数库是空的，先去「参数库」建小类'; $('#catPickModal').hidden = false; return; }
   $('#cpClass').innerHTML = cat.map(c =>
     `<option value="${esc(c.id)}">${esc(c.parent ? c.parent + ' / ' : '')}${esc(c.name)}（${c.params.length}）</option>`).join('');
+
   const render = () => {
+    CP.sel.clear();
     const c = cat.find(x => x.id === $('#cpClass').value);
-    $('#cpList').innerHTML = (c ? c.params : []).map(p => `
-      <label class="draft" style="display:block;cursor:pointer">
-        <input type="checkbox" class="cpchk" data-code="${esc(p.code)}" style="margin-right:8px"
-               data-json='${esc(JSON.stringify(p))}'>
-        <b>${esc(p.code)}</b>　${esc(p.name)}
-        <span class="meta">${p.type === 'enum' ? '枚举' : '数值'} · ${p.values.length} 个取值</span>
-        <div class="meta" style="margin-left:22px">${p.values.map(v =>
-          `<code style="display:inline-block;margin:0 6px 4px 0">${esc(v.val)}</code>`).join('') || '—'}</div>
-      </label>`).join('') || '<div class="muted">这个小类没有参数</div>';
+    CP.params = c ? c.params : [];
+    $('#cpList').innerHTML = CP.params.map((p, pi) => `
+      <div class="draft cpcard" data-p="${pi}" style="margin-bottom:8px">
+        <label style="display:flex;align-items:center;gap:8px;cursor:pointer">
+          <input type="checkbox" class="cpchk">
+          <b>${esc(p.code)}</b>
+          <span>${esc(p.name)}</span>
+          <span class="meta" style="margin-left:auto">${p.type === 'enum' ? '枚举' : '数值'}
+            · <span class="cpcount">已选 0/${p.values.length}</span></span>
+        </label>
+        <div style="display:flex;gap:8px;align-items:center;margin-top:6px">
+          <button class="btn ghost cpact" data-act="all">全选</button>
+          <button class="btn ghost cpact" data-act="none">清空</button>
+          ${p.values.length > 20
+            ? '<input type="text" class="cpfilter" placeholder="筛选取值…" style="flex:1;max-width:240px">'
+            : ''}
+        </div>
+        <div style="display:flex;flex-wrap:wrap;gap:4px 12px;margin-top:8px;
+                    max-height:128px;overflow:auto">
+          ${p.values.map((v, vi) => `
+            <label class="cpvchk-lbl" style="display:inline-flex;align-items:center;gap:4px;
+                   cursor:pointer;font-size:12px;white-space:nowrap">
+              <input type="checkbox" class="cpvchk" data-p="${pi}" data-v="${vi}">
+              <code>${esc(v.val)}</code>
+            </label>`).join('') || '<span class="meta">没有取值</span>'}
+        </div>
+      </div>`).join('') || '<div class="muted">这个小类没有参数</div>';
+    CP.params.forEach((_, pi) => cpSyncCard(pi));
   };
   $('#cpClass').onchange = render;
   render();
@@ -2234,29 +2322,36 @@ async function openCatalogPicker(){
 
 $('#cpClose').onclick = () => { $('#catPickModal').hidden = true; };
 $('#cpOk').onclick = () => {
-  const picked = [...document.querySelectorAll('#cpList .cpchk:checked')].map(x => JSON.parse(x.dataset.json));
-  if(!picked.length){ $('#cpMsg').textContent = '至少勾一个参数'; return; }
+  const classId = $('#cpClass').value || '';
   const have = new Set((A.job.params_spec || []).map(p => p.code));
-  let n = 0;
-  picked.forEach(p => {
-    if(have.has(p.code)) return;
-    const free = isFreeValues(p.values);
+  let n = 0, dup = 0, nvals = 0;
+  CP.params.forEach(p => {
+    const sel = CP.sel.get(p.code);
+    if(!sel || !sel.size) return;
+    if(have.has(p.code)){ dup += 1; return; }
+    const vals = [...sel].sort((a, b) => a - b).map(vi => p.values[vi]).filter(Boolean);
+    if(!vals.length) return;
+    const free = isFreeValues(vals);
     A.job.params_spec.push({
       code: p.code, name: p.name, type: free ? 'number' : p.type, unit: p.unit || '',
-      required: !!p.required, options: free ? [] : (p.values || []).map(v => v.val),
-      values_list: (p.values || []).map(v => ({sym: v.sym, val: v.val})),
-      default: free ? null : ((p.values || [])[0] ? p.values[0].val : null),
+      required: !!p.required, options: free ? [] : vals.map(v => v.val),
+      values_list: vals.map(v => ({sym: v.sym, val: v.val})),
+      default: free ? null : (vals[0] ? vals[0].val : null),
       min: null, max: null, help: p.help || '',
-      class_id: $('#cpClass').value || '',
+      class_id: classId,
     });
-    if($('#cpClass').value && !(JOB.classes || []).includes($('#cpClass').value)){
-      JOB.classes = (JOB.classes || []).concat([$('#cpClass').value]);
+    if(classId && !(JOB.classes || []).includes(classId)){
+      JOB.classes = (JOB.classes || []).concat([classId]);
     }
     n += 1;
+    nvals += vals.length;
   });
+  if(!n && !dup){ $('#cpMsg').textContent = '一个取值都没勾'; return; }
   $('#catPickModal').hidden = true;
   renderParams();
-  $('#amsg').textContent = n ? `已导入 ${n} 个参数` : '这些参数都已经有了';
+  $('#amsg').textContent = n
+    ? `已导入 ${n} 个参数、${nvals} 个取值` + (dup ? `（${dup} 个参数已存在，跳过）` : '')
+    : `这 ${dup} 个参数都已经有了`;
 };
 
 $('#eAddDim').onclick = () => {
