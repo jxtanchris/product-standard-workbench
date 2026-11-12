@@ -6,6 +6,7 @@ __pycache__/
 .tmp/
 
 # 运行产物（首次启动会自动生成）
+data/*.db*
 data/app.db
 data/uploads/
 data/jobs/

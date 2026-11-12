@@ -239,6 +239,45 @@ def main():
     ed3 = getjson("/api/standards/gb3103-3/editor")
     check("删掉另一个标准，本标准 8 张表还在", len(ed3["tables"]) == 8, str(len(ed3["tables"])))
 
+    print("8. 复合大表母表 (limit_matrix) API 与自动切分")
+    post("/api/standards/publish", {
+        "id": "matrix-api-test", "code": "MAT-TEST", "title": "母表API测试",
+        "params": [{"code": "property_class", "name": "性能等级", "type": "enum", "options": ["8.8", "10.9"]}],
+        "items": [{"id": "init-item", "title": "初始检项", "clause": "1.0", "selected": True}],
+        "limits": {"init-item": {"mode": "range", "lower": 0, "upper": 10}}})
+
+    post("/api/standards/matrix-api-test/matrices", {
+        "local_id": "M-API-TEST",
+        "title": "测试复合大表",
+        "dims": [{"code": "property_class", "name": "性能等级", "kind": "enum", "values": ["8.8", "10.9"]}],
+        "indicators": [
+            {"col_key": "rm", "name": "抗拉强度", "unit": "MPa", "item_id": "it-rm-api", "local_table_id": "T-MAT-RM"},
+            {"col_key": "hv", "name": "维氏硬度", "unit": "HV", "item_id": "it-hv-api", "local_table_id": "T-MAT-HV"}
+        ],
+        "rows": [
+            {"dim_values": {"property_class": "8.8"}, "indicator_values": {"rm": {"lower": 800, "upper": 1000}, "hv": {"lower": 250, "upper": 320}}},
+            {"dim_values": {"property_class": "10.9"}, "indicator_values": {"rm": {"lower": 1040, "upper": 1250}, "hv": {"lower": 320, "upper": 380}}}
+        ]
+    })
+
+    mat_list = getjson("/api/standards/matrix-api-test/matrices")
+    check("母表列表成功返回", len(mat_list) == 1 and mat_list[0]["local_id"] == "M-API-TEST")
+
+    mat_one = getjson("/api/standards/matrix-api-test/matrices/M-API-TEST")
+    check("母表详情数据完整", mat_one["title"] == "测试复合大表" and len(mat_one["rows"]) == 2)
+
+    ed_mat = getjson("/api/standards/matrix-api-test/editor")
+    check("母表成功切分为2张单指标子表", len(ed_mat["tables"]) == 2)
+    check("子表成功自动创建并绑定2个对应检项", len(ed_mat["items"]) == 3, f"总检项数: {len(ed_mat['items'])}")
+
+    del_req = urllib.request.Request(f"{BASE}/api/standards/matrix-api-test/matrices/M-API-TEST", method="DELETE")
+    with urllib.request.urlopen(del_req, timeout=10) as r:
+        r.read()
+    check("删除母表后列表清空", len(getjson("/api/standards/matrix-api-test/matrices")) == 0)
+    check("删除母表后联动子表也被级联清理", len(getjson("/api/standards/matrix-api-test/editor")["tables"]) == 0)
+
+    urllib.request.urlopen(urllib.request.Request(f"{BASE}/api/standards/matrix-api-test", method="DELETE"), timeout=10)
+
     print(f"\n结果：{PASS} 通过 / {FAIL} 失败")
     return 0 if FAIL == 0 else 1
 

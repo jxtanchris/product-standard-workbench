@@ -161,10 +161,14 @@
   .stdline input.code{width:190px;font-variant-numeric:tabular-nums}
   .stdline input.title{flex:1}
   table.analyze td{padding:8px 10px}
-  table.analyze input[type=text]{width:100%;border:1px solid transparent;border-radius:6px;
+  table.analyze input[type=text], table.analyze input[type=number]{width:100%;border:1px solid transparent;border-radius:6px;
        padding:5px 7px;font-size:13px;background:transparent}
-  table.analyze input[type=text]:hover{border-color:var(--line);background:#fff}
-  table.analyze input[type=text]:focus{border-color:var(--brand-2);background:#fff;outline:2px solid #bcd4ee}
+  table.analyze input[type=text]:hover, table.analyze input[type=number]:hover{border-color:var(--line);background:#fff}
+  table.analyze input[type=text]:focus, table.analyze input[type=number]:focus{border-color:var(--brand-2);background:#fff;outline:2px solid #bcd4ee}
+  table.analyze input[type=number]{text-align:center}
+  .rowbtn{border:1px solid var(--line);background:#fff;border-radius:4px;color:var(--muted);cursor:pointer;padding:2px 7px;font-size:11.5px;line-height:1}
+  .rowbtn:hover:not(:disabled){border-color:var(--brand);color:var(--brand)}
+  .rowbtn:disabled{opacity:.35;cursor:not-allowed}
   table.analyze select{border:1px solid transparent;border-radius:6px;padding:5px 4px;font-size:12.5px;background:transparent}
   table.analyze select:hover{border-color:var(--line);background:#fff}
   td.evi{max-width:420px;color:var(--muted);font-size:11.5px;line-height:1.5}
@@ -184,11 +188,18 @@
   header .btn.primary{background:#fff;color:var(--brand);font-weight:600}
   header .btn.primary:hover{background:#eaf1f8}
   .std-list{list-style:none;margin:0;padding:0;max-height:60vh;overflow:auto}
-  .std-list li{padding:11px 12px;border-radius:8px;cursor:pointer;border:1px solid transparent;margin-bottom:6px}
+  .std-list li{position:relative;padding:11px 12px;border-radius:8px;cursor:pointer;border:1px solid transparent;margin-bottom:6px}
   .std-list li:hover{background:#fff;border-color:var(--line)}
   .std-list li.on{background:#e8f0f9;border-color:#bcd4ee}
-  .std-list .tname{display:block;font-size:13.5px;font-weight:600;line-height:1.4}
+  .std-list .tname{display:flex;align-items:center;gap:6px;font-size:13.5px;font-weight:600;line-height:1.4}
   .std-list .tmeta{display:block;font-size:11.5px;color:var(--muted);margin-top:2px}
+  .std-del-btn{position:absolute;top:9px;right:8px;border:1px solid #fecaca;background:#fff5f5;
+               color:#ef4444;border-radius:4px;padding:2px 7px;font-size:11px;
+               cursor:pointer;display:none;align-items:center;line-height:1.2;z-index:2;transition:.15s}
+  .std-list li:hover .std-del-btn{display:inline-flex}
+  .std-del-btn:hover{background:#ef4444;color:#fff;border-color:#dc2626}
+  .btn.danger{border-color:#fca5a5;color:#dc2626;background:#fff}
+  .btn.danger:hover{background:#fee2e2;border-color:#ef4444;color:#b91c1c}
   .detail-title{font-size:20px;font-weight:600;margin:2px 0 4px}
   .detail-sub{color:var(--muted);font-size:13px;margin-bottom:16px}
   .detail-actions{display:flex;gap:12px;margin:18px 0 22px}
@@ -239,6 +250,94 @@
   #tblWrap td.muted{white-space:normal}
   pre.ocr{max-height:360px;overflow:auto;background:#0f1720;color:#c8d6e5;border-radius:10px;
           padding:14px 16px;font-size:11.5px;line-height:1.7;white-space:pre-wrap}
+
+  /* 复合大表主从向导组件样式 */
+  .mat-master-card {
+    border: 1px solid #cbd5e1;
+    border-radius: 8px;
+    background: #fff;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+    transition: all 0.2s ease;
+    overflow: hidden;
+  }
+  .mat-master-card:hover {
+    border-color: #3b82f6;
+  }
+  .mat-master-head {
+    padding: 10px 14px;
+    background: #f8fafc;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+    border-bottom: 1px solid transparent;
+  }
+  .mat-master-head.is-open {
+    border-bottom-color: #e2e8f0;
+  }
+  .mat-pill-common {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    padding: 3px 10px;
+    border-radius: 12px;
+    font-size: 11.5px;
+    background: #e0f2fe;
+    color: #0369a1;
+    border: 1px solid #7dd3fc;
+    font-weight: 500;
+  }
+  .mat-pill-extra {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    padding: 3px 10px;
+    border-radius: 12px;
+    font-size: 11.5px;
+    background: #f3e8ff;
+    color: #7e22ce;
+    border: 1px solid #d8b4fe;
+    font-weight: 600;
+  }
+  .mat-detail-container {
+    padding: 14px 16px;
+    background: #fbfcfe;
+  }
+  .mat-sub-table {
+    width: 100%;
+    border-collapse: collapse;
+    background: #fff;
+    border: 1px solid #cbd5e1;
+    border-radius: 6px;
+    overflow: hidden;
+    font-size: 12px;
+  }
+  .mat-sub-table th, .mat-sub-table td {
+    border: 1px solid #e2e8f0;
+    padding: 6px 8px;
+    vertical-align: middle;
+  }
+  .mat-sub-table th {
+    background: #f1f5f9;
+    color: #334155;
+    font-weight: 600;
+    text-align: left;
+    white-space: nowrap;
+  }
+  .mat-sub-table input, .mat-sub-table select {
+    width: 100%;
+    height: 28px;
+    padding: 2px 6px;
+    font-size: 12px;
+    border: 1px solid #cbd5e1;
+    border-radius: 4px;
+    background: #fff;
+    box-sizing: border-box;
+  }
+  .mat-sub-table input:focus, .mat-sub-table select:focus {
+    border-color: #3b82f6;
+    outline: 2px solid #bfdbfe;
+  }
 </style>
 </head>
 <body>
@@ -290,6 +389,7 @@
     <div class="card-h">
       <h2>① 选择规格</h2>
       <span class="hint" id="paramHint"></span>
+      <button class="btn ghost" id="btnCardParams" style="margin-left:auto;font-size:12.5px;padding:5px 14px">查看参数信息</button>
     </div>
     <div class="card-b">
       <div class="params" id="form"></div>
@@ -345,6 +445,14 @@
         <span class="hint">PDF 扫描件可直接上传；分析在本机完成，文件不出本机</span>
       </div>
       <div class="card-b">
+        <div class="class-picker" style="margin-bottom:14px;display:flex;align-items:center;gap:10px">
+          <label for="uploadClass" style="font-weight:600;font-size:13.5px">产品小类 <span style="color:#d9534f">*</span></label>
+          <select id="uploadClass" style="min-width:240px;padding:6px 10px;border-radius:6px;border:1px solid var(--line);font-size:13px;background:#fff">
+            <option value="">-- 请选择产品小类（必选）--</option>
+          </select>
+          <span class="hint">同一文件指定不同产品小类时，将分别建立独立的分析作业与标准</span>
+        </div>
+
         <div class="dropzone" id="drop">
           <div class="big">把标准 PDF 拖到这里，或 <button class="btn primary" id="pick" style="margin-left:6px">选择文件</button></div>
           <div class="small">支持扫描件（离线 OCR，中文识别）；也可以
@@ -535,8 +643,10 @@
       <div class="card-h">
         <h2>标准的限值表</h2>
         <span class="hint">左选表、右看明细；标准表 1 拆成的多维查询表</span>
+        <button class="btn ghost" id="btnTableParams">参数信息</button>
         <button class="btn ghost" id="btnFromSource">从原文建表</button>
         <button class="btn ghost" id="btnNewTable">+ 新建限值表</button>
+        <button class="btn primary" id="btnNewMatrix">+ 录入复合大表(力学性能)</button>
       </div>
       <div class="split">
         <aside class="pane-left">
@@ -549,6 +659,67 @@
       </div>
     </section>
   </div><!-- /view-tables -->
+
+  <div class="view" id="view-params" hidden>
+    <section class="card">
+      <div class="card-h">
+        <h2 id="stdParamsTitle">标准参数信息</h2>
+        <span class="pill" id="stdParamsClassBadge" style="font-size:12px;padding:2px 8px;background:#eef2f7;color:var(--brand);font-weight:500"></span>
+        <span class="hint" id="stdParamsHint">左侧查看规格参数，右侧查看对应包含的参数值</span>
+        <div class="detail-actions" style="margin-left:auto;display:flex;gap:8px;margin:0">
+          <button class="btn primary" id="stdParamsGoCard" style="padding:6px 16px;font-size:13px">检验卡</button>
+          <button class="btn ghost" id="stdParamsGoTables" style="padding:6px 16px;font-size:13px">限值表</button>
+          <button class="btn ghost" id="stdParamsGoBack" style="padding:6px 16px;font-size:13px">返回全部标准</button>
+        </div>
+      </div>
+
+      <div id="stdParamsLayerWrap" style="padding:12px 18px 0 18px;display:none;align-items:center">
+        <span style="font-size:12.5px;color:var(--muted);margin-right:8px;font-weight:500">产品小类：</span>
+        <div class="tabs2" id="stdParamsLayerTabs"></div>
+      </div>
+
+      <div class="card-b" style="padding-top:14px">
+        <div class="cat-grid">
+          <div>
+            <div class="panel-h" style="justify-content:space-between">
+              <div style="display:flex;align-items:center;gap:8px">
+                <b>规格参数</b>
+                <span class="lbl" id="stdParamsCount">0 个参数</span>
+              </div>
+              <input type="text" id="stdParamsFilter" placeholder="搜索参数代码或名称…"
+                     style="padding:3px 8px;border:1px solid var(--line);border-radius:6px;font-size:12px;width:150px">
+            </div>
+            <div style="overflow-x:auto;max-height:600px;overflow-y:auto;border:1px solid var(--line);border-radius:8px">
+              <table class="analyze" style="width:100%;margin:0">
+                <thead>
+                  <tr>
+                    <th style="width:36px;text-align:center">#</th>
+                    <th style="width:110px">参数代码</th>
+                    <th>参数名称</th>
+                    <th style="width:60px;text-align:center">类型</th>
+                    <th style="width:50px;text-align:center">单位</th>
+                    <th style="width:75px;text-align:center">参数值</th>
+                  </tr>
+                </thead>
+                <tbody id="stdParamsTbody"></tbody>
+              </table>
+            </div>
+          </div>
+
+          <div>
+            <div class="panel-h" style="justify-content:space-between;flex-wrap:wrap">
+              <div style="display:flex;align-items:center;gap:8px">
+                <b>参数包含的参数值</b>
+                <span class="lbl" id="stdParamSelTitle"></span>
+              </div>
+              <div id="stdParamSelBadges" style="display:flex;gap:6px"></div>
+            </div>
+            <div id="stdParamValContent" style="margin-top:10px"></div>
+          </div>
+        </div>
+      </div>
+    </section>
+  </div><!-- /view-params -->
 </main>
 
 <div class="modal" id="whyModal" hidden>
@@ -583,22 +754,26 @@
 </div>
 
 <div class="modal" id="valsModal" hidden>
-  <div class="panel" style="max-width:720px">
+  <div class="panel" style="max-width:760px">
     <div class="mhead">
       <h3 id="valsTitle">参数取值</h3>
       <span class="pill" id="valsSub"></span>
       <button class="btn ghost" id="valsClose" style="margin-left:auto">关闭</button>
     </div>
     <div class="mbody">
-      <div class="summary" style="margin-bottom:8px">
+      <div class="summary" style="margin-bottom:8px;gap:6px;flex-wrap:wrap">
         <button class="btn ghost" id="valsAdd">+ 新增一行</button>
         <button class="btn ghost" id="valsFree">+ 加「/」占位</button>
-        <span class="lbl">数值型参数用 / 占位：有这个参数，但值不固定</span>
+        <button class="btn ghost" id="valsSortSeq" title="按填写的序号从小到大重排">按序号排序</button>
+        <button class="btn ghost" id="valsRenumber" title="按当前行顺序重新生成 1, 2, 3... 序号">重整序号(1..N)</button>
+        <span class="lbl" style="margin-left:auto">序号可直接输入；也可点 ↑ / ↓ 调整排序</span>
       </div>
       <table class="analyze">
         <thead><tr>
-          <th style="width:50px">序号</th><th style="width:150px">符号</th>
-          <th style="width:150px">定值</th><th style="width:40px"></th>
+          <th style="width:70px;text-align:center">序号</th>
+          <th style="width:160px">符号</th>
+          <th>定值</th>
+          <th style="width:100px;text-align:center">排序 / 操作</th>
         </tr></thead>
         <tbody id="valsBody"></tbody>
       </table>
@@ -722,6 +897,65 @@
   </div>
 </div>
 
+<div class="modal" id="matrixModal" hidden>
+  <div class="panel" style="max-width:96vw;width:1260px">
+    <div class="mhead">
+      <h3 id="matTitleText">复合大表拆解与多维限值生成（按 No. 逐项向导）</h3>
+      <span class="pill" id="matSubText"></span>
+      <button class="btn ghost" id="matClose" style="margin-left:auto">关闭</button>
+    </div>
+    <div class="mbody" style="max-height:80vh;overflow-y:auto;padding:16px 20px">
+      <!-- 1. 母表基本信息 -->
+      <div class="summary" style="margin-bottom:14px;gap:14px;flex-wrap:wrap;align-items:flex-end;background:#f8fafc;padding:12px 14px;border-radius:8px;border:1px solid #e2e8f0">
+        <div style="flex:1;min-width:240px">
+          <div class="lbl" style="font-weight:600;color:#334155;margin-bottom:4px">母表名称</div>
+          <input type="text" id="matTitle" placeholder="如：GB/T 3098.1 表3 螺栓机械和物理性能" style="width:100%;height:32px;border:1px solid #cbd5e1;border-radius:6px;padding:0 10px;background:#fff">
+        </div>
+        <div style="width:200px">
+          <div class="lbl" style="font-weight:600;color:#334155;margin-bottom:4px">母表代号 (ID)</div>
+          <input type="text" id="matLocalId" placeholder="如：M-PROP-TABLE3" style="width:100%;height:32px;font-family:monospace;border:1px solid #cbd5e1;border-radius:6px;padding:0 10px;background:#fff">
+        </div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+          <button class="btn ghost" id="btnMatSample3" title="载入GB/T 3098.1 表3 螺栓机械性能总表">✨ 载入表3机械性能</button>
+          <button class="btn ghost" id="btnMatSample4" title="载入GB/T 3098.1 表4 粗牙螺栓最小拉力载荷表">✨ 载入表4拉力载荷</button>
+          <button class="btn primary" id="btnMatAddMasterTable">+ 新增限值主表 (No)</button>
+        </div>
+      </div>
+
+      <!-- 2. 表头公共参数池（所有 No. 主表自动继承） -->
+      <div style="background:#f0f7ff;border:1px solid #bae0ff;border-radius:8px;padding:12px 14px;margin-bottom:16px">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+          <div style="display:flex;align-items:center;gap:8px">
+            <b style="font-size:13.5px;color:#0050b3">📥 表头公共参数池（所有 No. 主表默认自动继承）</b>
+            <span style="font-size:11.5px;color:#595959">表中 No. 这一行涉及到的全局自变量参数</span>
+          </div>
+          <button class="btn ghost" id="btnMatAddCommonDim" style="padding:2px 10px;font-size:12px;color:#0969da;background:#fff;border-color:#91caff">+ 添加公共参数</button>
+        </div>
+        <div id="matCommonDimsContainer" style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;min-height:30px">
+          <!-- 动态渲染公共参数徽标 -->
+        </div>
+      </div>
+
+      <!-- 3. 按 No. 序号生成的限值主表清单（卡片手风琴） -->
+      <div style="margin-bottom:8px;display:flex;justify-content:space-between;align-items:center">
+        <b style="font-size:14px;color:#1e293b">📋 限值主表列表（已拆分为 <span id="matMasterTableCount">0</span> 笔单指标限值主表）：</b>
+        <span style="font-size:12px;color:#64748b">针对每笔限值主表，自动继承表头公共参数，可由人工确认是否加入专属增量参数</span>
+      </div>
+
+      <div id="matMasterList" style="display:flex;flex-direction:column;gap:12px">
+        <!-- 动态渲染按 No 拆分的各个限值主表卡片 -->
+      </div>
+    </div>
+    <div class="mfoot">
+      <span class="pill" id="matStatMsg"></span>
+      <span style="flex:1"></span>
+      <button class="btn ghost" id="matDeleteBtn" style="color:var(--danger,#d9534f);display:none">删除母表及联动子表</button>
+      <button class="btn ghost" id="matCancelBtn">取消</button>
+      <button class="btn primary" id="matSaveBtn">保存并自动切分编译</button>
+    </div>
+  </div>
+</div>
+
 <footer id="foot"></footer>
 
 <script>
@@ -827,14 +1061,17 @@ function clauseCell(r){
 function rowHtml(r, i){
   const cls = {'可判定':'ok','不要求':'na','无法判定':'warn'}[r.status_text] || 'na';
   const v = S.measured[r.measured_key];
+  const nomBadge = (r.nominal_value !== null && r.nominal_value !== undefined)
+      ? `<span class="pill" style="margin-left:6px;font-size:11px;background:#e8f4fd;color:#0b5cab;font-weight:600" title="标准公称基准值">基准:${esc(r.nominal_value)}${r.unit ? ' '+esc(r.unit) : ''}</span>`
+      : '';
   const nom = r.nominal_value !== null && r.nominal_value !== undefined
-      ? `由 ${r.nominal_param} = ${r.nominal_value} 展开` : '';
+      ? `公称基准: ${r.nominal_value} ${r.unit || ''} (由 ${r.nominal_param || '标准限值表'} 展开)` : '';
   return `
   <tr class="item" data-id="${r.id}">
     <td class="idx">${i+1}</td>
     <td class="name">${esc(r.name)}<span class="sym">${esc(r.symbol)}</span></td>
     <td class="clause">${clauseCell(r)}</td>
-    <td class="limit">${esc(r.limit_text)}</td>
+    <td class="limit">${esc(r.limit_text)}${nomBadge}</td>
     <td><span class="badge ${cls}">${esc(r.status_text)}</span></td>
     <td class="meas">${r.status === 'OK'
         ? `<input type="number" step="0.001" data-mkey="${esc(r.measured_key)}"
@@ -949,7 +1186,7 @@ $('#btnExport').onclick = () => {
 };
 
 /* ================= 路由 ================= */
-const VIEWS = ['standards', 'card', 'tables', 'analyze', 'catalog'];
+const VIEWS = ['standards', 'card', 'tables', 'analyze', 'catalog', 'params'];
 
 function showView(name){
   document.querySelectorAll('.view').forEach(v => { v.hidden = (v.id !== 'view-' + name); });
@@ -967,6 +1204,7 @@ function route(){
   if(name === 'tables') return initTables(seg[1] || '', seg[2] || '');
   if(name === 'analyze') return initAnalyze(seg[1] || '', Number(seg[2] || 0));
   if(name === 'catalog') return initCatalog(seg[1] || '');
+  if(name === 'params') return initStdParams(seg[1] || '');
   return initStandards(seg[1] || '');
 }
 window.addEventListener('hashchange', route);
@@ -977,14 +1215,14 @@ let STD_LIST = [];
 
 async function initStandards(selected){
   $('#stdTitle').textContent = '全部标准';
-  fetch('/api/catalog').then(r => r.json()).then(cat => {
+  try{
+    const cat = await (await fetch('/api/catalog')).json();
     CLASSMAP_G = Object.fromEntries(cat.map(c => [c.id, c.name || c.code]));
-    if(document.querySelector('#stdDetail .kv')) renderStdDetail(STD_CUR, STD_INFO);
-  }).catch(() => {});
+  }catch(e){}
   const list = await (await fetch('/api/standards')).json();
   STD_LIST = list;
-  $('#scope').textContent = list.length ? `共 ${list.length} 个标准` : '还没有标准';
-  $('#stdCount').textContent = `${list.length} 个标准`;
+  $('#scope').textContent = list.length ? `共 ${list.length} 笔 标准+小类 数据` : '还没有标准';
+  $('#stdCount').textContent = `${list.length} 个标准+小类`;
   document.title = '产品标准分析工作台';
 
   if(!list.length){
@@ -992,7 +1230,7 @@ async function initStandards(selected){
     $('#stdDetail').innerHTML = `
       <div class="empty-box">
         <div class="big">库里还没有标准</div>
-        <div>上传一份标准 PDF，识别检项并建立限值表后，这里就会出现它</div>
+        <div>上传一份标准 PDF，指定产品小类并发布后，这里就会出现它</div>
         <div style="margin-top:18px">
           <button class="btn primary" id="goUpload">上传标准做分析</button>
         </div>
@@ -1002,13 +1240,27 @@ async function initStandards(selected){
   }
 
   const cur = list.some(s => s.id === selected) ? selected : list[0].id;
-  $('#stdList').innerHTML = list.map(s => `
+  $('#stdList').innerHTML = list.map(s => {
+    const classLabels = (s.classes || []).map(cid => CLASSMAP_G[cid] || cid).filter(Boolean).join(' / ');
+    return `
     <li data-s="${esc(s.id)}" class="${s.id === cur ? 'on' : ''}">
-      <span class="tname">${esc(s.code)}</span>
+      <button class="std-del-btn" data-del="${esc(s.id)}" title="删除此笔 标准+小类 主数据">删除</button>
+      <div class="tname">
+        <span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(s.code)}</span>
+        ${classLabels ? `<span class="pill" style="font-size:11px;padding:1px 5px;background:#eef2f7;color:var(--brand);font-weight:500;white-space:nowrap;flex-shrink:0">${esc(classLabels)}</span>` : '<span class="pill" style="font-size:11px;padding:1px 5px;background:#f3f4f6;color:#888;white-space:nowrap;flex-shrink:0">通用</span>'}
+      </div>
       <span class="tmeta">${esc(s.title)}${s.custom ? ' · 自定义' : ''}</span>
       <span class="tmeta">${s.param_count} 参数 · ${s.item_count} 检项</span>
-    </li>`).join('');
+    </li>`;
+  }).join('');
   $('#stdList').onclick = e => {
+    const delBtn = e.target.closest('[data-del]');
+    if(delBtn){
+      e.stopPropagation();
+      e.preventDefault();
+      deleteStandard(delBtn.dataset.del);
+      return;
+    }
     const li = e.target.closest('[data-s]');
     if(li) location.hash = '#/standards/' + li.dataset.s;
   };
@@ -1017,24 +1269,58 @@ async function initStandards(selected){
 
 let STD_CUR = null, STD_INFO = null;
 
+async function deleteStandard(stdId){
+  const item = STD_LIST.find(s => s.id === stdId);
+  const code = item ? item.code : stdId;
+  const classLabels = (item && item.classes && item.classes.length)
+    ? item.classes.map(cid => CLASSMAP_G[cid] || cid).join(' / ')
+    : '';
+  const displayName = `${code}${classLabels ? ' · ' + classLabels : ''}`;
+  if(!confirm(`确定要彻底删除标准「${displayName}」吗？\n\n警告：删除此主数据后，该标准对应的所有规格参数、检验项目、限值表和判定数据均将一并级联删除！`)){
+    return;
+  }
+  try{
+    const r = await fetch('/api/standards/' + encodeURIComponent(stdId), {method: 'DELETE'});
+    const d = await r.json().catch(() => ({}));
+    if(!r.ok){
+      alert('删除失败：' + (d.detail || r.statusText));
+      return;
+    }
+    const remaining = STD_LIST.filter(s => s.id !== stdId);
+    const nextId = remaining.length ? remaining[0].id : '';
+    location.hash = nextId ? `#/standards/${nextId}` : '#/standards';
+    await initStandards(nextId);
+  }catch(e){
+    alert('删除请求失败：' + e.message);
+  }
+}
+
 async function renderStdDetail(id, info){
   STD_CUR = id; STD_INFO = info;
   const meta = await (await fetch('/api/meta?std=' + encodeURIComponent(id))).json();
   const params = meta.params || [];
+  const classLabels = (info && info.classes && info.classes.length)
+    ? info.classes.map(cid => CLASSMAP_G[cid] || cid).join(' / ')
+    : '';
   $('#stdDetail').innerHTML = `
-    <div class="detail-title">${esc(meta.code)}　${esc(meta.title)}</div>
+    <div class="detail-title">
+      ${esc(meta.code)}　${esc(meta.title)}
+      ${classLabels ? `<span class="pill" style="font-size:12px;padding:2px 7px;background:#eef2f7;color:var(--brand);vertical-align:middle;margin-left:6px">${esc(classLabels)}</span>` : ''}
+    </div>
     <div class="detail-sub">${esc(meta.scope || '')}</div>
     <div class="detail-actions">
       <button class="btn primary" id="goCard">检验卡</button>
       <button class="btn ghost" id="goTables">限值表</button>
+      <button class="btn ghost" id="goParams">参数信息</button>
       ${(info && info.has_source)
         ? '<button class="btn ghost" id="btnBackfill" title="按条款号在原件的 OCR 文本里找页码">回填页码</button>'
         : ''}
+      <button class="btn danger" id="btnDelStd" style="margin-left:auto" title="彻底删除此标准+小类并级联清理所有关联数据">删除此标准</button>
       <span class="msg" id="backfillMsg" style="align-self:center"></span>
     </div>
     <dl class="kv">
       <dt>分类</dt><dd>${esc(meta.category || '—')}</dd>
-      <dt>规格参数</dt><dd>${params.map(p => `<code>${esc(p.code)}</code>`).join(' ') || '—'}</dd>
+      <dt>规格参数</dt><dd>${params.map(p => `<code>${esc(p.code)}</code>`).join(' ') || '—'} <a href="#/params/${encodeURIComponent(id)}" style="color:var(--brand-2);font-size:12.5px;margin-left:8px">查看参数详情 →</a></dd>
       <dt>检项</dt><dd>${(meta.items || []).length} 项</dd>
       <dt>说明</dt><dd>${esc(meta.note || '—')}</dd>
       <dt>覆盖小类</dt><dd>${(meta.layers && meta.layers.length > 1)
@@ -1050,6 +1336,9 @@ async function renderStdDetail(id, info){
     </dl>`;
   $('#goCard').onclick = () => { location.hash = '#/card/' + id; };
   $('#goTables').onclick = () => { location.hash = '#/tables/' + id; };
+  $('#goParams').onclick = () => { location.hash = '#/params/' + id; };
+  const btnDel = $('#btnDelStd');
+  if(btnDel) btnDel.onclick = () => deleteStandard(id);
   const bf = $('#btnBackfill');
   if(bf) bf.onclick = async () => {
     bf.disabled = true;
@@ -1063,6 +1352,317 @@ async function renderStdDetail(id, info){
     }catch(e){ $('#backfillMsg').textContent = '失败：网络错误'; }
     bf.disabled = false;
   };
+}
+
+/* ================= 标准参数与参数值 ================= */
+let STDPARAMS = {
+  stdId: null,
+  sc: '',
+  meta: null,
+  params: [],
+  selectedCode: null,
+  filterKw: '',
+  catalogMap: {},
+};
+
+async function initStdParams(stdId){
+  const qs = new URLSearchParams(location.search);
+  const id = stdId || qs.get('std');
+  const sc = qs.get('sc') || '';
+  if(!id){ location.hash = '#/standards'; return; }
+  STDPARAMS.stdId = id;
+  STDPARAMS.sc = sc;
+  STDPARAMS.filterKw = '';
+
+  try{
+    const cat = await (await fetch('/api/catalog')).json();
+    CLASSMAP_G = Object.fromEntries(cat.map(c => [c.id, c.name || c.code]));
+    STDPARAMS.catalogMap = {};
+    cat.forEach(c => {
+      (c.params || []).forEach(p => {
+        if(!STDPARAMS.catalogMap[p.code]){
+          STDPARAMS.catalogMap[p.code] = p;
+        }
+      });
+    });
+  }catch(e){}
+
+  const url = '/api/meta?std=' + encodeURIComponent(id) + (sc ? '&sc=' + encodeURIComponent(sc) : '');
+  const r = await fetch(url);
+  if(!r.ok){
+    $('#stdTitle').textContent = '标准不存在';
+    $('#scope').textContent = id;
+    return;
+  }
+  const meta = await r.json();
+  STDPARAMS.meta = meta;
+  STDPARAMS.params = meta.params || [];
+
+  let classLabel = '';
+  if(meta.layer && meta.layer.class_id){
+    classLabel = CLASSMAP_G[meta.layer.class_id] || meta.layer.class_id;
+  } else if(meta.classes && meta.classes.length){
+    classLabel = meta.classes.map(cid => CLASSMAP_G[cid] || cid).join(' / ');
+  }
+
+  $('#stdTitle').textContent = '参数信息 · ' + meta.code + (classLabel ? '　·　' + classLabel : '');
+  $('#scope').textContent = `${meta.title}　·　共 ${STDPARAMS.params.length} 个参数`;
+  document.title = `${meta.code} 参数信息`;
+
+  $('#stdParamsTitle').textContent = `${meta.code} 规格参数与参数值`;
+  $('#stdParamsClassBadge').textContent = classLabel ? `产品小类：${classLabel}` : '通用标准';
+  $('#stdParamsClassBadge').style.display = classLabel ? 'inline-block' : 'none';
+
+  $('#stdParamsGoCard').onclick = () => {
+    location.hash = '#/card/' + encodeURIComponent(id) + (sc ? '?sc=' + encodeURIComponent(sc) : '');
+  };
+  $('#stdParamsGoTables').onclick = () => {
+    location.hash = '#/tables/' + encodeURIComponent(id) + (sc ? '?sc=' + encodeURIComponent(sc) : '');
+  };
+  $('#stdParamsGoBack').onclick = () => {
+    location.hash = '#/standards/' + encodeURIComponent(id);
+  };
+
+  const layerWrap = $('#stdParamsLayerWrap');
+  const layerTabs = $('#stdParamsLayerTabs');
+  if(meta.layers && meta.layers.length > 1){
+    layerWrap.style.display = 'flex';
+    layerTabs.innerHTML = meta.layers.map(l => {
+      const active = sc ? (l.id === sc) : (meta.layer ? l.id === meta.layer.id : false);
+      const name = CLASSMAP_G[l.class_id] || l.name || l.id;
+      return `<button class="${active ? 'on' : ''}" data-sc="${esc(l.id)}">${esc(name)} (${l.params || 0}参数)</button>`;
+    }).join('');
+    layerTabs.onclick = e => {
+      const btn = e.target.closest('button[data-sc]');
+      if(!btn) return;
+      location.hash = '#/params/' + encodeURIComponent(id) + '?sc=' + encodeURIComponent(btn.dataset.sc);
+    };
+  } else {
+    layerWrap.style.display = 'none';
+  }
+
+  const filterInput = $('#stdParamsFilter');
+  filterInput.value = '';
+  filterInput.oninput = e => {
+    STDPARAMS.filterKw = e.target.value.trim().toLowerCase();
+    renderStdParamsLeft();
+  };
+
+  if(STDPARAMS.params.length){
+    if(!STDPARAMS.params.some(p => p.code === STDPARAMS.selectedCode)){
+      STDPARAMS.selectedCode = STDPARAMS.params[0].code;
+    }
+  } else {
+    STDPARAMS.selectedCode = null;
+  }
+
+  renderStdParamsLeft();
+}
+
+function renderStdParamsLeft(){
+  const kw = STDPARAMS.filterKw;
+  const filtered = STDPARAMS.params.filter(p => {
+    if(!kw) return true;
+    return (p.code || '').toLowerCase().includes(kw) || (p.name || '').toLowerCase().includes(kw);
+  });
+
+  $('#stdParamsCount').textContent = `${filtered.length} / ${STDPARAMS.params.length} 个参数`;
+
+  if(!filtered.length){
+    $('#stdParamsTbody').innerHTML = '<tr><td colspan="6" class="muted" style="text-align:center;padding:24px">未找到匹配的参数</td></tr>';
+    renderStdParamRight(null);
+    return;
+  }
+
+  if(!filtered.some(p => p.code === STDPARAMS.selectedCode)){
+    STDPARAMS.selectedCode = filtered[0].code;
+  }
+
+  $('#stdParamsTbody').innerHTML = filtered.map((p, i) => {
+    const isSel = p.code === STDPARAMS.selectedCode;
+    const vals = p.values_list || [];
+    const isFree = isFreeValues(vals);
+    let valBadge = '';
+    if(isFree){
+      valBadge = '<span class="pill" style="font-size:11px;padding:1px 5px;background:#fff3cd;color:#856404">自由取值</span>';
+    } else if(vals.length > 0){
+      valBadge = `<span class="pill" style="font-size:11px;padding:1px 5px;background:#eef2f7;color:var(--brand)">${vals.length} 个值</span>`;
+    } else if(p.type === 'number'){
+      valBadge = '<span class="pill" style="font-size:11px;padding:1px 5px;background:#f3f4f6;color:#6b7280">连续数值</span>';
+    } else if((p.options || []).length > 0){
+      valBadge = `<span class="pill" style="font-size:11px;padding:1px 5px;background:#eef2f7;color:var(--brand)">${p.options.length} 个值</span>`;
+    } else {
+      valBadge = '<span class="muted" style="font-size:11px">—</span>';
+    }
+
+    const typeLabel = p.type === 'enum' ? '枚举' : (p.type === 'number' ? '数值' : (p.type || '其他'));
+
+    return `
+      <tr data-p="${esc(p.code)}" class="${isSel ? 'on' : ''}" style="cursor:pointer">
+        <td style="text-align:center;color:var(--muted)">${i + 1}</td>
+        <td><code>${esc(p.code)}</code></td>
+        <td style="font-weight:${isSel ? '600' : 'normal'}">${esc(p.name)}</td>
+        <td style="text-align:center"><span style="font-size:11.5px;color:var(--muted)">${esc(typeLabel)}</span></td>
+        <td style="text-align:center"><span style="font-size:11.5px;color:var(--muted)">${esc(p.unit || '—')}</span></td>
+        <td style="text-align:center">${valBadge}</td>
+      </tr>
+    `;
+  }).join('');
+
+  $('#stdParamsTbody').onclick = e => {
+    const tr = e.target.closest('tr[data-p]');
+    if(!tr) return;
+    STDPARAMS.selectedCode = tr.dataset.p;
+    renderStdParamsLeft();
+  };
+
+  const selParam = STDPARAMS.params.find(p => p.code === STDPARAMS.selectedCode);
+  renderStdParamRight(selParam);
+}
+
+function renderStdParamRight(p){
+  const titleEl = $('#stdParamSelTitle');
+  const badgesEl = $('#stdParamSelBadges');
+  const contentEl = $('#stdParamValContent');
+
+  if(!p){
+    titleEl.textContent = '';
+    badgesEl.innerHTML = '';
+    contentEl.innerHTML = '<div class="empty-box" style="padding:48px 12px"><div class="big">请选择一个参数</div><div class="muted">在左侧列表中点击参数可在右侧查看详情及取值</div></div>';
+    return;
+  }
+
+  titleEl.innerHTML = `<code>${esc(p.code)}</code>　<b>${esc(p.name)}</b>`;
+  badgesEl.innerHTML = `
+    <span class="pill" style="font-size:11.5px;background:#eef2f7;color:var(--brand)">${p.type === 'enum' ? '枚举型' : (p.type === 'number' ? '数值型' : esc(p.type))}</span>
+    <span class="pill" style="font-size:11.5px">${p.required ? '必填' : '选填'}</span>
+    ${p.unit ? `<span class="pill" style="font-size:11.5px">单位: ${esc(p.unit)}</span>` : ''}
+  `;
+
+  let vals = p.values_list || [];
+  if(!vals.length && (p.options || []).length){
+    vals = p.options.map((opt, idx) => ({ seq: idx + 1, sym: opt, val: opt }));
+  }
+
+  const catRef = STDPARAMS.catalogMap[p.code];
+  const catVals = (catRef && catRef.values) ? catRef.values : [];
+  const isFree = isFreeValues(vals);
+
+  if(vals.length > 0){
+    contentEl.innerHTML = `
+      <div style="margin-bottom:12px;display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+        <span class="pill" style="background:#e8f0f9;color:var(--brand);font-weight:600">共 ${vals.length} 个参数值</span>
+        ${isFree ? '<span class="pill" style="background:#fff3cd;color:#856404;font-weight:500">自由取值（占位符）</span>' : ''}
+        ${p.default != null ? `<span class="pill">默认值: <b>${esc(p.default)}</b></span>` : ''}
+        <span class="hint" style="margin-left:auto">${p.help ? esc(p.help) : '该参数在当前标准+产品小类下的可用取值'}</span>
+      </div>
+
+      ${isFree ? `
+        <div style="padding:10px 14px;background:#fff8e6;border:1px solid #ffeeba;border-radius:8px;margin-bottom:12px;font-size:12.5px;color:#856404">
+          <b>说明：</b>此参数配置为自由取值（占位符 <code>${esc(vals[0] ? vals[0].sym : '/')}</code>）。实际检验出卡与判定时，由用户根据待测物具体规格自由录入数值。
+        </div>
+      ` : ''}
+
+      <div style="overflow-x:auto;max-height:520px;overflow-y:auto;border:1px solid var(--line);border-radius:8px">
+        <table class="analyze" style="width:100%;margin:0">
+          <thead>
+            <tr>
+              <th style="width:60px;text-align:center">序号</th>
+              <th style="width:160px">参数符号 (sym)</th>
+              <th>参数定值 (val)</th>
+              <th style="width:110px;text-align:center">标记</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${vals.map((v, i) => {
+              const isDef = (v.val === p.default || v.sym === p.default);
+              return `
+                <tr>
+                  <td style="text-align:center;color:var(--muted)">${v.seq ?? (i + 1)}</td>
+                  <td><code>${esc(v.sym ?? '')}</code></td>
+                  <td><b>${esc(v.val ?? '')}</b></td>
+                  <td style="text-align:center">
+                    ${isDef ? '<span class="pill" style="font-size:11px;padding:1px 6px;background:#e6f4ea;color:#137333;font-weight:500">默认选项</span>' : ''}
+                    ${isFreeValues([v]) ? '<span class="pill" style="font-size:11px;padding:1px 6px;background:#fff3cd;color:#856404">值不固定</span>' : ''}
+                  </td>
+                </tr>
+              `;
+            }).join('')}
+          </tbody>
+        </table>
+      </div>
+    `;
+    return;
+  }
+
+  if(p.type === 'number'){
+    contentEl.innerHTML = `
+      <div class="tblcard" style="margin-bottom:14px;background:#fafbfd;border:1px solid var(--line);border-radius:10px;padding:16px">
+        <div style="display:flex;align-items:center;gap:10px;margin-bottom:14px">
+          <span class="pill" style="background:#eef2f7;color:var(--brand);font-weight:600">连续数值型参数</span>
+          <span class="muted" style="font-size:12.5px">当前标准定义为连续数值输入项，出卡时由用户录入具体尺寸/数值</span>
+        </div>
+        <table class="analyze" style="width:100%;background:#fff;border-radius:8px;overflow:hidden">
+          <tbody>
+            <tr>
+              <th style="width:130px;background:#f9fafb;color:var(--muted);font-weight:500">参数代码</th>
+              <td><code>${esc(p.code)}</code></td>
+              <th style="width:130px;background:#f9fafb;color:var(--muted);font-weight:500">中文名称</th>
+              <td><b>${esc(p.name)}</b></td>
+            </tr>
+            <tr>
+              <th style="background:#f9fafb;color:var(--muted);font-weight:500">计量单位</th>
+              <td>${esc(p.unit || '无')}</td>
+              <th style="background:#f9fafb;color:var(--muted);font-weight:500">约束要求</th>
+              <td>${p.required ? '<span style="color:#d9534f;font-weight:600">必填项</span>' : '<span class="muted">选填项</span>'}</td>
+            </tr>
+            <tr>
+              <th style="background:#f9fafb;color:var(--muted);font-weight:500">取值范围</th>
+              <td>${(p.min != null || p.max != null) ? `[ ${p.min ?? '—'} , ${p.max ?? '—'} ]` : '未限定范围（依据产品图样）'}</td>
+              <th style="background:#f9fafb;color:var(--muted);font-weight:500">默认值</th>
+              <td>${p.default != null ? `<code>${esc(p.default)}</code>` : '无默认值'}</td>
+            </tr>
+            <tr>
+              <th style="background:#f9fafb;color:var(--muted);font-weight:500">录入说明</th>
+              <td colspan="3">${esc(p.help || '依据送检产品的规格尺寸或图样标注输入')}</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      ${catVals.length ? `
+        <div style="margin-top:16px">
+          <div class="panel-h">
+            <b>参考参数库预设取值</b>
+            <span class="lbl">来自参数库中同名参数的定义（共 ${catVals.length} 个）</span>
+          </div>
+          <div style="overflow-x:auto;max-height:260px;overflow-y:auto;border:1px solid var(--line);border-radius:8px">
+            <table class="analyze" style="width:100%;margin:0">
+              <thead><tr><th style="width:60px;text-align:center">序号</th><th style="width:140px">符号</th><th>定值</th></tr></thead>
+              <tbody>
+                ${catVals.map((v, i) => `
+                  <tr>
+                    <td style="text-align:center;color:var(--muted)">${v.seq ?? (i + 1)}</td>
+                    <td><code>${esc(v.sym ?? '')}</code></td>
+                    <td>${esc(v.val ?? '')}${isFreeValues([v]) ? ' <span class="muted">(值不固定)</span>' : ''}</td>
+                  </tr>
+                `).join('')}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      ` : ''}
+    `;
+    return;
+  }
+
+  contentEl.innerHTML = `
+    <div class="empty-box" style="padding:48px 12px">
+      <div class="big">此参数暂无预设枚举值</div>
+      <div class="muted" style="margin-top:6px">代码 <code>${esc(p.code)}</code> (${esc(p.name)})，类型为 ${esc(p.type || '未指定')}</div>
+      ${p.help ? `<div style="margin-top:10px;font-size:12.5px">${esc(p.help)}</div>` : ''}
+    </div>
+  `;
 }
 
 /* ================= 检验卡 ================= */
@@ -1094,6 +1694,12 @@ async function initCard(stdId){
   renderForm();
   await resolve();
   if(new URLSearchParams(location.search).get('demo') === '1') fillDemo();
+  const btnCP = $('#btnCardParams');
+  if(btnCP){
+    btnCP.onclick = () => {
+      location.hash = '#/params/' + encodeURIComponent(id) + (sc ? '?sc=' + encodeURIComponent(sc) : '');
+    };
+  }
 }
 
 /* ================= 覆盖小类 ================= */
@@ -1225,7 +1831,7 @@ function renderCatDetail(cid){
   };
   $('#btnEditVals') && ($('#btnEditVals').onclick = () => {
     openVals({type: 'catalog', paramId: sel.id, classId: c.id, title: sel.code, sub: sel.name,
-              list: sel.values.map(v => ({sym: v.sym, val: v.val}))});
+              list: sel.values.map((v, i) => ({seq: v.seq ?? (i + 1), sym: v.sym, val: v.val}))});
   });
   $('#btnAddParam').onclick = () => addParamTo(c.id);
   $('#btnAttach').onclick = () => toggleAttach(c);
@@ -1273,26 +1879,43 @@ $('#btnAddClass').onclick = async () => {
   initCatalog();
 };
 
-/* ================= 判定依据 ================= */
+/* ================= 判定依据与规则管理 ================= */
 function showWhy(it){
-  $('#whyTitle').textContent = `为什么「${it.clause}　${it.title}」` +
-    (it.selected ? '被算作检查项' : '没被算作检查项');
-  $('#whySub').textContent = it.selected ? '已选' : (it.reason || '');
-  $('#whyBody').innerHTML =
-    '<ol style="margin:0;padding-left:20px">' +
-      (it.trace || ['（没有记录）']).map(x => `<li style="margin-bottom:4px">${esc(x)}</li>`).join('') +
-    '</ol>' +
-    (it.words && it.words.length
-      ? `<div style="margin-top:10px">命中词：${it.words.map(w => `<code>${esc(w)}</code>`).join(' ')}</div>` : '') +
-    `<div style="margin-top:10px;color:var(--muted)">原文依据：${esc(it.evidence || '—')}</div>`;
+  $('#whyTitle').textContent = `判定依据 · 条款「${it.clause} ${it.title}」`;
+  $('#whySub').textContent = it.selected ? '已选为检查项目' : (it.reason || '未通过判定');
+  $('#whyBody').innerHTML = `
+    <div style="margin-bottom:12px">
+      <b>算法判定轨迹：</b>
+      <ol style="margin:6px 0 10px;padding-left:20px;line-height:1.6">
+        ${(it.trace || ['（无判定记录）']).map(x => `<li style="margin-bottom:3px">${esc(x)}</li>`).join('')}
+      </ol>
+      ${(it.words && it.words.length) ? `<div>命中关键词：${it.words.map(w => `<code class="chip">${esc(w)}</code>`).join(' ')}</div>` : ''}
+    </div>
+    <div style="border-top:1px solid var(--line);padding-top:12px">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px">
+        <b>原文依据（可直接手工修改并保存）：</b>
+        <span class="hint">修改后将作为正式检验依据保存并带入检验卡</span>
+      </div>
+      <textarea id="whyEditEvi" style="width:100%;height:84px;border:1px solid var(--line);border-radius:6px;padding:8px 10px;font-size:13px;line-height:1.5;background:#fafbfd">${esc(it.evidence || '')}</textarea>
+      <div style="display:flex;align-items:center;gap:10px;margin-top:10px">
+        <button class="btn primary" id="whySaveEvi">更新此项依据</button>
+        <span id="whySaveMsg" style="color:var(--brand);font-size:12px"></span>
+      </div>
+    </div>`;
   $('#whyModal').hidden = false;
+  $('#whySaveEvi').onclick = () => {
+    it.evidence = $('#whyEditEvi').value.trim();
+    $('#whySaveMsg').textContent = '已更新！';
+    renderJob();
+    setTimeout(() => { $('#whyModal').hidden = true; }, 400);
+  };
 }
 if($('#whyClose')) $('#whyClose').onclick = () => { $('#whyModal').hidden = true; };
 
 async function showRules(){
-  $('#whyTitle').textContent = '识别规则（改代码即可调整）';
-  $('#whySub').textContent = '检项 / 参数 / 限值表';
-  $('#whyBody').innerHTML = '加载中…';
+  $('#whyTitle').textContent = '检查项与参数识别规则配置';
+  $('#whySub').textContent = '可直接手工修改保存，无需改动源码，保存后即刻全局生效';
+  $('#whyBody').innerHTML = '加载规则中…';
   $('#whyModal').hidden = false;
   let d;
   try{
@@ -1301,41 +1924,119 @@ async function showRules(){
     $('#whyBody').textContent = '读取规则失败：' + e;
     return;
   }
-  try{
-  const list = (arr) => arr.map(x =>
-    `<code style="display:inline-block;margin:0 6px 4px 0">${esc(x)}</code>`).join('');
-  const ruleRows = (d.params || []).map(p =>
-    `<tr><td><code>${esc(p.code)}</code></td><td>${esc(p.名称)}</td>
-      <td class="evi"><code>${esc(p.正则)}</code></td></tr>`).join('');
+  const cfg = d.configurable || {};
+  const metricWords = (cfg.metric_words || []).join('、');
+  const actionWords = (cfg.action_words || []).join('、');
+  const sectionTitles = (cfg.section_titles || []).join('、');
+  const processTitles = (cfg.process_titles || []).join('、');
+
   $('#whyBody').innerHTML = `
-    <h4 style="margin:0 0 6px">一、检查项怎么认</h4>
-    <div>${esc(d.items.一句话)}</div>
-    <ol style="margin:8px 0 10px;padding-left:20px">
-      ${d.items.步骤.map(x => `<li>${esc(x)}</li>`).join('')}
-    </ol>
-    <div style="line-height:2">
-      <div><b>条款号正则</b> <code>${esc(d.items.条款号正则)}</code></div>
-      <div><b>章节标题（排除）</b> ${list(d.items.章节标题)}</div>
-      <div><b>过程性小节（排除）</b> ${list(d.items.过程性小节)}</div>
-      <div><b>性能等级写法（排除）</b> ${list(d.items['性能等级（与条款号同形）'])}</div>
-      <div><b>可测对象词</b> ${list(d.items.可测对象词)}</div>
-      <div><b>检验动作词</b> ${list(d.items.检验动作词)}</div>
-      <div><b>上级算检项的特征</b> <code>${esc(d.items.上级算检项的标题特征)}</code></div>
-      <div><b>数值判定</b> <code>${esc(d.items.数值判定)}</code></div>
-    </div>
+    <div style="display:flex;flex-direction:column;gap:14px;max-height:65vh;overflow-y:auto;padding-right:4px">
+      <div style="background:#fafbfd;border:1px solid var(--line);border-radius:8px;padding:12px">
+        <div style="font-weight:600;font-size:13.5px;margin-bottom:4px;color:var(--brand)">
+          1. 检验对象词（METRIC_WORDS）
+        </div>
+        <div class="hint" style="margin-bottom:8px">
+          标题只要包含这些词，系统就判定属于可测量的检查项目。可自由增删（支持顿号、逗号、空格或换行分隔）：
+        </div>
+        <textarea id="ruleMetric" style="width:100%;height:80px;border:1px solid var(--line);border-radius:6px;padding:8px;font-size:12.5px;line-height:1.5">${esc(metricWords)}</textarea>
+      </div>
 
-    <h4 style="margin:18px 0 6px">二、规格参数怎么猜</h4>
-    <table class="analyze"><thead><tr><th style="width:110px">参数</th>
-      <th style="width:130px">名称</th><th>命中正则（正文任一页出现即建议）</th></tr></thead>
-      <tbody>${ruleRows}</tbody></table>
+      <div style="background:#fafbfd;border:1px solid var(--line);border-radius:8px;padding:12px">
+        <div style="font-weight:600;font-size:13.5px;margin-bottom:4px;color:#d9534f">
+          2. 排除章节标题（SECTION_TITLES）
+        </div>
+        <div class="hint" style="margin-bottom:8px">
+          这些整章讲规矩的章节（如范围、引用文件、标记示例、包装等），系统会自动排除：
+        </div>
+        <textarea id="ruleSection" style="width:100%;height:65px;border:1px solid var(--line);border-radius:6px;padding:8px;font-size:12.5px;line-height:1.5">${esc(sectionTitles)}</textarea>
+      </div>
 
-    <h4 style="margin:18px 0 6px">三、限值表怎么建</h4>
-    <div>${esc(d.tables.一句话)}</div>
-    <ol style="margin:8px 0 0;padding-left:20px">
-      ${d.tables.步骤.map(x => `<li>${esc(x)}</li>`).join('')}
-    </ol>`;
-  }catch(e){
-    $('#whyBody').textContent = '渲染规则失败：' + (e && e.message ? e.message : e);
+      <div style="background:#fafbfd;border:1px solid var(--line);border-radius:8px;padding:12px">
+        <div style="font-weight:600;font-size:13.5px;margin-bottom:4px;color:#d9534f">
+          3. 排除过程性小节（PROCESS_TITLES）
+        </div>
+        <div class="hint" style="margin-bottom:8px">
+          这些小节讲的是试验设备、步骤、方法而非检验对象本身，系统会自动排除：
+        </div>
+        <textarea id="ruleProcess" style="width:100%;height:65px;border:1px solid var(--line);border-radius:6px;padding:8px;font-size:12.5px;line-height:1.5">${esc(processTitles)}</textarea>
+      </div>
+
+      <div style="background:#fafbfd;border:1px solid var(--line);border-radius:8px;padding:12px">
+        <div style="font-weight:600;font-size:13.5px;margin-bottom:4px;color:var(--brand)">
+          4. 检验动作词（ACTION_WORDS）
+        </div>
+        <div class="hint" style="margin-bottom:8px">
+          标题若含有检验动作词，也作为检验项目的判定依据：
+        </div>
+        <textarea id="ruleAction" style="width:100%;height:50px;border:1px solid var(--line);border-radius:6px;padding:8px;font-size:12.5px;line-height:1.5">${esc(actionWords)}</textarea>
+      </div>
+
+      <div style="display:flex;align-items:center;gap:12px;margin-top:6px;position:sticky;bottom:0;background:#fff;padding-top:10px;border-top:1px solid var(--line)">
+        <button class="btn primary" id="btnSaveRules">保存并应用规则</button>
+        <button class="btn ghost" id="btnResetRules" style="color:var(--bad)">恢复出厂默认</button>
+        ${A.job ? `<button class="btn ghost" id="btnRerunAnalyze" style="margin-left:auto;color:var(--brand);border-color:#bcd4ee">按新规则重新识别当前文件</button>` : ''}
+        <span id="ruleMsg" style="font-size:12.5px;color:var(--brand);font-weight:500"></span>
+      </div>
+    </div>`;
+
+  const parseInput = id => {
+    const v = $(id).value.trim();
+    return v.split(/[\n,，、\s]+/).map(s => s.trim()).filter(Boolean);
+  };
+
+  $('#btnSaveRules').onclick = async () => {
+    const payload = Object.assign({}, cfg, {
+      metric_words: parseInput('#ruleMetric'),
+      section_titles: parseInput('#ruleSection'),
+      process_titles: parseInput('#ruleProcess'),
+      action_words: parseInput('#ruleAction'),
+    });
+    $('#ruleMsg').textContent = '正在保存…';
+    try{
+      const r = await fetch('/api/rules', {
+        method:'PUT', headers:{'Content-Type':'application/json'},
+        body: JSON.stringify(payload)
+      });
+      const res = await r.json();
+      if(!r.ok) throw new Error(res.detail || r.statusText);
+      $('#ruleMsg').textContent = '规则已保存并即刻生效！';
+    }catch(err){
+      $('#ruleMsg').textContent = '保存失败：' + err.message;
+    }
+  };
+
+  $('#btnResetRules').onclick = async () => {
+    if(!confirm('确定要恢复为系统出厂默认规则吗？')) return;
+    $('#ruleMsg').textContent = '正在重置…';
+    try{
+      const r = await fetch('/api/rules/reset', {method:'POST'});
+      const res = await r.json();
+      if(!r.ok) throw new Error(res.detail || r.statusText);
+      $('#ruleMsg').textContent = '已恢复系统出厂规则！';
+      setTimeout(showRules, 600);
+    }catch(err){
+      $('#ruleMsg').textContent = '重置失败：' + err.message;
+    }
+  };
+
+  const rerunBtn = $('#btnRerunAnalyze');
+  if(rerunBtn){
+    rerunBtn.onclick = async () => {
+      if(!confirm('确定要按当前最新规则重新识别本文件的检项吗？')) return;
+      $('#ruleMsg').textContent = '正在重新识别…';
+      try{
+        const r = await fetch(`/api/analyze/jobs/${A.job.id}/rerun`, {method:'POST'});
+        const res = await r.json();
+        if(!r.ok) throw new Error(res.detail || r.statusText);
+        $('#whyModal').hidden = true;
+        $('#prog').hidden = false;
+        setProg(30, '重新识别检项中…');
+        pollJob(A.job.id);
+      }catch(err){
+        $('#ruleMsg').textContent = '重跑失败：' + err.message;
+      }
+    };
   }
 }
 
@@ -1524,11 +2225,34 @@ function renderLinks(){
 }
 
 /* ================= 上传分析 ================= */
+async function loadUploadClasses(){
+  const sel = $('#uploadClass');
+  if(!sel) return;
+  const cur = sel.value;
+  try{
+    const cat = await (await fetch('/api/catalog')).json();
+    if(!cat || !cat.length){
+      sel.innerHTML = '<option value="">（请先去参数库创建产品小类）</option>';
+      return;
+    }
+    sel.innerHTML = '<option value="">-- 请选择产品小类（必选）--</option>' +
+      cat.map(c => `<option value="${esc(c.id)}">${esc(c.parent ? c.parent + ' / ' : '')}${esc(c.name || c.code)}</option>`).join('');
+    if(cur && cat.some(c => c.id === cur)){
+      sel.value = cur;
+    } else if(cat.length === 1){
+      sel.value = cat[0].id;
+    }
+  }catch(e){
+    console.error('加载产品小类失败', e);
+  }
+}
+
 function initAnalyze(jobId, step){
   $('#stdTitle').textContent = '标准分析';
   $('#scope').textContent = '上传 PDF → ①检项 ②参数 ③限值 ④关联，每步人工确认';
   document.title = '上传标准做分析';
   loadRecent();
+  loadUploadClasses();
   wireSteps();
   if(jobId){
     S.step = step || 1;
@@ -2282,6 +3006,11 @@ async function openCatalogPicker(){
   $('#cpClass').innerHTML = cat.map(c =>
     `<option value="${esc(c.id)}">${esc(c.parent ? c.parent + ' / ' : '')}${esc(c.name)}（${c.params.length}）</option>`).join('');
 
+  const curCid = (A.job && (A.job.class_id || (A.job.classes && A.job.classes[0]))) || (JOB && (JOB.class_id || (JOB.classes && JOB.classes[0])));
+  if(curCid && cat.some(x => x.id === curCid)){
+    $('#cpClass').value = curCid;
+  }
+
   const render = () => {
     CP.sel.clear();
     const c = cat.find(x => x.id === $('#cpClass').value);
@@ -2335,7 +3064,7 @@ $('#cpOk').onclick = () => {
     A.job.params_spec.push({
       code: p.code, name: p.name, type: free ? 'number' : p.type, unit: p.unit || '',
       required: !!p.required, options: free ? [] : vals.map(v => v.val),
-      values_list: vals.map(v => ({sym: v.sym, val: v.val})),
+      values_list: vals.map((v, idx) => ({seq: v.seq ?? (idx + 1), sym: v.sym, val: v.val})),
       default: free ? null : (vals[0] ? vals[0].val : null),
       min: null, max: null, help: p.help || '',
       class_id: classId,
@@ -2403,6 +3132,13 @@ async function initTables(stdId, tableId){
   document.title = d.code + ' 限值表';
   tablesReady = true;
 
+  const btnTP = $('#btnTableParams');
+  if(btnTP){
+    btnTP.onclick = () => {
+      location.hash = '#/params/' + encodeURIComponent(id) + (sc ? '?sc=' + encodeURIComponent(sc) : '');
+    };
+  }
+
   if(!E.allTables.length){
     $('#tblList').innerHTML = '';
     $('#tblDetail').innerHTML = '<div class="empty-box"><div class="big">这个标准还没有限值表</div>' +
@@ -2447,6 +3183,7 @@ function renderTableList(){
       <li data-t="${esc(t.id)}" class="${t.id === CURRENT ? 'on' : ''}">
         <span class="tname">${esc(t.name || t.id)}</span>
         <span class="tmeta">${esc(t.id)} · ${t.dims.length} 维 · ${t.rows.length} 行${
+          t.matrix_local_id ? ` · <b style="color:var(--brand,#0b5cab)">母表:${esc(t.matrix_local_id)}</b>` : ''}${
           pageOfTable(t) ? ` · P${pageOfTable(t)}` : ''}</span>
       </li>`).join('')}`).join('');
   $('#tblList').onclick = e => {
@@ -2467,12 +3204,14 @@ function renderTableDetail(id){
   const form = t.value_form === 'deviation'
     ? `偏差型（叠加 <code>${esc(t.nominal_param || '')}</code>）` : '绝对值';
   const dims = t.dims.map(d => `${d.code}`).join(' × ') || '无维度';
-  const head = t.dims.map(d => `<th>${esc(d.code)}</th>`).join('');
+  const hasNominal = t.rows.some(r => r.nominal !== null && r.nominal !== undefined);
+  const head = t.dims.map(d => `<th>${esc(d.code)}</th>`).join('') + (hasNominal ? '<th style="color:#0b5cab">公称基准</th>' : '');
   const body = t.rows.slice(0, 200).map(r => `
     <tr>${t.dims.map(d => {
       const v = r.key[d.code];
       return `<td>${Array.isArray(v) ? `(${v[0]}, ${v[1]}]` : esc(v ?? '—')}</td>`;
     }).join('')}
+    ${hasNominal ? `<td style="color:#0b5cab;font-weight:600">${r.nominal !== null && r.nominal !== undefined ? esc(r.nominal) : '—'}</td>` : ''}
     <td>${r.na ? '—' : (r.lower_expr ? `<code>${esc(r.lower_expr)}</code>` : (r.lower ?? ''))}</td>
     <td>${r.na ? '不要求' : (r.upper_expr ? `<code>${esc(r.upper_expr)}</code>` : (r.upper ?? ''))}</td>
     <td class="muted">${esc(r.note || '')}</td></tr>`).join('');
@@ -2481,7 +3220,8 @@ function renderTableDetail(id){
     <div class="det-head">
       <b>${esc(t.name || t.id)}</b>
       <span class="pill"><code>${esc(t.id)}</code></span>
-      <button class="btn ghost" id="btnEditTable" style="margin-left:auto">编辑这张表</button>
+      ${t.matrix_local_id ? `<button class="btn primary" id="btnEditParentMatrix" style="margin-left:auto">🔗 打开所属复合母表编辑</button>` : ''}
+      <button class="btn ghost" id="btnEditTable" style="${t.matrix_local_id ? 'margin-left:8px' : 'margin-left:auto'}">编辑这张单表</button>
     </div>
     <div class="det-sub">
       <span class="pill">维度 ${esc(dims)}</span>
@@ -2489,6 +3229,7 @@ function renderTableDetail(id){
       <span class="pill">${form}</span>
       <span class="pill">单位 ${esc(t.unit || 'mm')}</span>
       ${t.item_code ? `<span class="pill">检项 ${esc(t.item_code)}</span>` : ''}
+      ${t.matrix_local_id ? `<span class="pill" style="background:#e8f4fd;color:#0b5cab">源自母表: ${esc(t.matrix_local_id)}</span>` : ''}
       ${pageOfTable(t) ? `<span class="pill">${pdfLink(E.std, pageOfTable(t),
           '原件 P' + pageOfTable(t), '打开原件第 ' + pageOfTable(t) + ' 页')}</span>` : ''}
     </div>
@@ -2499,6 +3240,21 @@ function renderTableDetail(id){
     ${t.rows.length > 200 ? `<div class="muted" style="padding:6px">仅显示前 200 行，共 ${t.rows.length} 行</div>` : ''}`;
 
   $('#btnEditTable').onclick = () => openEditor(E.std, t, false);
+  if($('#btnEditParentMatrix')){
+    $('#btnEditParentMatrix').onclick = async () => {
+      try {
+        const resp = await fetch(`/api/standards/${encodeURIComponent(E.std)}/matrices/${encodeURIComponent(t.matrix_local_id)}`);
+        if(resp.ok){
+          const mdata = await resp.json();
+          openMatrixModal(E.std, mdata, false);
+        } else {
+          alert('母表数据获取失败');
+        }
+      } catch(err){
+        alert('读取母表出错: ' + err.message);
+      }
+    };
+  }
 }
 
 async function ensureEditorData(){
@@ -2514,6 +3270,867 @@ $('#btnNewTable').onclick = async () => {
   if(await ensureEditorData()) openEditor(E.std, null, true);
 };
 
+/* ================= 复合大表母表 (limit_matrix) 主从向导与切分 ================= */
+const MAT = {
+  std: null,
+  isNew: true,
+  data: {
+    local_id: '',
+    title: '',
+    common_dims: [],
+    tables: []
+  }
+};
+
+$('#btnNewMatrix').onclick = async () => {
+  if(await ensureEditorData()) openMatrixModal(E.std, null, true);
+};
+
+function openMatrixModal(stdId, matrixData, isNew){
+  MAT.std = stdId;
+  MAT.isNew = !!isNew;
+  if(matrixData){
+    MAT.data = JSON.parse(JSON.stringify(matrixData));
+    if(!MAT.data.common_dims && MAT.data.dims){
+      MAT.data.common_dims = MAT.data.dims;
+    }
+    if(!MAT.data.tables && MAT.data.indicators){
+      // 兼容旧格式转为新主从结构
+      const commonDims = MAT.data.common_dims || [];
+      MAT.data.tables = MAT.data.indicators.map((ind, idx) => {
+        const rows = (MAT.data.rows || []).map(r => {
+          const k = Object.assign({}, r.dim_values || {});
+          const ival = (r.indicator_values || {})[ind.col_key] || {};
+          return {
+            key: k,
+            nominal: ival.nominal ?? null,
+            lower: ival.lower ?? null,
+            upper: ival.upper ?? null,
+            na: !!ival.na,
+            note: ival.note || ''
+          };
+        });
+        return {
+          no: (idx + 1).toString(),
+          name: ind.name || `指标${idx+1}`,
+          unit: ind.unit || '',
+          local_table_id: ind.local_table_id || `T-${MAT.data.local_id}-${ind.col_key || idx+1}`,
+          item_id: ind.item_id || '',
+          extra_dims: ind.extra_dims || [],
+          expanded: idx === 0,
+          rows: rows
+        };
+      });
+    }
+  } else {
+    // 默认空母表
+    MAT.data = {
+      local_id: 'M-PROP-' + Date.now().toString(36).toUpperCase(),
+      title: '紧固件机械性能总表',
+      common_dims: [
+        { code: 'property_class', name: '性能等级', kind: 'enum' },
+        { code: 'd_nom', name: '公称直径 d', kind: 'range' }
+      ],
+      tables: [
+        {
+          no: '1',
+          name: '抗拉强度 Rm',
+          unit: 'MPa',
+          local_table_id: 'T-PROP-RM',
+          item_id: '',
+          extra_dims: [
+            { code: 'rm_nom', name: '公称抗拉强度', kind: 'enum' }
+          ],
+          expanded: true,
+          rows: [
+            { key: { property_class: '8.8', d_nom: '0~16', rm_nom: '800' }, nominal: 800, lower: 800, upper: 1000, na: false, note: '' },
+            { key: { property_class: '8.8', d_nom: '16~39', rm_nom: '800' }, nominal: 800, lower: 830, upper: 1030, na: false, note: '大规格加严' }
+          ]
+        },
+        {
+          no: '2',
+          name: '下屈服强度 ReL',
+          unit: 'MPa',
+          local_table_id: 'T-PROP-REL',
+          item_id: '',
+          extra_dims: [],
+          expanded: false,
+          rows: [
+            { key: { property_class: '4.6', d_nom: '0~39' }, nominal: 240, lower: 240, upper: null, na: false, note: '' },
+            { key: { property_class: '5.6', d_nom: '0~39' }, nominal: 300, lower: 300, upper: null, na: false, note: '' }
+          ]
+        }
+      ]
+    };
+  }
+
+  $('#matTitleText').textContent = isNew ? '复合大表拆解与多维限值生成（按 No. 逐项向导）' : '编辑复合大表（母表矩阵）';
+  $('#matSubText').textContent = stdId;
+  $('#matTitle').value = MAT.data.title || '';
+  $('#matLocalId').value = MAT.data.local_id || '';
+  $('#matDeleteBtn').style.display = isNew ? 'none' : 'inline-block';
+
+  renderMatrixWizard();
+  $('#matrixModal').hidden = false;
+}
+
+$('#matClose').onclick = $('#matCancelBtn').onclick = () => {
+  $('#matrixModal').hidden = true;
+};
+
+/* 渲染整个主从向导界面 */
+function renderMatrixWizard(){
+  renderCommonDims();
+  renderMasterTables();
+  updateMatrixStatMsg();
+}
+
+function updateMatrixStatMsg(){
+  const tCount = (MAT.data.tables || []).length;
+  let rCount = 0;
+  (MAT.data.tables || []).forEach(t => { rCount += (t.rows || []).length; });
+  $('#matMasterTableCount').textContent = tCount;
+  $('#matStatMsg').textContent = `共 ${MAT.data.common_dims.length} 个公共参数，已拆分 ${tCount} 笔限值主表，累计 ${rCount} 行明细数据`;
+}
+
+/* 1. 渲染表头公共参数池 */
+function renderCommonDims(){
+  const container = $('#matCommonDimsContainer');
+  if(!container) return;
+  const dims = MAT.data.common_dims || [];
+  if(!dims.length){
+    container.innerHTML = `<span style="font-size:12px;color:#8c8c8c">当前未设定公共参数，请点击右侧「+ 添加公共参数」</span>`;
+    return;
+  }
+  container.innerHTML = dims.map((d, idx) => `
+    <span class="mat-pill-common" title="参数代码: ${esc(d.code)}">
+      <b>${esc(d.name || d.code)}</b>
+      <span style="font-size:10px;opacity:0.8">(${d.kind === 'range' ? '区间' : '枚举'})</span>
+      <a href="javascript:void(0)" onclick="removeCommonDim(${idx})" style="color:#0284c7;text-decoration:none;font-weight:bold;margin-left:4px" title="移除该公共参数">✕</a>
+    </span>
+  `).join('');
+}
+
+window.removeCommonDim = function(idx){
+  if(!confirm('确定移除该公共参数？此操作将使后续子表默认不再继承此维度。')) return;
+  MAT.data.common_dims.splice(idx, 1);
+  renderMatrixWizard();
+};
+
+$('#btnMatAddCommonDim').onclick = () => {
+  const code = prompt('请输入公共参数代码（如 property_class、d_nom 等）：');
+  if(!code || !code.trim()) return;
+  const name = prompt('请输入公共参数中文名称（如 性能等级、公称直径 d）：', code) || code;
+  const isRange = confirm('该参数是否为数值区间类型？\n点击【确定】设为区间 (range)，点击【取消】设为枚举 (enum)');
+  MAT.data.common_dims.push({
+    code: code.trim(),
+    name: name.trim(),
+    kind: isRange ? 'range' : 'enum'
+  });
+  renderMatrixWizard();
+};
+
+/* 2. 渲染按 No 序号排列的主表清单 */
+function renderMasterTables(){
+  const container = $('#matMasterList');
+  if(!container) return;
+  const tables = MAT.data.tables || [];
+  if(!tables.length){
+    container.innerHTML = `<div style="text-align:center;padding:36px;color:#94a3b8;border:1px dashed #cbd5e1;border-radius:8px">暂无限值主表，请点击上方「+ 新增限值主表 (No)」或载入国标预置数据集</div>`;
+    return;
+  }
+
+  const commonDims = MAT.data.common_dims || [];
+  const commonNames = commonDims.map(d => d.name || d.code).join(', ') || '无';
+
+  // 现有检项选项
+  const itemOptions = (E.items || []).map(it =>
+    `<option value="${esc(it.id)}">${esc(it.title)} [${esc(it.id)}]</option>`
+  ).join('');
+
+  container.innerHTML = tables.map((tbl, tIdx) => {
+    const extraDims = tbl.extra_dims || [];
+    const allDims = [...commonDims, ...extraDims];
+    const isExpanded = !!tbl.expanded;
+
+    // 专属增量参数徽标
+    const extraPillsHtml = extraDims.map((ed, edIdx) => `
+      <span class="mat-pill-extra" title="专属参数代码: ${esc(ed.code)}">
+        ⭐ ${esc(ed.name || ed.code)}
+        <span style="font-size:10px;opacity:0.8">(${ed.kind === 'range' ? '区间' : '枚举'})</span>
+        <a href="javascript:void(0)" onclick="removeExtraDim(${tIdx}, ${edIdx})" style="color:#7e22ce;text-decoration:none;font-weight:bold;margin-left:4px" title="移除此专属参数">✕</a>
+      </span>
+    `).join('');
+
+    // 明细行表格 HTML
+    let detailGridHtml = '';
+    if(isExpanded){
+      detailGridHtml = buildDetailGridHtml(tbl, tIdx, allDims);
+    }
+
+    return `
+      <div class="mat-master-card" id="matCard_${tIdx}">
+        <!-- 卡片头部 (主表核心属性与参数确认) -->
+        <div class="mat-master-head ${isExpanded ? 'is-open' : ''}">
+          <div style="display:flex;align-items:center;gap:6px">
+            <span style="font-size:12px;font-weight:bold;color:#475569">No.</span>
+            <input type="text" class="card-no" value="${esc(tbl.no || '')}" onchange="updateMasterTableField(${tIdx}, 'no', this.value)" placeholder="序号" style="width:50px;height:28px;text-align:center;font-weight:bold;border:1px solid #cbd5e1;border-radius:4px;box-sizing:border-box">
+          </div>
+
+          <div style="flex:1;min-width:180px;display:flex;align-items:center;gap:6px">
+            <input type="text" class="card-name" value="${esc(tbl.name || '')}" onchange="updateMasterTableField(${tIdx}, 'name', this.value)" placeholder="检项/指标名称" style="width:100%;height:28px;font-weight:600;color:#0f172a;border:1px solid #cbd5e1;border-radius:4px;padding:0 8px;box-sizing:border-box">
+          </div>
+
+          <div style="width:65px">
+            <input type="text" class="card-unit" value="${esc(tbl.unit || '')}" onchange="updateMasterTableField(${tIdx}, 'unit', this.value)" placeholder="单位" style="width:100%;height:28px;border:1px solid #cbd5e1;border-radius:4px;padding:0 6px;text-align:center;box-sizing:border-box">
+          </div>
+
+          <div style="width:140px">
+            <input type="text" class="card-tid" value="${esc(tbl.local_table_id || '')}" onchange="updateMasterTableField(${tIdx}, 'local_table_id', this.value)" placeholder="子表代号" style="width:100%;height:28px;font-family:monospace;font-size:11px;border:1px solid #cbd5e1;border-radius:4px;padding:0 6px;box-sizing:border-box">
+          </div>
+
+          <div style="width:160px">
+            <select class="card-item" onchange="updateMasterTableField(${tIdx}, 'item_id', this.value)" style="width:100%;height:28px;border:1px solid #cbd5e1;border-radius:4px;font-size:11px;box-sizing:border-box">
+              <option value="" ${!tbl.item_id ? 'selected' : ''}>✨ 自动新建同名检项</option>
+              ${(E.items || []).map(it => `<option value="${esc(it.id)}" ${it.id === tbl.item_id ? 'selected' : ''}>${esc(it.title)} [${esc(it.id)}]</option>`).join('')}
+            </select>
+          </div>
+
+          <!-- 操作按钮组 -->
+          <div style="display:flex;gap:6px;align-items:center;margin-left:auto">
+            <button class="btn ghost" onclick="toggleExpandMasterTable(${tIdx})" style="padding:2px 10px;font-size:12px;color:#0969da;background:#fff;border-color:#bfdbfe">
+              ${isExpanded ? '▲ 收起明细' : `👁️ 展开明细 (${(tbl.rows||[]).length}行) ▼`}
+            </button>
+            <button class="btn ghost" onclick="removeMasterTable(${tIdx})" style="padding:2px 8px;font-size:12px;color:#ef4444" title="删除该主表">✕</button>
+          </div>
+        </div>
+
+        <!-- 参数继承与确认栏 -->
+        <div style="padding:8px 14px;background:#f1f5f9;border-top:1px solid #e2e8f0;display:flex;align-items:center;gap:12px;flex-wrap:wrap">
+          <div style="display:flex;align-items:center;gap:6px">
+            <span style="font-size:11.5px;color:#475569">已继承公共参数:</span>
+            <span style="font-size:11.5px;color:#0284c7;font-weight:600;background:#e0f2fe;padding:2px 8px;border-radius:4px">${commonNames}</span>
+          </div>
+
+          <div style="width:1px;height:16px;background:#cbd5e1"></div>
+
+          <!-- 专属增量参数确认区 -->
+          <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap">
+            <span style="font-size:11.5px;color:#475569;font-weight:bold">专属增量参数:</span>
+            ${extraPillsHtml || '<span style="font-size:11.5px;color:#94a3b8">（无专属参数）</span>'}
+            <button class="btn ghost" onclick="promptAddExtraDim(${tIdx})" style="padding:1px 8px;font-size:11px;color:#7e22ce;background:#fff;border-color:#d8b4fe;border-radius:10px">
+              ＋确认加入专属参数
+            </button>
+          </div>
+
+          <span style="margin-left:auto;font-size:11px;color:#64748b">
+            当前主表维度数: <b>${allDims.length} 维</b> (${allDims.map(d=>d.name||d.code).join(' × ')})
+          </span>
+        </div>
+
+        <!-- 展开后的明细表格区域 -->
+        ${isExpanded ? detailGridHtml : ''}
+      </div>
+    `;
+  }).join('');
+}
+
+/* 生成某张主表的专属明细表格 HTML */
+function buildDetailGridHtml(tbl, tIdx, allDims){
+  const rows = tbl.rows || [];
+
+  // 表头维度列
+  const dimThs = allDims.map((d, dIdx) => `
+    <th style="min-width:110px">
+      ${esc(d.name || d.code)}
+      <div style="font-size:10px;font-weight:normal;color:#64748b">${esc(d.code)} (${d.kind === 'range' ? '区间' : '枚举'})</div>
+    </th>
+  `).join('');
+
+  // 表体数据行
+  let trsHtml = '';
+  rows.forEach((r, rIdx) => {
+    let dimCells = '';
+    allDims.forEach(d => {
+      let rawVal = r.key ? (r.key[d.code] ?? '') : '';
+      if(Array.isArray(rawVal)) rawVal = rawVal[0] + '~' + rawVal[1];
+      dimCells += `
+        <td>
+          <input type="text" value="${esc(rawVal)}" placeholder="${d.kind === 'range' ? '0~16' : '8.8'}"
+                 onchange="updateDetailRowKey(${tIdx}, ${rIdx}, '${esc(d.code)}', this.value)">
+        </td>
+      `;
+    });
+
+    trsHtml += `
+      <tr>
+        <td style="text-align:center;color:#94a3b8;width:36px">${rIdx + 1}</td>
+        ${dimCells}
+        <td style="width:110px">
+          <input type="number" step="any" value="${r.nominal ?? ''}" placeholder="基准值"
+                 onchange="updateDetailRowField(${tIdx}, ${rIdx}, 'nominal', this.value)">
+        </td>
+        <td style="width:110px">
+          <input type="number" step="any" value="${r.lower ?? ''}" placeholder="下限 min"
+                 onchange="updateDetailRowField(${tIdx}, ${rIdx}, 'lower', this.value)">
+        </td>
+        <td style="width:110px">
+          <input type="number" step="any" value="${r.upper ?? ''}" placeholder="上限 max"
+                 onchange="updateDetailRowField(${tIdx}, ${rIdx}, 'upper', this.value)">
+        </td>
+        <td style="text-align:center;width:45px">
+          <input type="checkbox" ${r.na ? 'checked' : ''} style="width:16px;height:16px"
+                 onchange="updateDetailRowField(${tIdx}, ${rIdx}, 'na', this.checked)">
+        </td>
+        <td>
+          <input type="text" value="${esc(r.note || '')}" placeholder="备注/说明"
+                 onchange="updateDetailRowField(${tIdx}, ${rIdx}, 'note', this.value)">
+        </td>
+        <td style="text-align:center;width:40px">
+          <a href="javascript:void(0)" onclick="removeDetailRow(${tIdx}, ${rIdx})" style="color:#ef4444;text-decoration:none;font-size:14px" title="删除行">✕</a>
+        </td>
+      </tr>
+    `;
+  });
+
+  if(!rows.length){
+    trsHtml = `<tr><td colspan="${allDims.length + 7}" style="text-align:center;padding:20px;color:#94a3b8">暂无明细数据行，请点击下方「+ 添加一行」或「⚡ 自动按公共参数生成组合行」</td></tr>`;
+  }
+
+  return `
+    <div class="mat-detail-container">
+      <div style="overflow-x:auto;max-height:42vh;border:1px solid #cbd5e1;border-radius:6px;background:#fff">
+        <table class="mat-sub-table">
+          <thead>
+            <tr>
+              <th style="width:36px;text-align:center">#</th>
+              ${dimThs}
+              <th style="width:110px">公称基准</th>
+              <th style="width:110px">下限 (lower)</th>
+              <th style="width:110px">上限 (upper)</th>
+              <th style="width:45px;text-align:center">不适用</th>
+              <th>备注</th>
+              <th style="width:40px;text-align:center">操作</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${trsHtml}
+          </tbody>
+        </table>
+      </div>
+
+      <!-- 明细底部操作栏 -->
+      <div style="margin-top:10px;display:flex;gap:8px;align-items:center">
+        <button class="btn ghost" onclick="addDetailRow(${tIdx})" style="font-size:12px;padding:3px 10px">+ 添加一行</button>
+        <button class="btn ghost" onclick="autoGenerateDetailRows(${tIdx})" style="font-size:12px;padding:3px 10px;color:#0969da;border-color:#bfdbfe">⚡ 自动按公共参数生成组合行</button>
+        <button class="btn ghost" onclick="clearDetailRows(${tIdx})" style="font-size:12px;padding:3px 10px;color:#ef4444;margin-left:auto">清空明细行</button>
+      </div>
+    </div>
+  `;
+}
+
+/* 主表操作响应函数 */
+window.updateMasterTableField = function(tIdx, field, val){
+  if(MAT.data.tables[tIdx]){
+    MAT.data.tables[tIdx][field] = val;
+  }
+};
+
+window.toggleExpandMasterTable = function(tIdx){
+  if(MAT.data.tables[tIdx]){
+    MAT.data.tables[tIdx].expanded = !MAT.data.tables[tIdx].expanded;
+    renderMasterTables();
+  }
+};
+
+window.removeMasterTable = function(tIdx){
+  if(!confirm(`确定删除限值主表「${MAT.data.tables[tIdx].name || '未命名'}」？`)) return;
+  MAT.data.tables.splice(tIdx, 1);
+  renderMatrixWizard();
+};
+
+/* 专属参数管理 */
+window.removeExtraDim = function(tIdx, edIdx){
+  const tbl = MAT.data.tables[tIdx];
+  if(!tbl) return;
+  const dimName = tbl.extra_dims[edIdx].name || tbl.extra_dims[edIdx].code;
+  if(!confirm(`确定从主表「${tbl.name}」中移除专属参数「${dimName}」？`)) return;
+  const removedCode = tbl.extra_dims[edIdx].code;
+  tbl.extra_dims.splice(edIdx, 1);
+  // 从明细行的 key 中移除该专属参数
+  (tbl.rows || []).forEach(r => {
+    if(r.key) delete r.key[removedCode];
+  });
+  renderMatrixWizard();
+};
+
+window.promptAddExtraDim = function(tIdx){
+  const tbl = MAT.data.tables[tIdx];
+  if(!tbl) return;
+
+  // 推荐参数库
+  const suggestions = [
+    { code: 'rm_nom', name: '公称抗拉强度', kind: 'enum' },
+    { code: 'sp_nom', name: '保证应力公称值', kind: 'enum' },
+    { code: 'test_temp', name: '试验温度', kind: 'enum' },
+    { code: 'notch_type', name: '缺口类型', kind: 'enum' },
+    { code: 'condition', name: '试样状态/部位', kind: 'enum' },
+    { code: 'surface', name: '表面状态', kind: 'enum' }
+  ];
+
+  let hintText = '请选择或输入要为该主表加入的专属参数：\n';
+  suggestions.forEach((s, i) => {
+    hintText += `[${i+1}] ${s.name} (${s.code})\n`;
+  });
+  hintText += '请输入数字编号 (1~6)，或直接输入自定义参数代码：';
+
+  const choice = prompt(hintText, '1');
+  if(!choice || !choice.trim()) return;
+
+  let newDim = null;
+  const num = parseInt(choice.trim(), 10);
+  if(num >= 1 && num <= suggestions.length){
+    newDim = Object.assign({}, suggestions[num - 1]);
+  } else {
+    const customCode = choice.trim();
+    const customName = prompt('请输入该参数的中文名称：', customCode) || customCode;
+    const isRange = confirm('该专属参数是否为数值区间？\n【确定】为区间，【取消】为枚举');
+    newDim = { code: customCode, name: customName, kind: isRange ? 'range' : 'enum' };
+  }
+
+  if(!tbl.extra_dims) tbl.extra_dims = [];
+  if(tbl.extra_dims.some(d => d.code === newDim.code)){
+    alert(`专属参数 ${newDim.code} 已存在`);
+    return;
+  }
+
+  tbl.extra_dims.push(newDim);
+  tbl.expanded = true; // 自动展开明细供用户查看新增的列
+  renderMatrixWizard();
+};
+
+/* 明细行操作响应函数 */
+window.updateDetailRowKey = function(tIdx, rIdx, dimCode, val){
+  const tbl = MAT.data.tables[tIdx];
+  if(tbl && tbl.rows[rIdx]){
+    if(!tbl.rows[rIdx].key) tbl.rows[rIdx].key = {};
+    tbl.rows[rIdx].key[dimCode] = val.trim();
+  }
+};
+
+window.updateDetailRowField = function(tIdx, rIdx, field, val){
+  const tbl = MAT.data.tables[tIdx];
+  if(tbl && tbl.rows[rIdx]){
+    if(field === 'nominal' || field === 'lower' || field === 'upper'){
+      const num = parseFloat(val);
+      tbl.rows[rIdx][field] = (!isNaN(num) && val !== '') ? num : null;
+    } else {
+      tbl.rows[rIdx][field] = val;
+    }
+  }
+};
+
+window.addDetailRow = function(tIdx){
+  const tbl = MAT.data.tables[tIdx];
+  if(!tbl) return;
+  const newRow = { key: {}, nominal: null, lower: null, upper: null, na: false, note: '' };
+  const allDims = [...(MAT.data.common_dims || []), ...(tbl.extra_dims || [])];
+  allDims.forEach(d => { newRow.key[d.code] = ''; });
+  tbl.rows.push(newRow);
+  renderMasterTables();
+  updateMatrixStatMsg();
+};
+
+window.removeDetailRow = function(tIdx, rIdx){
+  const tbl = MAT.data.tables[tIdx];
+  if(tbl && tbl.rows[rIdx]){
+    tbl.rows.splice(rIdx, 1);
+    renderMasterTables();
+    updateMatrixStatMsg();
+  }
+};
+
+window.clearDetailRows = function(tIdx){
+  const tbl = MAT.data.tables[tIdx];
+  if(!tbl) return;
+  if(!confirm(`确定清空主表「${tbl.name}」的所有明细行？`)) return;
+  tbl.rows = [];
+  renderMasterTables();
+  updateMatrixStatMsg();
+};
+
+/* 根据公共参数一键生成组合行框架 */
+window.autoGenerateDetailRows = function(tIdx){
+  const tbl = MAT.data.tables[tIdx];
+  if(!tbl) return;
+
+  const defaultClasses = ['4.6', '4.8', '5.6', '5.8', '6.8', '8.8', '9.8', '10.9', '12.9'];
+  const hasPropClass = (MAT.data.common_dims || []).some(d => d.code === 'property_class');
+  const hasD = (MAT.data.common_dims || []).some(d => d.code === 'd_nom');
+
+  if(!hasPropClass){
+    alert('当前未包含性能等级 (property_class) 公共参数，请手动点击「+ 添加一行」');
+    return;
+  }
+
+  if(tbl.rows.length && !confirm('当前明细已有数据，自动生成将追加常用性能等级组合行，是否继续？')) return;
+
+  defaultClasses.forEach(pc => {
+    if(pc === '8.8' && hasD){
+      tbl.rows.push({
+        key: { property_class: pc, d_nom: '0~16' },
+        nominal: null, lower: null, upper: null, na: false, note: '≤16mm'
+      });
+      tbl.rows.push({
+        key: { property_class: pc, d_nom: '16~39' },
+        nominal: null, lower: null, upper: null, na: false, note: '>16mm加严'
+      });
+    } else {
+      const k = { property_class: pc };
+      if(hasD) k.d_nom = '0~39';
+      tbl.rows.push({ key: k, nominal: null, lower: null, upper: null, na: false, note: '' });
+    }
+  });
+
+  renderMasterTables();
+  updateMatrixStatMsg();
+};
+
+/* 顶部按钮交互 */
+$('#btnMatAddMasterTable').onclick = () => {
+  const nextNo = ((MAT.data.tables || []).length + 1).toString();
+  const name = prompt(`请输入新限值主表 (No.${nextNo}) 的检项/指标名称：`, `机械性能指标${nextNo}`);
+  if(!name || !name.trim()) return;
+
+  const newTable = {
+    no: nextNo,
+    name: name.trim(),
+    unit: 'MPa',
+    local_table_id: `T-${MAT.data.local_id}-NO${nextNo}`,
+    item_id: '',
+    extra_dims: [],
+    expanded: true,
+    rows: []
+  };
+
+  MAT.data.tables.push(newTable);
+  renderMatrixWizard();
+};
+
+/* ✨ 载入 GB/T 3098.1 表3 螺栓机械性能总表（按 No 拆分的完整主从体系） */
+$('#btnMatSample3').onclick = () => {
+  if(!confirm('是否载入 GB/T 3098.1 表3 螺栓机械和物理性能总表？\n包含 No.1 抗拉强度(带公称专属参数)、No.2 下屈服、No.3 规定非比例延伸、No.4 实物延伸、No.5 保证应力及保证应力比。现有数据将被替换。')) return;
+
+  MAT.data = {
+    local_id: 'M-PROP-TABLE3',
+    title: 'GB/T 3098.1 表3 螺栓机械和物理性能',
+    common_dims: [
+      { code: 'property_class', name: '性能等级', kind: 'enum' },
+      { code: 'd_nom', name: '公称直径 d', kind: 'range' }
+    ],
+    tables: [
+      {
+        no: '1',
+        name: '抗拉强度 Rm',
+        unit: 'MPa',
+        local_table_id: 'T-PROP-RM',
+        item_id: '',
+        extra_dims: [
+          { code: 'rm_nom', name: '公称抗拉强度', kind: 'enum' }
+        ],
+        expanded: true,
+        rows: [
+          { key: { property_class: '4.6', d_nom: '0~39', rm_nom: '400' }, nominal: 400, lower: 400, upper: null, na: false, note: '' },
+          { key: { property_class: '4.8', d_nom: '0~39', rm_nom: '400' }, nominal: 400, lower: 420, upper: null, na: false, note: '' },
+          { key: { property_class: '5.6', d_nom: '0~39', rm_nom: '500' }, nominal: 500, lower: 500, upper: null, na: false, note: '' },
+          { key: { property_class: '5.8', d_nom: '0~39', rm_nom: '500' }, nominal: 500, lower: 520, upper: null, na: false, note: '' },
+          { key: { property_class: '6.8', d_nom: '0~39', rm_nom: '600' }, nominal: 600, lower: 600, upper: null, na: false, note: '' },
+          { key: { property_class: '8.8', d_nom: '0~16', rm_nom: '800' }, nominal: 800, lower: 800, upper: 1000, na: false, note: '' },
+          { key: { property_class: '8.8', d_nom: '16~39', rm_nom: '800' }, nominal: 800, lower: 830, upper: 1030, na: false, note: '大规格加严' },
+          { key: { property_class: '9.8', d_nom: '0~16', rm_nom: '900' }, nominal: 900, lower: 900, upper: null, na: false, note: '' },
+          { key: { property_class: '10.9', d_nom: '0~39', rm_nom: '1000' }, nominal: 1000, lower: 1040, upper: null, na: false, note: '' },
+          { key: { property_class: '12.9', d_nom: '0~39', rm_nom: '1200' }, nominal: 1200, lower: 1220, upper: null, na: false, note: '' }
+        ]
+      },
+      {
+        no: '2',
+        name: '下屈服强度 ReL',
+        unit: 'MPa',
+        local_table_id: 'T-PROP-REL',
+        item_id: '',
+        extra_dims: [],
+        expanded: false,
+        rows: [
+          { key: { property_class: '4.6', d_nom: '0~39' }, nominal: 240, lower: 240, upper: null, na: false, note: '' },
+          { key: { property_class: '4.8', d_nom: '0~39' }, nominal: null, lower: null, upper: null, na: true, note: '—' },
+          { key: { property_class: '5.6', d_nom: '0~39' }, nominal: 300, lower: 300, upper: null, na: false, note: '' },
+          { key: { property_class: '5.8', d_nom: '0~39' }, nominal: null, lower: null, upper: null, na: true, note: '—' },
+          { key: { property_class: '6.8', d_nom: '0~39' }, nominal: null, lower: null, upper: null, na: true, note: '—' }
+        ]
+      },
+      {
+        no: '3',
+        name: '规定非比例延伸0.2%应力 Rp0.2',
+        unit: 'MPa',
+        local_table_id: 'T-PROP-RP02',
+        item_id: '',
+        extra_dims: [],
+        expanded: false,
+        rows: [
+          { key: { property_class: '8.8', d_nom: '0~16' }, nominal: 640, lower: 640, upper: null, na: false, note: '' },
+          { key: { property_class: '8.8', d_nom: '16~39' }, nominal: 640, lower: 660, upper: null, na: false, note: '大规格加严' },
+          { key: { property_class: '9.8', d_nom: '0~16' }, nominal: 720, lower: 720, upper: null, na: false, note: '' },
+          { key: { property_class: '10.9', d_nom: '0~39' }, nominal: 900, lower: 940, upper: null, na: false, note: '' },
+          { key: { property_class: '12.9', d_nom: '0~39' }, nominal: 1080, lower: 1100, upper: null, na: false, note: '' }
+        ]
+      },
+      {
+        no: '4',
+        name: '实物规定非比例延伸应力 RPf',
+        unit: 'MPa',
+        local_table_id: 'T-PROP-RPF',
+        item_id: '',
+        extra_dims: [],
+        expanded: false,
+        rows: [
+          { key: { property_class: '4.8', d_nom: '0~39' }, nominal: 320, lower: 340, upper: null, na: false, note: '' },
+          { key: { property_class: '5.8', d_nom: '0~39' }, nominal: 400, lower: 420, upper: null, na: false, note: '' },
+          { key: { property_class: '6.8', d_nom: '0~39' }, nominal: 480, lower: 480, upper: null, na: false, note: '' }
+        ]
+      },
+      {
+        no: '5',
+        name: '保证应力 Sp',
+        unit: 'MPa',
+        local_table_id: 'T-PROP-SP',
+        item_id: '',
+        extra_dims: [],
+        expanded: false,
+        rows: [
+          { key: { property_class: '4.6', d_nom: '0~39' }, nominal: 225, lower: 225, upper: 225, na: false, note: '' },
+          { key: { property_class: '4.8', d_nom: '0~39' }, nominal: 310, lower: 310, upper: 310, na: false, note: '' },
+          { key: { property_class: '5.6', d_nom: '0~39' }, nominal: 280, lower: 280, upper: 280, na: false, note: '' },
+          { key: { property_class: '5.8', d_nom: '0~39' }, nominal: 380, lower: 380, upper: 380, na: false, note: '' },
+          { key: { property_class: '6.8', d_nom: '0~39' }, nominal: 440, lower: 440, upper: 440, na: false, note: '' },
+          { key: { property_class: '8.8', d_nom: '0~16' }, nominal: 580, lower: 580, upper: 580, na: false, note: '' },
+          { key: { property_class: '8.8', d_nom: '16~39' }, nominal: 600, lower: 600, upper: 600, na: false, note: '' },
+          { key: { property_class: '9.8', d_nom: '0~16' }, nominal: 650, lower: 650, upper: 650, na: false, note: '' },
+          { key: { property_class: '10.9', d_nom: '0~39' }, nominal: 830, lower: 830, upper: 830, na: false, note: '' },
+          { key: { property_class: '12.9', d_nom: '0~39' }, nominal: 970, lower: 970, upper: 970, na: false, note: '' }
+        ]
+      },
+      {
+        no: '5b',
+        name: '保证应力比',
+        unit: '',
+        local_table_id: 'T-PROP-SPRATIO',
+        item_id: '',
+        extra_dims: [],
+        expanded: false,
+        rows: [
+          { key: { property_class: '4.6', d_nom: '0~39' }, nominal: 0.94, lower: 0.94, upper: 0.94, na: false, note: '' },
+          { key: { property_class: '4.8', d_nom: '0~39' }, nominal: 0.91, lower: 0.91, upper: 0.91, na: false, note: '' },
+          { key: { property_class: '5.6', d_nom: '0~39' }, nominal: 0.93, lower: 0.93, upper: 0.93, na: false, note: '' },
+          { key: { property_class: '5.8', d_nom: '0~39' }, nominal: 0.90, lower: 0.90, upper: 0.90, na: false, note: '' },
+          { key: { property_class: '6.8', d_nom: '0~39' }, nominal: 0.92, lower: 0.92, upper: 0.92, na: false, note: '' },
+          { key: { property_class: '8.8', d_nom: '0~39' }, nominal: 0.91, lower: 0.91, upper: 0.91, na: false, note: '' },
+          { key: { property_class: '9.8', d_nom: '0~16' }, nominal: 0.90, lower: 0.90, upper: 0.90, na: false, note: '' },
+          { key: { property_class: '10.9', d_nom: '0~39' }, nominal: 0.88, lower: 0.88, upper: 0.88, na: false, note: '' },
+          { key: { property_class: '12.9', d_nom: '0~39' }, nominal: 0.88, lower: 0.88, upper: 0.88, na: false, note: '' }
+        ]
+      }
+    ]
+  };
+
+  $('#matTitle').value = MAT.data.title;
+  $('#matLocalId').value = MAT.data.local_id;
+  renderMatrixWizard();
+};
+
+/* ✨ 载入 GB/T 3098.1 表4 粗牙螺栓最小拉力载荷表 */
+$('#btnMatSample4').onclick = () => {
+  if(!confirm('是否载入 GB/T 3098.1 表4 粗牙螺栓最小拉力载荷表？现有数据将被替换。')) return;
+
+  const specs = [
+    { d: 'M3', as: 5.03, f: [2010, 2110, 2510, 2620, 3020, 4020, 4530, 5230, 6140] },
+    { d: 'M6', as: 20.1, f: [8040, 8440, 10000, 10400, 12100, 16100, 18100, 20900, 24500] },
+    { d: 'M8', as: 36.6, f: [14600, 15400, 18300, 19000, 22000, 29200, 32900, 38100, 44600] },
+    { d: 'M10', as: 58, f: [23200, 24400, 29000, 30200, 34800, 46400, 52200, 60300, 70800] },
+    { d: 'M12', as: 84.3, f: [33700, 35400, 42200, 43800, 50600, 67400, 75900, 87700, 103000] },
+    { d: 'M16', as: 157, f: [62800, 65900, 78500, 81600, 94000, 125000, 141000, 163000, 192000] }
+  ];
+
+  const classes = ['4.6', '4.8', '5.6', '5.8', '6.8', '8.8', '9.8', '10.9', '12.9'];
+
+  const tables = classes.map((cls, cIdx) => {
+    const rows = specs.map(sp => ({
+      key: { thread_spec: sp.d, as_nom: sp.as.toString() },
+      nominal: sp.f[cIdx],
+      lower: sp.f[cIdx],
+      upper: null,
+      na: false,
+      note: ''
+    }));
+
+    return {
+      no: (cIdx + 1).toString(),
+      name: `${cls}级 最小拉力载荷 Fm,min`,
+      unit: 'N',
+      local_table_id: `T-LOAD-${cls.replace('.', '')}`,
+      item_id: '',
+      extra_dims: [],
+      expanded: cIdx === 0,
+      rows: rows
+    };
+  });
+
+  MAT.data = {
+    local_id: 'M-LOAD-TABLE4',
+    title: 'GB/T 3098.1 表4 粗牙螺栓最小拉力载荷',
+    common_dims: [
+      { code: 'thread_spec', name: '螺纹规格 d', kind: 'enum' },
+      { code: 'as_nom', name: '公称应力截面积 As (mm²)', kind: 'enum' }
+    ],
+    tables: tables
+  };
+
+  $('#matTitle').value = MAT.data.title;
+  $('#matLocalId').value = MAT.data.local_id;
+  renderMatrixWizard();
+};
+
+/* 保存并自动切分编译 */
+$('#matSaveBtn').onclick = async () => {
+  MAT.data.title = ($('#matTitle').value || '').trim();
+  MAT.data.local_id = ($('#matLocalId').value || '').trim();
+
+  if(!MAT.data.title){ alert('请输入母表名称'); return; }
+  if(!MAT.data.local_id){ alert('请输入母表代号 (ID)'); return; }
+  if(!MAT.data.tables || !MAT.data.tables.length){ alert('至少需要包含一笔限值主表'); return; }
+
+  // 整理数据，对区间类型 range 自动格式化为 [a, b]
+  const commonDims = (MAT.data.common_dims || []).map(d => ({
+    code: d.code,
+    name: d.name || d.code,
+    kind: d.kind || 'enum'
+  }));
+
+  const compiledTables = MAT.data.tables.map((tbl, tIdx) => {
+    const noLabel = (tbl.no || (tIdx + 1)).toString().trim();
+    const subTid = (tbl.local_table_id || `T-${MAT.data.local_id}-NO${noLabel}`).trim();
+    let itemId = (tbl.item_id || '').trim();
+    if(!itemId){
+      itemId = `it-${MAT.data.local_id.toLowerCase()}-no${noLabel.toLowerCase()}`;
+    }
+
+    const allDims = [...commonDims, ...(tbl.extra_dims || [])];
+
+    const compiledRows = (tbl.rows || []).map(r => {
+      const formattedKey = {};
+      allDims.forEach(d => {
+        const rawV = (r.key ? r.key[d.code] : '') ?? '';
+        if(d.kind === 'range'){
+          if(Array.isArray(rawV)){
+            formattedKey[d.code] = rawV;
+          } else {
+            const [a, b] = (rawV.toString()).split(/[~～\-]/).map(x => Number(x.trim()));
+            formattedKey[d.code] = [Number.isFinite(a) ? a : 0, Number.isFinite(b) ? b : 0];
+          }
+        } else {
+          formattedKey[d.code] = rawV.toString().trim();
+        }
+      });
+
+      return {
+        key: formattedKey,
+        nominal: (r.nominal !== undefined && r.nominal !== '' && r.nominal !== null) ? Number(r.nominal) : null,
+        lower: (r.lower !== undefined && r.lower !== '' && r.lower !== null) ? Number(r.lower) : null,
+        upper: (r.upper !== undefined && r.upper !== '' && r.upper !== null) ? Number(r.upper) : null,
+        na: !!r.na,
+        note: r.note || ''
+      };
+    });
+
+    return {
+      no: noLabel,
+      name: tbl.name || `指标${noLabel}`,
+      unit: tbl.unit || '',
+      local_table_id: subTid,
+      item_id: itemId,
+      extra_dims: tbl.extra_dims || [],
+      dims: allDims,
+      rows: compiledRows
+    };
+  });
+
+  const payload = {
+    local_id: MAT.data.local_id,
+    title: MAT.data.title,
+    common_dims: commonDims,
+    tables: compiledTables,
+    indicators: compiledTables.map(t => ({
+      col_key: t.no,
+      name: t.name,
+      unit: t.unit,
+      local_table_id: t.local_table_id,
+      item_id: t.item_id
+    }))
+  };
+
+  $('#matSaveBtn').disabled = true;
+  $('#matSaveBtn').textContent = '正在切分编译中...';
+
+  try {
+    const resp = await fetch(`/api/standards/${encodeURIComponent(MAT.std)}/matrices`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    });
+    const res = await resp.json();
+    if(!resp.ok) throw new Error(res.detail || JSON.stringify(res));
+
+    alert(`保存并切分成功！\n已根据 No. 序号成功生成 ${res.sub_tables.length} 张单指标限值主表，检项自动联动！`);
+    $('#matrixModal').hidden = true;
+
+    // 重新拉取标准数据
+    const d = await (await fetch(`/api/standards/${encodeURIComponent(MAT.std)}/editor`)).json();
+    E.params = d.params || [];
+    E.items = d.items || [];
+    E.allTables = d.tables || [];
+    if(res.sub_tables && res.sub_tables.length){
+      CURRENT = res.sub_tables[0];
+    }
+    renderTableList();
+    if(CURRENT) renderTableDetail(CURRENT);
+  } catch(err){
+    alert('保存失败: ' + err.message);
+  } finally {
+    $('#matSaveBtn').disabled = false;
+    $('#matSaveBtn').textContent = '保存并自动切分编译';
+  }
+};
+
+$('#matDeleteBtn').onclick = async () => {
+  if(!confirm(`确定要彻底删除母表「${MAT.data.title}」及其拆分生成的所有子表吗？此操作不可恢复。`)) return;
+  try {
+    const resp = await fetch(`/api/standards/${encodeURIComponent(MAT.std)}/matrices/${encodeURIComponent(MAT.data.local_id)}`, {
+      method: 'DELETE'
+    });
+    if(!resp.ok) throw new Error('删除失败');
+    alert('母表及联动子表已删除');
+    $('#matrixModal').hidden = true;
+    const d = await (await fetch(`/api/standards/${encodeURIComponent(MAT.std)}/editor`)).json();
+    E.params = d.params || [];
+    E.items = d.items || [];
+    E.allTables = d.tables || [];
+    CURRENT = E.allTables[0] ? E.allTables[0].id : null;
+    renderTableList();
+    if(CURRENT) renderTableDetail(CURRENT);
+  } catch(err){
+    alert('删除母表出错: ' + err.message);
+  }
+};
+
 /* ================= 上传标准做分析 ================= */
 const A = { job:null, timer:null };
 const CATS = ['尺寸', '形位', '性能', '表面', '标记', '其他'];
@@ -2527,11 +4144,18 @@ function setProg(p, text){
 
 async function uploadFile(file){
   if(!file) return;
+  const classId = $('#uploadClass') ? $('#uploadClass').value.trim() : '';
+  if(!classId){
+    alert('必须先选择「产品小类」才能上传标准！');
+    if($('#uploadClass')) $('#uploadClass').focus();
+    return;
+  }
   $('#resultCard').hidden = true;
   $('#prog').hidden = false;
   setProg(6, '上传中…');
   const fd = new FormData();
   fd.append('file', file);
+  fd.append('class_id', classId);
   let r;
   try { r = await fetch('/api/analyze/upload', {method:'POST', body:fd}); }
   catch(e){ setProg(100, '上传失败：网络错误'); return; }
@@ -2562,19 +4186,23 @@ function renderJob(){
   $('#resultCard').hidden = false;
   $('#stdCode').value = j.code || '';
   $('#stdTitle2').value = j.title || j.filename || '';
+  JOB = j;
+  JOB.links = j.links || {};
+  JOB.classes = (j.classes && j.classes.length) ? j.classes : (j.class_id ? [j.class_id] : []);
+  if(j.class_id && !JOB.classes.includes(j.class_id)) JOB.classes.push(j.class_id);
   $('#jobmeta').innerHTML = [
     `作业 <b class="jid" title="点击复制" data-id="${esc(j.id)}">${esc(j.id)}</b>`,
     `文件 <b>${esc(j.filename)}</b>`,
+    `产品小类 <b class="jobcls">${esc(CLASSMAP[j.class_id] || j.class_id || '未指定')}</b>`,
     `页数 <b>${j.pages}</b>`,
     `取文 <b>${esc(j.engine || '—')}</b>`,
     `质量 <b>${(j.quality * 100).toFixed(0)}%</b>`,
     `候选 <b>${j.items.length}</b>`,
   ].join('');
-  JOB = j;
-  JOB.links = j.links || {};
-  JOB.classes = j.classes || [];
   fetch('/api/catalog').then(r => r.json()).then(cat => {
     CLASSMAP = Object.fromEntries(cat.map(c => [c.id, c.name || c.code]));
+    const el = document.querySelector('#jobmeta .jobcls');
+    if(el && j.class_id) el.textContent = CLASSMAP[j.class_id] || j.class_id;
     if(JOB) renderParams();                 // 拿到名称后重渲染一次
   }).catch(() => { CLASSMAP = {}; });
   const jid = document.querySelector('#jobmeta .jid');
@@ -2606,13 +4234,13 @@ function renderJob(){
       <td><select class="icl">${['<option value="">—</option>'].concat(
         (JOB.classes || []).map(cid => `<option value="${esc(cid)}" ${
           (it.class_id || '') === cid ? 'selected' : ''}>${esc(CLASSMAP[cid] || cid)}</option>`)).join('')}</select></td>
-      <td class="evi" title="${esc(it.evidence)}">${it.selected
-          ? esc(clip(it.evidence, 72))
-          : `<span style="color:#b26a00">✕ ${esc(it.reason || '未通过判定')}</span>
-             <span class="muted" style="font-size:11px"> · 勾选左侧即可加回</span>`}</td>
+      <td class="evi" style="padding:3px 6px">
+        <input type="text" class="evi-in" value="${esc(it.evidence || '')}" placeholder="条款依据原文…" style="width:100%;font-size:12px;color:#334155" title="点击即可手工修改条款依据">
+        ${!it.selected ? `<div style="color:#b26a00;font-size:11px;margin-top:2px">✕ ${esc(it.reason || '未通过判定')} · 勾选左侧加回</div>` : ''}
+      </td>
       <td style="text-align:center;color:var(--muted)">${it.page || '—'}</td>
       <td style="white-space:nowrap">
-        <button class="rowwhy" data-i="${i}" title="看判定依据">依据</button>
+        <button class="rowwhy" data-i="${i}" title="查看算法判定轨迹及详细依据">依据</button>
         <button class="rowdel" title="删除">×</button>
       </td>
     </tr>`).join('');
@@ -2624,8 +4252,8 @@ function renderJob(){
       const tr = chk.closest('tr');
       if(chk.checked && tr.classList.contains('off')){
         tr.classList.remove('off');
-        const cell = tr.querySelector('.evi');
-        cell.innerHTML = esc(clip(tr.dataset.evi || '', 72));
+      } else if(!chk.checked && !tr.classList.contains('off')){
+        tr.classList.add('off');
       }
     }
     syncItems();
@@ -2790,7 +4418,12 @@ function isFreeValues(list){
 
 function openVals(target){
   VALS.target = target;
-  VALS.list = (target.list || []).map(v => ({sym: v.sym ?? v.val, val: v.val ?? v.sym}));
+  VALS.list = (target.list || []).map((v, i) => ({
+    seq: v.seq != null ? Number(v.seq) : (i + 1),
+    sym: v.sym ?? v.val,
+    val: v.val ?? v.sym
+  }));
+  VALS.list.sort((a, b) => ((a.seq ?? 0) - (b.seq ?? 0)));
   $('#valsTitle').textContent = `参数取值 · ${target.title}`;
   $('#valsSub').textContent = target.sub || '';
   $('#valsBulk').value = '';
@@ -2804,60 +4437,120 @@ function openValsJob(i){
   openVals({
     type: 'job', index: i, title: p.code, sub: p.name,
     list: (p.values_list && p.values_list.length) ? p.values_list
-          : (p.options || []).map(v => ({sym: v, val: v})),
+          : (p.options || []).map((v, k) => ({seq: k + 1, sym: v, val: v})),
   });
 }
 
 function renderVals(){
   $('#valsBody').innerHTML = VALS.list.map((v, k) => `
     <tr data-k="${k}">
-      <td>${k + 1}</td>
+      <td><input type="number" class="vseq" value="${v.seq ?? (k + 1)}" min="0" step="any" style="width:68px;text-align:center" placeholder="序号"></td>
       <td><input type="text" class="vsym" value="${esc(v.sym ?? '')}"></td>
       <td><input type="text" class="vval" value="${esc(v.val ?? '')}"></td>
-      <td><button class="rowdel" data-del="${k}">×</button></td>
+      <td style="text-align:center;white-space:nowrap">
+        <button class="rowbtn valsmove" data-move="up" data-k="${k}" title="上移"${k === 0 ? ' disabled' : ''}>↑</button>
+        <button class="rowbtn valsmove" data-move="down" data-k="${k}" title="下移"${k === VALS.list.length - 1 ? ' disabled' : ''}>↓</button>
+        <button class="rowdel" data-del="${k}" title="删除" style="margin-left:4px">×</button>
+      </td>
     </tr>`).join('') || '<tr><td colspan="4" class="muted">还没有取值</td></tr>';
 }
 
 function readVals(){
-  return [...document.querySelectorAll('#valsBody tr[data-k]')].map(tr => ({
-    sym: tr.querySelector('.vsym').value.trim(),
-    val: tr.querySelector('.vval').value.trim(),
-  })).filter(v => v.val !== '');
+  return [...document.querySelectorAll('#valsBody tr[data-k]')].map((tr, i) => {
+    const seqInput = tr.querySelector('.vseq');
+    const raw = seqInput ? seqInput.value.trim() : '';
+    const n = raw !== '' ? parseFloat(raw) : NaN;
+    return {
+      seq: !isNaN(n) ? n : (i + 1),
+      sym: tr.querySelector('.vsym').value.trim(),
+      val: tr.querySelector('.vval').value.trim(),
+    };
+  }).filter(v => v.val !== '');
 }
 
 $('#valsAdd').onclick = () => {
   VALS.list = readVals();
-  VALS.list.push({sym: '', val: ''});
+  const maxSeq = VALS.list.reduce((m, x) => Math.max(m, Number(x.seq) || 0), 0);
+  const nextSeq = Math.floor(maxSeq) + 1;
+  VALS.list.push({seq: nextSeq, sym: '', val: ''});
   renderVals();
 };
 $('#valsFree').onclick = () => {
   VALS.list = readVals();
-  VALS.list.push({sym: '/', val: '/'});
+  // 占位符「/」在最前插入，默认序号 0.1
+  const has01 = VALS.list.some(x => Number(x.seq) === 0.1);
+  const freeSeq = has01 ? 0 : 0.1;
+  VALS.list.unshift({seq: freeSeq, sym: '/', val: '/'});
+  renderVals();
+};
+$('#valsSortSeq').onclick = () => {
+  VALS.list = readVals();
+  VALS.list.sort((a, b) => ((Number(a.seq) || 0) - (Number(b.seq) || 0)));
+  renderVals();
+};
+$('#valsRenumber').onclick = () => {
+  VALS.list = readVals();
+  VALS.list.forEach((v, i) => { v.seq = i + 1; });
   renderVals();
 };
 $('#valsBody').oninput = () => { VALS.list = readVals(); };
 $('#valsBody').onclick = e => {
+  const moveBtn = e.target.closest('.valsmove');
+  if(moveBtn){
+    VALS.list = readVals();
+    const k = Number(moveBtn.dataset.k);
+    const dir = moveBtn.dataset.move;
+    if(dir === 'up' && k > 0){
+      const tmp = VALS.list[k];
+      VALS.list[k] = VALS.list[k - 1];
+      VALS.list[k - 1] = tmp;
+      const s = VALS.list[k].seq;
+      VALS.list[k].seq = VALS.list[k - 1].seq;
+      VALS.list[k - 1].seq = s;
+      if(VALS.list[k].seq === VALS.list[k - 1].seq){
+        VALS.list.forEach((it, idx) => { it.seq = idx + 1; });
+      }
+      renderVals();
+    } else if(dir === 'down' && k < VALS.list.length - 1){
+      const tmp = VALS.list[k];
+      VALS.list[k] = VALS.list[k + 1];
+      VALS.list[k + 1] = tmp;
+      const s = VALS.list[k].seq;
+      VALS.list[k].seq = VALS.list[k + 1].seq;
+      VALS.list[k + 1].seq = s;
+      if(VALS.list[k].seq === VALS.list[k + 1].seq){
+        VALS.list.forEach((it, idx) => { it.seq = idx + 1; });
+      }
+      renderVals();
+    }
+    return;
+  }
   if(!e.target.classList.contains('rowdel')) return;
   VALS.list = readVals();
   VALS.list.splice(Number(e.target.dataset.del), 1);
   renderVals();
 };
 $('#valsBulkBtn').onclick = () => {
-  const rows = $('#valsBulk').value.split(/\n/).map(x => x.trim()).filter(Boolean).map(line => {
+  const rows = $('#valsBulk').value.split(/\n/).map(x => x.trim()).filter(Boolean).map((line, i) => {
     const [a, b] = line.split(/[=＝,，\t]/).map(x => (x || '').trim());
-    return b ? {sym: a, val: b} : {sym: line, val: line};
+    return b ? {seq: i + 1, sym: a, val: b} : {seq: i + 1, sym: line, val: line};
   });
   if(!rows.length) return;
   VALS.list = rows;
   renderVals();
 };
 $('#valsSave').onclick = async () => {
-  const list = readVals();
+  let list = readVals();
+  list.sort((a, b) => ((Number(a.seq) || 0) - (Number(b.seq) || 0)));
   const t = VALS.target || {};
   if(t.type === 'catalog'){
     await fetch(`/api/catalog/params/${encodeURIComponent(t.paramId)}/values`, {
       method: 'POST', headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify({values: list.map((v, i) => ({seq: i + 1, sym: v.sym, val: v.val}))}),
+      body: JSON.stringify({values: list.map((v, i) => ({
+        seq: (v.seq !== undefined && v.seq !== null && v.seq !== '' && !isNaN(v.seq)) ? Number(v.seq) : (i + 1),
+        sym: v.sym,
+        val: v.val
+      }))}),
     });
     $('#valsModal').hidden = true;
     initCatalog(t.classId || '');
@@ -2964,6 +4657,7 @@ function syncItems(){
       category: tr.querySelector('.cat').value,
       measurable: tr.querySelector('.ms').checked,
       class_id: tr.querySelector('.icl') ? tr.querySelector('.icl').value : '', 
+      evidence: tr.querySelector('.evi-in') ? tr.querySelector('.evi-in').value : (old.evidence || ''),
     });
   });
   updateStat();
@@ -3004,7 +4698,16 @@ async function saveItems(quiet=true){
   return true;
 }
 
-$('#pick').onclick = () => $('#file').click();
+$('#pick').onclick = (e) => {
+  const classId = $('#uploadClass') ? $('#uploadClass').value.trim() : '';
+  if(!classId){
+    e.preventDefault();
+    alert('必须先选择「产品小类」才能上传标准！');
+    if($('#uploadClass')) $('#uploadClass').focus();
+    return;
+  }
+  $('#file').click();
+};
 $('#file').onchange = e => uploadFile(e.target.files[0]);
 
 const drop = $('#drop');
@@ -3014,21 +4717,42 @@ const drop = $('#drop');
 ['dragleave','drop'].forEach(ev => drop.addEventListener(ev, e => {
   e.preventDefault(); drop.classList.remove('hot');
 }));
-drop.addEventListener('drop', e => uploadFile(e.dataTransfer.files[0]));
+drop.addEventListener('drop', e => {
+  const file = e.dataTransfer.files[0];
+  if(!file) return;
+  const classId = $('#uploadClass') ? $('#uploadClass').value.trim() : '';
+  if(!classId){
+    alert('必须先选择「产品小类」才能上传标准！');
+    if($('#uploadClass')) $('#uploadClass').focus();
+    return;
+  }
+  uploadFile(file);
+});
 
 $('#toPaste').onclick = e => {
   e.preventDefault();
   $('#pasteWrap').hidden = !$('#pasteWrap').hidden;
 };
 $('#btnPaste').onclick = async () => {
+  const classId = $('#uploadClass') ? $('#uploadClass').value.trim() : '';
+  if(!classId){
+    alert('必须先选择「产品小类」才能分析文本！');
+    if($('#uploadClass')) $('#uploadClass').focus();
+    return;
+  }
   const text = $('#pasteText').value.trim();
   if(text.length < 20){ $('#amsg').textContent = '文本太短'; return; }
   $('#prog').hidden = false; setProg(40, '识别中…');
   const r = await fetch('/api/analyze/text', {
     method:'POST', headers:{'Content-Type':'application/json'},
-    body: JSON.stringify({text, filename:'粘贴的文本'})
+    body: JSON.stringify({text, filename:'粘贴的文本', class_id: classId})
   });
   const d = await r.json();
+  if(!r.ok){
+    alert('分析失败：' + (d.detail || r.statusText));
+    $('#prog').hidden = true;
+    return;
+  }
   pollJob(d.job_id);
 };
 
@@ -3092,11 +4816,23 @@ $('#btnExportStd').onclick = async () => {
 };
 
 async function loadRecent(){
-  const list = await (await fetch('/api/analyze/jobs')).json();
-  if(!list.length){ $('#recent').innerHTML = ''; return; }
-  $('#recent').innerHTML = '最近的作业：' + list.slice(0, 6).map(j =>
-    `<a href="#/analyze/${j.id}" style="color:var(--brand-2)">${esc(j.code || j.filename)}</a>`
-  ).join(' · ');
+  try{
+    const [list, cat] = await Promise.all([
+      (await fetch('/api/analyze/jobs')).json(),
+      (await fetch('/api/catalog')).json().catch(() => [])
+    ]);
+    if(!list || !list.length){ $('#recent').innerHTML = ''; return; }
+    const catMap = {};
+    (cat || []).forEach(c => { catMap[c.id] = c.name; });
+
+    $('#recent').innerHTML = '最近的作业：' + list.slice(0, 6).map(j => {
+      const cname = catMap[j.class_id] || (j.classes && j.classes[0] && catMap[j.classes[0]]) || '';
+      const tag = cname ? ` <span class="pill" style="font-size:11px;padding:1px 5px;background:#eef2f7;color:#555">${esc(cname)}</span>` : '';
+      return `<a href="#/analyze/${j.id}" style="color:var(--brand-2)">${esc(j.code || j.filename)}</a>${tag}`;
+    }).join(' · ');
+  }catch(e){
+    console.error('loadRecent error', e);
+  }
 }
 
 /* 启动 */

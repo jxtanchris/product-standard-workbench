@@ -57,8 +57,22 @@ CREATE TABLE IF NOT EXISTS limit_table (
     item_code     TEXT,
     sort          INTEGER DEFAULT 0,
     sc_id         TEXT,
+    matrix_local_id TEXT DEFAULT '',
     UNIQUE (std_id, local_id)
 );
+
+CREATE TABLE IF NOT EXISTS limit_matrix (
+    id            INTEGER PRIMARY KEY AUTOINCREMENT,
+    std_id        TEXT NOT NULL REFERENCES standard(id) ON DELETE CASCADE,
+    local_id      TEXT NOT NULL,              -- 矩阵ID，如 M-PROP-1
+    title         TEXT NOT NULL,              -- 矩阵标题，如 "表3 紧固件机械性能总表"
+    matrix_json   TEXT NOT NULL DEFAULT '{}', -- 完整的矩阵结构定义
+    created_at    REAL,
+    updated_at    REAL,
+    UNIQUE (std_id, local_id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_lm_std ON limit_matrix(std_id);
 
 CREATE TABLE IF NOT EXISTS limit_dim (
     id            INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -275,14 +289,22 @@ def _num(v):
         return None
 
 
+def _ensure_column(conn: sqlite3.Connection, table: str, col: str, decl: str) -> None:
+    if col not in _columns(conn, table):
+        conn.execute(f"ALTER TABLE {table} ADD COLUMN {col} {decl}")
+        conn.commit()
+
+
 def _insert_table(conn, std_id: str, t: dict) -> int:
     conn.execute("DELETE FROM limit_table WHERE std_id=? AND local_id=?", (std_id, t["id"]))
+    _ensure_column(conn, "limit_table", "matrix_local_id", "TEXT DEFAULT ''")
+    _ensure_column(conn, "limit_row", "nominal", "REAL")
     cur = conn.execute(
         "INSERT INTO limit_table(std_id, local_id, name, unit, value_form, nominal_param,"
-        " item_code, sort) VALUES (?,?,?,?,?,?,?,?)",
+        " item_code, sort, matrix_local_id) VALUES (?,?,?,?,?,?,?,?,?)",
         (std_id, t["id"], t.get("name", t["id"]), t.get("unit", "mm"),
          t.get("value_form", "absolute"), t.get("nominal_param"),
-         t.get("item_code", ""), t.get("sort", 0)))
+         t.get("item_code", ""), t.get("sort", 0), t.get("matrix_local_id", "")))
     table_pk = cur.lastrowid
     for seq, d in enumerate(t.get("dims") or []):
         conn.execute("INSERT INTO limit_dim(table_id, seq, code, kind, values_json)"
@@ -291,19 +313,12 @@ def _insert_table(conn, std_id: str, t: dict) -> int:
                       json.dumps(d.get("values") or [], ensure_ascii=False)))
     for r in t.get("rows") or []:
         conn.execute("INSERT INTO limit_row(table_id, key_json, lower, upper, lower_expr,"
-                     " upper_expr, na, note) VALUES (?,?,?,?,?,?,?,?)",
+                     " upper_expr, na, note, nominal) VALUES (?,?,?,?,?,?,?,?,?)",
                      (table_pk, json.dumps(r.get("key") or {}, ensure_ascii=False),
                       _num(r.get("lower")), _num(r.get("upper")),
                       r.get("lower_expr"), r.get("upper_expr"),
-                      int(bool(r.get("na"))), r.get("note", "")))
+                      int(bool(r.get("na"))), r.get("note", ""), _num(r.get("nominal"))))
     return table_pk
-
-
-# ------------------------------------------------------------------ 写入
-def _ensure_column(conn: sqlite3.Connection, table: str, col: str, decl: str) -> None:
-    if col not in _columns(conn, table):
-        conn.execute(f"ALTER TABLE {table} ADD COLUMN {col} {decl}")
-        conn.commit()
 
 
 def save_payload(conn: sqlite3.Connection, payload: dict) -> str:
@@ -330,6 +345,8 @@ def save_payload(conn: sqlite3.Connection, payload: dict) -> str:
         if cid and cid not in classes:
             classes.append(cid)
     if not classes:
+        classes = [c for c in (payload.get("classes") or []) if c]
+    if not classes:
         classes = [""]
     conn.execute("DELETE FROM standard_class WHERE std_id=?", (sid,))
     sc_of_class = {}
@@ -340,7 +357,7 @@ def save_payload(conn: sqlite3.Connection, payload: dict) -> str:
         seen_class.add(cid)
         sc_id = f"sc-{sid}-{cid or 'all'}"
         sc_of_class[cid] = sc_id
-        ps = [p for p in (payload.get("params") or []) if (p.get("class_id") or "") == cid]
+        ps = [p for p in (payload.get("params") or []) if (p.get("class_id") or "") in ("", cid)]
         its = [_norm_item(it) for it in (payload.get("items") or [])
                if (it.get("class_id") or "") in ("", cid)]
         conn.execute("INSERT INTO standard_class(id, std_id, class_id, name, sort,"
@@ -394,6 +411,17 @@ def bind_table(conn: sqlite3.Connection, std_id: str, item_id: str, local_id: st
 
 
 def delete(conn: sqlite3.Connection, std_id: str) -> None:
+    # 彻底级联删除：表行、表维度、限值表、标准小类覆盖、标准原件关联、标准母表、标准主表
+    conn.execute(
+        "DELETE FROM limit_row WHERE table_id IN (SELECT id FROM limit_table WHERE std_id = ?)",
+        (std_id,))
+    conn.execute(
+        "DELETE FROM limit_dim WHERE table_id IN (SELECT id FROM limit_table WHERE std_id = ?)",
+        (std_id,))
+    conn.execute("DELETE FROM limit_table WHERE std_id = ?", (std_id,))
+    conn.execute("DELETE FROM limit_matrix WHERE std_id = ?", (std_id,))
+    conn.execute("DELETE FROM standard_class WHERE std_id = ?", (std_id,))
+    conn.execute("DELETE FROM standard_document WHERE std_id = ?", (std_id,))
     conn.execute("DELETE FROM standard WHERE id = ?", (std_id,))
     conn.commit()
 
@@ -401,6 +429,297 @@ def delete(conn: sqlite3.Connection, std_id: str) -> None:
 def delete_table(conn: sqlite3.Connection, std_id: str, local_id: str) -> None:
     conn.execute("DELETE FROM limit_table WHERE std_id=? AND local_id=?", (std_id, local_id))
     conn.commit()
+
+
+# ------------------------------------------------------------------ 复合大表母表 (limit_matrix)
+def list_matrices(conn: sqlite3.Connection, std_id: str) -> list[dict]:
+    """获取某个标准下的所有复合大表母表概要列表。"""
+    conn.execute("""
+        CREATE TABLE IF NOT EXISTS limit_matrix (
+            id          INTEGER PRIMARY KEY AUTOINCREMENT,
+            std_id      TEXT NOT NULL REFERENCES standard(id) ON DELETE CASCADE,
+            local_id    TEXT NOT NULL,
+            title       TEXT NOT NULL,
+            matrix_json TEXT NOT NULL DEFAULT '{}',
+            created_at  REAL,
+            updated_at  REAL,
+            UNIQUE (std_id, local_id)
+        )
+    """)
+    rows = conn.execute(
+        "SELECT id, local_id, title, matrix_json, created_at, updated_at FROM limit_matrix WHERE std_id=? ORDER BY id",
+        (std_id,)
+    ).fetchall()
+    out = []
+    for r in rows:
+        mjson = {}
+        try:
+            mjson = json.loads(r["matrix_json"] or "{}")
+        except Exception:
+            pass
+        common_dims = mjson.get("common_dims") or mjson.get("dims") or []
+        tables = mjson.get("tables")
+        if tables:
+            indicators_count = len(tables)
+            rows_count = sum(len(t.get("rows") or []) for t in tables)
+        else:
+            indicators_count = len(mjson.get("indicators") or [])
+            rows_count = len(mjson.get("rows") or [])
+
+        out.append({
+            "id": r["id"],
+            "local_id": r["local_id"],
+            "title": r["title"],
+            "created_at": r["created_at"],
+            "updated_at": r["updated_at"],
+            "dims_count": len(common_dims),
+            "indicators_count": indicators_count,
+            "rows_count": rows_count,
+        })
+    return out
+
+
+def get_matrix(conn: sqlite3.Connection, std_id: str, local_id: str) -> dict | None:
+    """获取单个母表完整结构与矩阵数据。"""
+    conn.execute("""
+        CREATE TABLE IF NOT EXISTS limit_matrix (
+            id          INTEGER PRIMARY KEY AUTOINCREMENT,
+            std_id      TEXT NOT NULL REFERENCES standard(id) ON DELETE CASCADE,
+            local_id    TEXT NOT NULL,
+            title       TEXT NOT NULL,
+            matrix_json TEXT NOT NULL DEFAULT '{}',
+            created_at  REAL,
+            updated_at  REAL,
+            UNIQUE (std_id, local_id)
+        )
+    """)
+    row = conn.execute(
+        "SELECT id, local_id, title, matrix_json, created_at, updated_at FROM limit_matrix WHERE std_id=? AND local_id=?",
+        (std_id, local_id)
+    ).fetchone()
+    if not row:
+        return None
+    try:
+        data = json.loads(row["matrix_json"] or "{}")
+    except Exception:
+        data = {}
+    data["id"] = row["id"]
+    data["local_id"] = row["local_id"]
+    data["title"] = row["title"]
+    return data
+
+
+def save_and_compile_matrix(conn: sqlite3.Connection, std_id: str, matrix_data: dict) -> dict:
+    """保存母表定义，并自动切分编译为单指标 limit_table、limit_dim、limit_row，同时联动检项。"""
+    mid = (matrix_data.get("local_id") or "").strip()
+    if not mid:
+        mid = f"M-{int(time.time() * 1000)}"
+    matrix_data["local_id"] = mid
+    title = (matrix_data.get("title") or "").strip() or mid
+    matrix_data["title"] = title
+
+    conn.execute("""
+        CREATE TABLE IF NOT EXISTS limit_matrix (
+            id          INTEGER PRIMARY KEY AUTOINCREMENT,
+            std_id      TEXT NOT NULL REFERENCES standard(id) ON DELETE CASCADE,
+            local_id    TEXT NOT NULL,
+            title       TEXT NOT NULL,
+            matrix_json TEXT NOT NULL DEFAULT '{}',
+            created_at  REAL,
+            updated_at  REAL,
+            UNIQUE (std_id, local_id)
+        )
+    """)
+    _ensure_column(conn, "limit_table", "matrix_local_id", "TEXT DEFAULT ''")
+
+    # 查之前该母表生成过的旧子表
+    old_sub_rows = conn.execute(
+        "SELECT local_id FROM limit_table WHERE std_id=? AND matrix_local_id=?",
+        (std_id, mid)
+    ).fetchall()
+    old_sub_tids = {r[0] for r in old_sub_rows}
+
+    # 1. 存入母表记录
+    now = time.time()
+    conn.execute("""
+        INSERT INTO limit_matrix(std_id, local_id, title, matrix_json, created_at, updated_at)
+        VALUES (?,?,?,?,?,?)
+        ON CONFLICT(std_id, local_id) DO UPDATE SET
+            title=excluded.title,
+            matrix_json=excluded.matrix_json,
+            updated_at=excluded.updated_at
+    """, (std_id, mid, title, json.dumps(matrix_data, ensure_ascii=False), now, now))
+
+    # 2. 读取标准现有检项，准备绑定或新建
+    s_row = conn.execute("SELECT item_json FROM standard WHERE id=?", (std_id,)).fetchone()
+    items = json.loads(s_row[0] or "[]") if s_row else []
+    item_map = {it.get("id"): it for it in items}
+    items_changed = False
+
+    tables = matrix_data.get("tables")
+    common_dims = matrix_data.get("common_dims") or matrix_data.get("dims") or []
+    new_sub_tids = set()
+
+    # 3. 逐个切分/保存每张限值主表
+    if tables:
+        # 新架构：按 No 序号生成的主从限值表列表
+        for idx, tbl in enumerate(tables):
+            no_label = str(tbl.get("no") or (idx + 1)).strip()
+            name_label = tbl.get("name") or f"指标{idx+1}"
+            sub_tid = (tbl.get("local_table_id") or f"T-{mid}-NO{no_label}").strip()
+            new_sub_tids.add(sub_tid)
+
+            item_id = (tbl.get("item_id") or "").strip()
+            # 若需要一键新建检项
+            if item_id and item_id not in item_map:
+                new_item = {
+                    "id": item_id,
+                    "clause": tbl.get("clause") or "",
+                    "title": name_label,
+                    "category": tbl.get("category") or "性能",
+                    "table": sub_tid,
+                    "evidence": f"源自母表 {title} No.{no_label}"
+                }
+                items.append(new_item)
+                item_map[item_id] = new_item
+                items_changed = True
+            elif item_id and item_id in item_map:
+                if item_map[item_id].get("table") != sub_tid:
+                    item_map[item_id]["table"] = sub_tid
+                    items_changed = True
+
+            # 维度合并：表头公共参数 + 本表专属自增参数
+            tbl_dims = tbl.get("dims") or (list(common_dims) + list(tbl.get("extra_dims") or []))
+
+            # 整理明细行
+            tbl_rows = []
+            for r in tbl.get("rows") or []:
+                raw_key = dict(r.get("key") or {})
+                tbl_rows.append({
+                    "key": raw_key,
+                    "nominal": r.get("nominal"),
+                    "lower": r.get("lower"),
+                    "upper": r.get("upper"),
+                    "lower_expr": r.get("lower_expr") or "",
+                    "upper_expr": r.get("upper_expr") or "",
+                    "na": bool(r.get("na")),
+                    "note": r.get("note") or ""
+                })
+
+            sub_table_dict = {
+                "id": sub_tid,
+                "name": f"{title} - No.{no_label} {name_label}",
+                "unit": tbl.get("unit") or "",
+                "value_form": tbl.get("value_form") or "absolute",
+                "nominal_param": tbl.get("nominal_param") or None,
+                "item_code": item_id,
+                "sort": idx,
+                "matrix_local_id": mid,
+                "dims": tbl_dims,
+                "rows": tbl_rows
+            }
+            _insert_table(conn, std_id, sub_table_dict)
+    else:
+        # 兼容旧架构：横向多指标平面大表
+        indicators = matrix_data.get("indicators") or []
+        dims = common_dims
+        rows = matrix_data.get("rows") or []
+
+        for idx, ind in enumerate(indicators):
+            col_key = ind.get("col_key") or f"col_{idx}"
+            sub_tid = ind.get("local_table_id") or f"T-{mid}-{col_key}"
+            new_sub_tids.add(sub_tid)
+
+            item_id = (ind.get("item_id") or "").strip()
+            if item_id and item_id not in item_map:
+                new_item = {
+                    "id": item_id,
+                    "clause": "",
+                    "title": ind.get("name") or col_key,
+                    "category": ind.get("category") or "性能",
+                    "table": sub_tid,
+                    "evidence": f"源自复合母表: {title}"
+                }
+                items.append(new_item)
+                item_map[item_id] = new_item
+                items_changed = True
+            elif item_id and item_id in item_map:
+                if item_map[item_id].get("table") != sub_tid:
+                    item_map[item_id]["table"] = sub_tid
+                    items_changed = True
+
+            ind_dims = ind.get("dims") or (list(dims) + list(ind.get("extra_dims") or []))
+            sub_table_dict = {
+                "id": sub_tid,
+                "name": f"{title} - {ind.get('name') or col_key}",
+                "unit": ind.get("unit") or "",
+                "value_form": ind.get("value_form") or "absolute",
+                "nominal_param": ind.get("nominal_param") or None,
+                "item_code": item_id,
+                "sort": idx,
+                "matrix_local_id": mid,
+                "dims": ind_dims,
+                "rows": []
+            }
+
+            for r in rows:
+                dim_vals = dict(r.get("dim_values") or {})
+                ival = (r.get("indicator_values") or {}).get(col_key) or {}
+                if ival.get("extra_dim_values"):
+                    dim_vals.update(ival["extra_dim_values"])
+                elif ind.get("extra_dims"):
+                    for ed in ind["extra_dims"]:
+                        code = ed["code"]
+                        if code in ival:
+                            dim_vals[code] = ival[code]
+                        elif code in ("rm_nom", "nominal") and ival.get("nominal") is not None:
+                            dim_vals[code] = ival["nominal"]
+
+                sub_table_dict["rows"].append({
+                    "key": dim_vals,
+                    "nominal": ival.get("nominal"),
+                    "lower": ival.get("lower"),
+                    "upper": ival.get("upper"),
+                    "lower_expr": ival.get("lower_expr") or "",
+                    "upper_expr": ival.get("upper_expr") or "",
+                    "na": bool(ival.get("na")),
+                    "note": ival.get("note") or ""
+                })
+
+            _insert_table(conn, std_id, sub_table_dict)
+
+    # 4. 清理旧版本中已移除指标对应的孤儿子表
+    for tid in (old_sub_tids - new_sub_tids):
+        delete_table(conn, std_id, tid)
+
+    # 5. 更新 standard.item_json 及 standard_class
+    if items_changed:
+        conn.execute("UPDATE standard SET item_json=? WHERE id=?",
+                     (json.dumps(items, ensure_ascii=False), std_id))
+        conn.execute("UPDATE standard_class SET item_json=? WHERE std_id=?",
+                     (json.dumps(items, ensure_ascii=False), std_id))
+
+    conn.commit()
+    return {
+        "ok": True,
+        "matrix_id": mid,
+        "title": title,
+        "sub_tables": list(new_sub_tids),
+        "items_updated": items_changed
+    }
+
+
+def delete_matrix(conn: sqlite3.Connection, std_id: str, local_id: str) -> bool:
+    """删除母表及其拆解的所有子表。"""
+    sub_rows = conn.execute(
+        "SELECT local_id FROM limit_table WHERE std_id=? AND matrix_local_id=?",
+        (std_id, local_id)
+    ).fetchall()
+    for r in sub_rows:
+        delete_table(conn, std_id, r[0])
+    conn.execute("DELETE FROM limit_matrix WHERE std_id=? AND local_id=?", (std_id, local_id))
+    conn.commit()
+    return True
 
 
 # ------------------------------------------------------------------ 读取
@@ -422,10 +741,11 @@ def _build_table(conn: sqlite3.Connection, t: sqlite3.Row) -> LimitTable:
         key = json.loads(r["key_json"] or "{}")
         key = {k: (tuple(v) if isinstance(v, list) else v) for k, v in key.items()}
         lo, hi = _slots(r)
+        nom = r["nominal"] if "nominal" in r.keys() else None
         if r["na"]:
-            table.rows.append(Row(key, applicable=False, note=r["note"] or "标准不要求"))
+            table.rows.append(Row(key, applicable=False, note=r["note"] or "标准不要求", nominal=nom))
         else:
-            table.rows.append(Row(key, lo, hi, note=r["note"] or ""))
+            table.rows.append(Row(key, lo, hi, note=r["note"] or "", nominal=nom))
     return table
 
 
@@ -553,13 +873,15 @@ def table_detail(conn: sqlite3.Connection, std_id: str) -> list[dict]:
         rows = []
         for r in conn.execute("SELECT * FROM limit_row WHERE table_id=? ORDER BY id", (t["id"],)):
             rows.append({"key": json.loads(r["key_json"] or "{}"),
+                         "nominal": r["nominal"] if "nominal" in r.keys() else None,
                          "lower": r["lower"], "upper": r["upper"],
                          "lower_expr": r["lower_expr"], "upper_expr": r["upper_expr"],
                          "na": bool(r["na"]), "note": r["note"] or ""})
         out.append({"id": t["local_id"], "name": t["name"], "unit": t["unit"],
                     "value_form": t["value_form"], "nominal_param": t["nominal_param"],
                     "item_code": t["item_code"], "dims": dims, "rows": rows,
-                    "sc_id": t["sc_id"] if "sc_id" in t.keys() else None})
+                    "sc_id": t["sc_id"] if "sc_id" in t.keys() else None,
+                    "matrix_local_id": t["matrix_local_id"] if "matrix_local_id" in t.keys() else ""})
     return out
 
 
@@ -601,8 +923,17 @@ def find_document(conn: sqlite3.Connection, sha: str):
 
 
 def document_for_job(conn: sqlite3.Connection, job_id: str):
-    return conn.execute("SELECT * FROM document WHERE job_id=? ORDER BY created_at DESC",
-                        (job_id,)).fetchone()
+    row = conn.execute("SELECT * FROM document WHERE job_id=? ORDER BY created_at DESC",
+                       (job_id,)).fetchone()
+    if not row:
+        try:
+            import jobs as _jobs
+            j = _jobs.STORE.get(job_id)
+            if j and getattr(j, "sha256", ""):
+                row = conn.execute("SELECT * FROM document WHERE id=?", (j.sha256,)).fetchone()
+        except Exception:
+            pass
+    return row
 
 
 def document_for_standard(conn: sqlite3.Connection, std_id: str):
@@ -623,6 +954,14 @@ def document_for_standard(conn: sqlite3.Connection, std_id: str):
 def link_document(conn: sqlite3.Connection, job_id: str, std_id: str) -> int:
     """把某个作业的原件挂到标准上（可挂多个，不移动）。返回挂上的数量。"""
     rows = list(conn.execute("SELECT id FROM document WHERE job_id=?", (job_id,)))
+    if not rows:
+        try:
+            import jobs as _jobs
+            j = _jobs.STORE.get(job_id)
+            if j and getattr(j, "sha256", ""):
+                rows = list(conn.execute("SELECT id FROM document WHERE id=?", (j.sha256,)))
+        except Exception:
+            pass
     for r in rows:
         conn.execute("INSERT OR IGNORE INTO standard_document(std_id, doc_id, created_at)"
                      " VALUES (?,?,?)", (std_id, r["id"], time.time()))
@@ -791,9 +1130,28 @@ def save_param(conn: sqlite3.Connection, pid: str, class_id: str, code: str, nam
 
 def save_param_values(conn: sqlite3.Connection, param_id: str, values: list[dict]) -> int:
     conn.execute("DELETE FROM param_value WHERE param_id=?", (param_id,))
-    for i, v in enumerate(values, start=1):
+
+    def _seq_key(idx_val):
+        idx, v = idx_val
+        s = v.get("seq")
+        try:
+            return (float(s), idx)
+        except (ValueError, TypeError):
+            return (999999.0, idx)
+
+    sorted_vals = [v for _, v in sorted(enumerate(values), key=_seq_key)] if values else []
+    for i, v in enumerate(sorted_vals, start=1):
+        raw_seq = v.get("seq")
+        try:
+            if raw_seq not in (None, ""):
+                f = float(raw_seq)
+                seq = int(f) if f.is_integer() else f
+            else:
+                seq = i
+        except (ValueError, TypeError):
+            seq = i
         conn.execute("INSERT INTO param_value(param_id, seq, sym, val) VALUES (?,?,?,?)",
-                     (param_id, v.get("seq", i), v.get("sym", ""), v.get("val", "")))
+                     (param_id, seq, v.get("sym", ""), v.get("val", "")))
     conn.commit()
     return len(values)
 

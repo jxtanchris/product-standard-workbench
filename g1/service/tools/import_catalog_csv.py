@@ -132,27 +132,39 @@ def main(argv: list[str]) -> int:
         csv_id_to_name[raw_id] = name
 
     # 取值按参数分组
-    grouped: dict[str, list[str]] = {}
+    grouped: dict[str, list[tuple[float | None, str]]] = {}
     skipped = []
     for row in values:
-        _vid, ref, zh, _en = (row + ["", "", "", ""])[:4]
+        if len(row) >= 5:
+            _vid, ref, raw_seq, zh, _en = (row + [""] * 5)[:5]
+        else:
+            _vid, ref, zh, _en = (row + [""] * 4)[:4]
+            raw_seq = ""
         ref, zh = ref.strip(), zh.strip()
+        raw_seq = raw_seq.strip()
         if ref not in csv_id_to_pn or zh == "":
             skipped.append(f"{ref}:{zh!r}")
             continue
-        grouped.setdefault(csv_id_to_pn[ref], []).append(zh)
+        try:
+            seq_val = float(raw_seq) if raw_seq else None
+        except ValueError:
+            seq_val = None
+        grouped.setdefault(csv_id_to_pn[ref], []).append((seq_val, zh))
 
     dup_report = {}
     total = 0
     print(f"{'参数':<24}{'代码':<28}{'类型':<8}取值")
     for target, items in grouped.items():
         seen, uniq, dups = set(), [], []
-        for zh in items:
+        for seq_val, zh in items:
             if zh in seen:
                 dups.append(zh)
                 continue
             seen.add(zh)
-            uniq.append({"sym": zh, "val": zh})
+            item_dict = {"sym": zh, "val": zh}
+            if seq_val is not None:
+                item_dict["seq"] = int(seq_val) if seq_val.is_integer() else seq_val
+            uniq.append(item_dict)
         if dups:
             dup_report[target] = dups
 

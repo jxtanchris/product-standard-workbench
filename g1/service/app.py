@@ -21,7 +21,7 @@ ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
-from fastapi import FastAPI, File, HTTPException, Query, Request, UploadFile  # noqa: E402
+from fastapi import Body, FastAPI, File, Form, HTTPException, Query, Request, UploadFile  # noqa: E402
 from fastapi.exceptions import RequestValidationError  # noqa: E402
 from fastapi.responses import FileResponse, JSONResponse, Response  # noqa: E402
 from pydantic import BaseModel, Field  # noqa: E402
@@ -135,7 +135,26 @@ def resolve_rows(std: Standard, ctx: dict[str, Any]) -> list[dict]:
                 trace=[f"缺少参数 {', '.join(missing)}，无法解析"],
             ))
             continue
-        r = std.tables[item["table"]].evaluate(ctx, std.symbols)
+        tbl_id = item.get("table")
+        if not tbl_id or tbl_id not in std.tables:
+            rows.append(dict(
+                id=item["id"], name=item["name"], symbol=item.get("symbol", ""),
+                clause=item.get("clause", ""), kind=item.get("kind", "其他"),
+                page=item.get("page"),
+                status=Status.UNSPECIFIED.value, status_text=STATUS_TEXT[Status.UNSPECIFIED],
+                limit_text="未配置限值表", lower=None, upper=None, unit="mm",
+                measured_key=item.get("measured_key"), nominal_param=item.get("nominal_param"),
+                nominal_value=ctx.get(item.get("nominal_param")),
+                method=item.get("method", ""), position=item.get("position", ""),
+                gauge=item.get("gauge", ""), points=item.get("points", ""),
+                measured_hint=item.get("measured_hint", ""),
+                trace=["未关联限值表，无法查表"],
+            ))
+            continue
+        r = std.tables[tbl_id].evaluate(ctx, std.symbols)
+        nom_val = getattr(r, "nominal", None)
+        if nom_val is None:
+            nom_val = ctx.get(item.get("nominal_param"))
         rows.append(dict(
             id=item["id"], name=item["name"], symbol=item.get("symbol", ""),
             clause=item.get("clause", ""), kind=item.get("kind", "其他"),
@@ -143,7 +162,7 @@ def resolve_rows(std: Standard, ctx: dict[str, Any]) -> list[dict]:
             status=r.status.value, status_text=STATUS_TEXT[r.status],
             limit_text=limit_text(r), lower=r.lower, upper=r.upper, unit=r.unit,
             measured_key=item.get("measured_key"), nominal_param=item.get("nominal_param"),
-            nominal_value=ctx.get(item.get("nominal_param")),
+            nominal_value=nom_val,
             method=item.get("method", ""), position=item.get("position", ""),
             gauge=item.get("gauge", ""), points=item.get("points", ""),
             measured_hint=item.get("measured_hint", ""),
@@ -301,6 +320,50 @@ def create_limit_table(std_id: str, table_id: str, payload: TableSave):
 def delete_limit_table(std_id: str, table_id: str):
     _std(std_id)
     dbmod.delete_table(dbmod.connect(), std_id, table_id)
+    _reload(std_id)
+    return {"ok": True}
+
+
+# ------------------------------------------------------------------ 复合大表母表 (limit_matrix)
+@app.get("/api/standards/{std_id}/matrices")
+def get_standard_matrices(std_id: str):
+    """获取标准下所有复合大表母表概要列表。"""
+    _std(std_id)
+    conn = dbmod.connect()
+    return dbmod.list_matrices(conn, std_id)
+
+
+@app.get("/api/standards/{std_id}/matrices/{matrix_id}")
+def get_standard_matrix(std_id: str, matrix_id: str):
+    """获取单个复合大表母表完整结构与矩阵数据。"""
+    _std(std_id)
+    conn = dbmod.connect()
+    m = dbmod.get_matrix(conn, std_id, matrix_id)
+    if not m:
+        raise HTTPException(404, "母表不存在")
+    return m
+
+
+@app.post("/api/standards/{std_id}/matrices")
+def save_standard_matrix(std_id: str, payload: dict = Body(...)):
+    """保存母表定义，并自动切分编译为各个检项子表，联动检项关联。"""
+    _std(std_id)
+    if not payload.get("title") and not payload.get("local_id"):
+        raise HTTPException(422, "母表名称或代号不能为空")
+    if not payload.get("tables") and not payload.get("indicators"):
+        raise HTTPException(422, "至少需要包含一笔限值主表或检项指标列")
+    conn = dbmod.connect()
+    res = dbmod.save_and_compile_matrix(conn, std_id, payload)
+    _reload(std_id)
+    return res
+
+
+@app.delete("/api/standards/{std_id}/matrices/{matrix_id}")
+def delete_standard_matrix(std_id: str, matrix_id: str):
+    """删除复合大表母表及其拆解的所有子表。"""
+    _std(std_id)
+    conn = dbmod.connect()
+    dbmod.delete_matrix(conn, std_id, matrix_id)
     _reload(std_id)
     return {"ok": True}
 
@@ -536,13 +599,26 @@ class StepPayload(BaseModel):
 class TextPayload(BaseModel):
     text: str
     filename: str = "粘贴的文本"
+    class_id: str = ""
 
 
 @app.post("/api/analyze/upload")
-async def analyze_upload(file: UploadFile = File(...)):
+async def analyze_upload(
+    file: UploadFile = File(...),
+    class_id: str = Form(""),
+):
     name = file.filename or "standard.pdf"
     if not name.lower().endswith(".pdf"):
         raise HTTPException(400, "目前仅支持 PDF；扫描件也可以（走离线 OCR）")
+
+    cid = class_id.strip()
+    if not cid:
+        raise HTTPException(422, "上传标准时必须指定产品小类")
+
+    conn = dbmod.connect()
+    cls_row = conn.execute("SELECT id, name FROM product_class WHERE id=?", (cid,)).fetchone()
+    if not cls_row:
+        raise HTTPException(422, f"指定的产品小类不存在: {cid}")
 
     # 1) 落到临时文件，同时算 sha256
     tmp = jobstore.UPLOADS / f"tmp-{uuid.uuid4().hex}.pdf"
@@ -554,19 +630,25 @@ async def analyze_upload(file: UploadFile = File(...)):
             f.write(chunk)
     sha = digest.hexdigest()
 
-    conn = dbmod.connect()
+    # 2) 检查是否已有完全相同的文件 + 相同的产品小类作业
+    existing_job = jobstore.STORE.find_by_sha_and_class(sha, cid)
+    if existing_job:
+        tmp.unlink(missing_ok=True)
+        conn.execute("UPDATE document SET job_id=? WHERE id=?", (existing_job.id, sha))
+        conn.commit()
+        return {
+            "job_id": existing_job.id,
+            "status": existing_job.status,
+            "reused": True,
+            "class_id": cid,
+            "sha256": sha,
+            "size": size,
+        }
 
-    # 2) 同一份文件传过、且作业还在 → 直接复用，不重复 OCR
-    existing = dbmod.find_document(conn, sha)
-    if existing and existing["job_id"]:
-        job = jobstore.STORE.get(existing["job_id"])
-        if job:
-            tmp.unlink(missing_ok=True)
-            return {"job_id": job.id, "status": job.status, "reused": True,
-                    "sha256": sha, "size": size}
+    # 3) 检查同一份原件是否有其他小类的已完成 OCR 作业：若有，直接复用 OCR 数据，无需重复 OCR
+    done_ocr_job = jobstore.STORE.find_done_by_sha(sha)
 
-    # 3) 建作业 + 归档原件
-    job = jobstore.STORE.create(name)
+    job = jobstore.STORE.create(name, class_id=cid, sha256=sha)
     path = jobstore.STORE.pdf_path(job.id)
     shutil.move(str(tmp), path)
 
@@ -576,16 +658,41 @@ async def analyze_upload(file: UploadFile = File(...)):
         data=path.read_bytes() if inline else None,
         path=None if inline else str(path),
         job_id=job.id)
+
+    if done_ocr_job:
+        jobstore.clone_from_ocr(job.id, done_ocr_job, cid)
+        return {
+            "job_id": job.id,
+            "status": "done",
+            "class_id": cid,
+            "sha256": sha,
+            "size": size,
+            "reused_ocr": True,
+            "storage": "db" if inline else "file",
+        }
+
     jobstore.start(job.id, path)
-    return {"job_id": job.id, "status": job.status, "sha256": sha, "size": size,
-            "storage": "db" if inline else "file"}
+    return {
+        "job_id": job.id,
+        "status": job.status,
+        "class_id": cid,
+        "sha256": sha,
+        "size": size,
+        "storage": "db" if inline else "file",
+    }
 
 
 @app.post("/api/analyze/text")
 def analyze_text(payload: TextPayload):
-    job = jobstore.STORE.create(payload.filename)
-    jobstore.run_from_text(job.id, payload.text)
-    return {"job_id": job.id, "status": "done"}
+    cid = payload.class_id.strip()
+    if not cid:
+        raise HTTPException(422, "分析文本时必须指定产品小类")
+    conn = dbmod.connect()
+    if not conn.execute("SELECT 1 FROM product_class WHERE id=?", (cid,)).fetchone():
+        raise HTTPException(422, f"指定的产品小类不存在: {cid}")
+    job = jobstore.STORE.create(payload.filename, class_id=cid)
+    jobstore.run_from_text(job.id, payload.text, class_id=cid)
+    return {"job_id": job.id, "status": "done", "class_id": cid}
 
 
 # ------------------------------------------------------------------ 参数库
@@ -670,6 +777,23 @@ def del_class(class_id: str):
 def rules():
     """识别规则原样返回，界面上照着调。"""
     return analyze.rules_catalog()
+
+
+@app.put("/api/rules")
+def update_rules(payload: dict):
+    """保存用户手工修改的识别规则，无需修改源程序，即刻热生效。"""
+    try:
+        saved = analyze.save_rules(payload)
+        return {"ok": True, "rules": saved}
+    except Exception as e:
+        raise HTTPException(422, f"保存识别规则失败: {e}")
+
+
+@app.post("/api/rules/reset")
+def reset_rules():
+    """恢复系统出厂识别规则。"""
+    res = analyze.reset_rules()
+    return {"ok": True, "rules": res}
 
 
 @app.get("/api/analyze/jobs")
@@ -830,8 +954,15 @@ def publish(payload: PublishPayload):
         raise HTTPException(422, "标准名称不能为空")
     if not data.get("params"):
         data["params"] = []
+    job = jobstore.STORE.get(payload.job_id) if payload.job_id else None
     if not data.get("id"):
         data["id"] = "custom-" + uuid.uuid4().hex[:8]   # 固化到文件，重启后不变
+    if job and getattr(job, "class_id", ""):
+        cid = job.class_id
+        if not data.get("classes"):
+            data["classes"] = [cid]
+        elif cid not in data["classes"]:
+            data["classes"].append(cid)
     try:
         std = build_from_payload(data)
     except ValueError as e:
@@ -865,6 +996,21 @@ def publish(payload: PublishPayload):
             "params": len(std.params), "items": len(std.items)}
 
 
+@app.delete("/api/standards/{std_id}")
+def delete_standard(std_id: str):
+    """删除某笔 标准+小类 主数据，并级联清理其后面的所有规格参数、检验项目、限值表和关联。"""
+    REGISTRY.pop(std_id, None)
+    conn = dbmod.connect()
+    found = conn.execute("SELECT id FROM standard WHERE id=?", (std_id,)).fetchone()
+    if not found:
+        raise HTTPException(404, "标准不存在")
+    dbmod.delete(conn, std_id)
+    for j in jobstore.STORE._jobs.values():
+        if getattr(j, "published_id", "") == std_id:
+            jobstore.STORE.update(j.id, published_id="")
+    return {"ok": True, "deleted_id": std_id}
+
+
 @app.post("/api/standards/unpublish/{std_id}")
 def unpublish(std_id: str):
     """下架自定义标准。幂等：内存里没有也照样清库，避免留下孤儿标准。"""
@@ -877,6 +1023,9 @@ def unpublish(std_id: str):
     conn = dbmod.connect()
     found = conn.execute("SELECT id FROM standard WHERE id=?", (std_id,)).fetchone()
     dbmod.delete(conn, std_id)
+    for j in jobstore.STORE._jobs.values():
+        if getattr(j, "published_id", "") == std_id:
+            jobstore.STORE.update(j.id, published_id="")
     if not found:
         raise HTTPException(404, "标准不存在")
     return {"ok": True}

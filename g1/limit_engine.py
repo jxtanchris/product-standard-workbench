@@ -28,6 +28,7 @@ class Resolved:
     upper: float | None = None
     unit: str = "mm"
     trace: list[str] = field(default_factory=list)
+    nominal: float | None = None
 
     def __str__(self) -> str:
         if self.status is not Status.OK:
@@ -158,6 +159,7 @@ class Row:
     upper: Slot | None = None
     applicable: bool = True
     note: str = ""
+    nominal: float | None = None
 
 
 @dataclass
@@ -185,6 +187,7 @@ class LimitTable:
         if lo is None and hi is None:
             return Resolved(Status.UNSPECIFIED, trace=trace + ["无值"])
 
+        nominal_val = row.nominal
         if self.value_form is ValueForm.DEVIATION:
             nominal = ctx.get(self.nominal_param) if self.nominal_param else None
             if nominal is None:
@@ -192,8 +195,11 @@ class LimitTable:
             lo = None if lo is None else nominal + lo
             hi = None if hi is None else nominal + hi
             trace.append(f"叠加公称值 {nominal}")
+            nominal_val = nominal
+        elif nominal_val is None and self.nominal_param:
+            nominal_val = ctx.get(self.nominal_param)
 
-        return Resolved(Status.OK, lo, hi, self.unit, trace)
+        return Resolved(Status.OK, lo, hi, self.unit, trace, nominal=nominal_val)
 
     # --- 内部 ---
     def _match(self, ctx: dict[str, Any], trace: list[str]) -> Row | None:

@@ -6,57 +6,110 @@
 """
 from __future__ import annotations
 
+import json
 import re
 from dataclasses import asdict, dataclass, field
+from pathlib import Path
 
 CJK = r"[\u4e00-\u9fa5]"
 
-# 类别关键词，顺序即优先级
-CATEGORIES: list[tuple[str, list[str]]] = [
-    ("形位", ["形位", "平面度", "同轴度", "平行度", "垂直度", "圆度", "圆柱度",
-              "位置度", "跳动", "轮廓度", "对称度", "不均匀度", "圆跳动", "全跳动"]),
-    ("性能", ["性能", "强度", "硬度", "抗拉", "屈服", "扭矩", "盐雾", "疲劳", "冲击",
-              "延伸", "保证载荷", "脱碳", "再回火"]),
-    ("表面", ["表面", "外观", "镀层", "涂层", "缺陷", "锈", "毛刺", "色泽", "粗糙度"]),
-    ("标记", ["标记", "标志", "包装", "标识", "标签", "随附"]),
-    ("尺寸", ["公差", "偏差", "尺寸", "直径", "厚度", "高度", "宽度", "长度",
-              "外径", "内径", "倒角", "通孔", "螺纹", "螺距", "圆角"]),
-]
+RULES_FILE = Path(__file__).resolve().parent.parent.parent / "data" / "rules_config.json"
+
+# 系统出厂默认规则
+DEFAULT_RULES: dict = {
+    "metric_words": [
+        "通孔", "外径", "内径", "孔径", "外圆", "圆角", "孔部", "杆部", "头部", "支承面",
+        "直径", "长度", "厚度", "宽度", "高度", "间距", "螺纹", "螺距", "倒角",
+        "角度", "公差", "尺寸", "同轴", "圆度", "平面度", "平行度", "垂直度", "位置度",
+        "跳动", "直线度", "对称度", "强度", "硬度", "伸长率", "收缩率", "冲击", "载荷",
+        "楔负载", "扭矩", "疲劳", "脱碳", "增碳", "回火", "氢脆", "镀层", "粗糙度",
+        "保证应力", "应力", "性能", "缺陷", "裂纹", "毛刺", "间隙", "不均匀度",
+    ],
+    "action_words": [
+        "试验", "检查", "检验", "测量", "测试", "判定"
+    ],
+    "section_titles": [
+        "范围", "规范性引用文件", "引用标准", "引用文件", "术语和定义", "术语", "定义",
+        "符号", "代号", "代号与术语", "标记", "标记制度", "标记示例", "标记方法",
+        "分类", "材料", "化学成分", "通则", "总则", "概述", "前言", "引言",
+        "试验方法的适用性", "适用性", "适用范围", "订货", "包装", "运输", "贮存",
+    ],
+    "process_titles": [
+        "设备", "试验设备", "试验装置", "试验程序", "试验步骤", "试验方法", "方法",
+        "试验结果", "结果", "结果判定", "判定规则", "供方的控制", "需方的控制",
+        "交付", "试验报告", "仲裁", "复验", "标志", "仪器", "装置", "制备",
+        "技术要求", "试样", "试件",
+    ],
+    "skip_titles": [
+        "范围", "引用标准", "规范性引用文件", "术语", "定义", "符号", "前言",
+        "附录", "总则", "概述", "引用文件"
+    ],
+    "grade_clauses": [
+        "3.6", "4.6", "4.8", "5.6", "5.8", "6.8", "8.8", "9.8", "10.9", "12.9"
+    ],
+    "categories": [
+        {"name": "形位", "words": ["形位", "平面度", "同轴度", "平行度", "垂直度", "圆度", "圆柱度", "位置度", "跳动", "轮廓度", "对称度", "不均匀度", "圆跳动", "全跳动"]},
+        {"name": "性能", "words": ["性能", "强度", "硬度", "抗拉", "屈服", "扭矩", "盐雾", "疲劳", "冲击", "延伸", "保证载荷", "脱碳", "再回火"]},
+        {"name": "表面", "words": ["表面", "外观", "镀层", "涂层", "缺陷", "锈", "毛刺", "色泽", "粗糙度"]},
+        {"name": "标记", "words": ["标记", "标志", "包装", "标识", "标签", "随附"]},
+        {"name": "尺寸", "words": ["公差", "偏差", "尺寸", "直径", "厚度", "高度", "宽度", "长度", "外径", "内径", "倒角", "通孔", "螺纹", "螺距", "圆角"]},
+    ]
+}
+
+
+def get_rules() -> dict:
+    """读取当前生效的识别规则；优先从 data/rules_config.json 读取，不存在时采用默认规则。"""
+    if RULES_FILE.exists():
+        try:
+            data = json.loads(RULES_FILE.read_text(encoding="utf-8"))
+            if isinstance(data, dict):
+                for k, v in DEFAULT_RULES.items():
+                    data.setdefault(k, v)
+                return data
+        except Exception:
+            pass
+    return {
+        k: (list(v) if isinstance(v, list) else v) for k, v in DEFAULT_RULES.items()
+    }
+
+
+def save_rules(rules: dict) -> dict:
+    """持久化保存用户手工调整后的识别规则，即刻热生效。"""
+    clean = {}
+    clean["metric_words"] = [str(w).strip() for w in rules.get("metric_words", []) if str(w).strip()]
+    clean["action_words"] = [str(w).strip() for w in rules.get("action_words", []) if str(w).strip()]
+    clean["section_titles"] = [str(w).strip() for w in rules.get("section_titles", []) if str(w).strip()]
+    clean["process_titles"] = [str(w).strip() for w in rules.get("process_titles", []) if str(w).strip()]
+    clean["skip_titles"] = [str(w).strip() for w in rules.get("skip_titles", []) if str(w).strip()]
+    clean["grade_clauses"] = [str(w).strip() for w in rules.get("grade_clauses", []) if str(w).strip()]
+    clean["categories"] = []
+    for c in rules.get("categories", []):
+        if isinstance(c, dict) and c.get("name"):
+            words = [str(w).strip() for w in c.get("words", []) if str(w).strip()]
+            clean["categories"].append({"name": str(c["name"]).strip(), "words": words})
+    RULES_FILE.parent.mkdir(parents=True, exist_ok=True)
+    RULES_FILE.write_text(json.dumps(clean, ensure_ascii=False, indent=2), encoding="utf-8")
+    return clean
+
+
+def reset_rules() -> dict:
+    """一键恢复为系统出厂默认规则。"""
+    return save_rules(DEFAULT_RULES)
+
+
+# 兼容引用
+CATEGORIES = [(c["name"], c["words"]) for c in DEFAULT_RULES["categories"]]
+SKIP_TITLES = tuple(DEFAULT_RULES["skip_titles"])
+SECTION_TITLES = tuple(DEFAULT_RULES["section_titles"])
+PROCESS_TITLES = tuple(DEFAULT_RULES["process_titles"])
+GRADE_CLAUSES = set(DEFAULT_RULES["grade_clauses"])
+METRIC_WORDS = tuple(DEFAULT_RULES["metric_words"])
+ACTION_WORDS = tuple(DEFAULT_RULES["action_words"])
 
 CLAUSE_RE = re.compile(r"^(\d{1,2}(?:\.\d{1,2}){0,3})[\s　]*(.+)$")
 TRAIL_NOISE = re.compile(r"[A-Za-z0-9\.\s]{1,}$")
 NUMERIC_HINT = re.compile(r"[0-9０-９]|≤|≥|＜|＞|<|>|±|～|~|IT\d|H\d{1,2}|h\d{1,2}")
 TABLE_HINT = re.compile(r"表\s?[A-Z]?\.?\d+")
-# 这些章节不是检项，直接跳过
-SKIP_TITLES = ("范围", "引用标准", "规范性引用文件", "术语", "定义", "符号", "前言",
-               "附录", "总则", "概述", "引用文件")
-
-# 章节性标题：整章讲的是"规矩"，不是"要量的东西"
-SECTION_TITLES = (
-    "范围", "规范性引用文件", "引用标准", "引用文件", "术语和定义", "术语", "定义",
-    "符号", "代号", "代号与术语", "标记", "标记制度", "标记示例", "标记方法",
-    "分类", "材料", "化学成分", "通则", "总则", "概述", "前言", "引言",
-    "试验方法的适用性", "适用性", "适用范围", "订货", "包装", "运输", "贮存",
-)
-# 过程性小节：试验怎么做，不是检什么
-PROCESS_TITLES = (
-    "设备", "试验设备", "试验装置", "试验程序", "试验步骤", "试验方法", "方法",
-    "试验结果", "结果", "结果判定", "判定规则", "供方的控制", "需方的控制",
-    "交付", "试验报告", "仲裁", "复验", "标志", "仪器", "装置", "制备",
-    "技术要求", "试样", "试件",
-)
-# 性能等级写法与条款号同形（4.6 / 8.8 / 10.9），要排除
-GRADE_CLAUSES = {"3.6", "4.6", "4.8", "5.6", "5.8", "6.8", "8.8", "9.8", "10.9", "12.9"}
-# 标题里必须有这些"可测量的东西"，或者是一个明确的检验动作
-METRIC_WORDS = (
-    "通孔", "外径", "内径", "孔径", "外圆", "圆角", "孔部", "杆部", "头部", "支承面",
-    "直径", "长度", "厚度", "宽度", "高度", "间距", "螺纹", "螺距", "倒角",
-    "角度", "公差", "尺寸", "同轴", "圆度", "平面度", "平行度", "垂直度", "位置度",
-    "跳动", "直线度", "对称度", "强度", "硬度", "伸长率", "收缩率", "冲击", "载荷",
-    "楔负载", "扭矩", "疲劳", "脱碳", "增碳", "回火", "氢脆", "镀层", "粗糙度",
-    "保证应力", "应力", "性能", "缺陷", "裂纹", "毛刺", "间隙", "不均匀度",
-)
-ACTION_WORDS = ("试验", "检查", "检验", "测量", "测试", "判定")
 # 上级标题像"一个检项"时，下级视为它的方法步骤
 TESTISH_RE = re.compile(r"(试验|检查|检验|测定|性能|硬度|载荷|强度|扭矩|脱碳|增碳|回火|冲击|缺陷|镀层)")
 
@@ -111,11 +164,13 @@ def _clean_title(rest: str, limit: int = 30) -> str:
     return t[:limit]
 
 
-def _categorize(text: str) -> tuple[str, int]:
-    for cat, words in CATEGORIES:
-        for w in words:
+def _categorize(text: str, categories: list[dict] | None = None) -> tuple[str, int]:
+    cats = categories if categories is not None else get_rules().get("categories", [])
+    for c in cats:
+        cat_name = c["name"]
+        for w in c.get("words", []):
             if w in text:
-                return cat, 1
+                return cat_name, 1
     return "其他", 0
 
 
@@ -151,6 +206,15 @@ def _looks_clause_number(num: str) -> bool:
 
 def parse(pages: list[dict], min_score: float = 0.35) -> list[Candidate]:
     """条款切分 + 检项识别。pages 为 [{"page":1,"lines":[...]}]"""
+    rules = get_rules()
+    metric_words = tuple(rules.get("metric_words", []))
+    action_words = tuple(rules.get("action_words", []))
+    section_titles = tuple(rules.get("section_titles", []))
+    process_titles = tuple(rules.get("process_titles", []))
+    skip_titles = tuple(rules.get("skip_titles", []))
+    grade_clauses = set(rules.get("grade_clauses", []))
+    categories = rules.get("categories", [])
+
     # 1) 先压平成 (page, line)
     flat: list[tuple[int, str]] = []
     for p in pages:
@@ -176,13 +240,13 @@ def parse(pages: list[dict], min_score: float = 0.35) -> list[Candidate]:
         title = _clean_title(rest)
         if not title:
             continue
-        if any(title.startswith(k) for k in SKIP_TITLES):
+        if any(title.startswith(k) for k in skip_titles):
             continue
         if num in seen:
             continue
         seen.add(num)
 
-        cat, hit = _categorize(title + " " + clean_body)
+        cat, hit = _categorize(title + " " + clean_body, categories=categories)
         # 去掉标准号再判"有没有数值"，否则 GB/T 5276 里的 5276 也算数值
         numeric = bool(LIMIT_HINT.search(CODE_STRIP.sub(" ", clean_body)))
         tbl = TABLE_HINT.search(clean_body)
@@ -195,8 +259,8 @@ def parse(pages: list[dict], min_score: float = 0.35) -> list[Candidate]:
         score = round(min(1.0, max(0.0, score)), 2)
 
         # −−− 最终判断：这条到底算不算"检查项目" −−−
-        metric = [w for w in METRIC_WORDS if w in title]
-        action = [w for w in ACTION_WORDS if w in title]
+        metric = [w for w in metric_words if w in title]
+        action = [w for w in action_words if w in title]
         trace = [
             f"① 行首匹配条款号：{num}（后面紧跟汉字「{title[:6]}」）",
             f"② 标题：{title}",
@@ -209,18 +273,18 @@ def parse(pages: list[dict], min_score: float = 0.35) -> list[Candidate]:
         else:
             trace.append("⑥ 标题里没有可测对象，也没有检验动作")
         reason = ""
-        if num in GRADE_CLAUSES or title.startswith("级"):
+        if num in grade_clauses or title.startswith("级"):
             trace.append(f"⑦ 判为排除：{num} 是性能等级写法或断行碎片")
             reason = "性能等级或断行碎片，不是条款"
         elif (title.endswith("/") or title.endswith("、")
               or re.search(r"[/=]", title) or "，" in title):
             reason = "表格单元格被当成条款"
             trace.append("⑦ 判为排除：标题像表格单元格（带 / = ，或结尾是斜杠）")
-        elif title in SECTION_TITLES or any(t in title for t in
+        elif title in section_titles or any(t in title for t in
                                             ("术语", "符号", "代号", "标记制度", "标记示例")):
             reason = "章节标题（讲规矩，不是要量的东西）"
             trace.append("⑦ 判为排除：章节标题（范围/术语/标记/材料这类整章）")
-        elif title in PROCESS_TITLES or any(t in title for t in
+        elif title in process_titles or any(t in title for t in
                                             ("试验结果", "交付", "供方的控制", "需方的控制",
                                              "技术要求", "仪器", "装置", "制备", "试件")):
             reason = "过程性小节（讲怎么做，不是检什么）"
@@ -314,8 +378,10 @@ def suggest_params(pages: list[dict], limit: int = 6) -> list[dict]:
 
 
 def rules_catalog() -> dict:
-    """把判定规则原样吐出来，界面上照着调。"""
+    """把判定规则原样吐出来，界面上照着调，并带上可配置结构。"""
+    rules = get_rules()
     return {
+        "configurable": rules,
         "items": {
             "一句话": "先按行首切条款，再用五条硬规则排除，最后看标题有没有可测对象。",
             "步骤": [
@@ -327,11 +393,12 @@ def rules_catalog() -> dict:
                 "⑥ 上级已经是检项时，下级折叠为它的方法步骤",
             ],
             "条款号正则": CLAUSE_RE.pattern,
-            "章节标题": list(SECTION_TITLES),
-            "过程性小节": list(PROCESS_TITLES),
-            "性能等级（与条款号同形）": sorted(GRADE_CLAUSES),
-            "可测对象词": list(METRIC_WORDS),
-            "检验动作词": list(ACTION_WORDS),
+            "章节标题": list(rules.get("section_titles", [])),
+            "过程性小节": list(rules.get("process_titles", [])),
+            "性能等级（与条款号同形）": sorted(rules.get("grade_clauses", [])),
+            "可测对象词": list(rules.get("metric_words", [])),
+            "检验动作词": list(rules.get("action_words", [])),
+            "类别规则": rules.get("categories", []),
             "上级算检项的标题特征": TESTISH_RE.pattern,
             "数值判定": "先剥掉标准号，再看 " + LIMIT_HINT.pattern,
         },

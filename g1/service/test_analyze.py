@@ -30,9 +30,14 @@ def check(name, cond, detail=""):
         print(f"  FAIL  {name}  {detail}")
 
 
-def upload(path: Path):
+def upload(path: Path, class_id: str = "cls-bolt"):
     boundary = "----dshboundary"
     body = io.BytesIO()
+    if class_id:
+        body.write(f"--{boundary}\r\n".encode())
+        body.write(b'Content-Disposition: form-data; name="class_id"\r\n\r\n')
+        body.write(class_id.encode())
+        body.write(b"\r\n")
     body.write(f"--{boundary}\r\n".encode())
     body.write(f'Content-Disposition: form-data; name="file"; filename="{path.name}"\r\n'.encode())
     body.write(b"Content-Type: application/pdf\r\n\r\n")
@@ -43,6 +48,29 @@ def upload(path: Path):
         headers={"Content-Type": f"multipart/form-data; boundary={boundary}"})
     with urllib.request.urlopen(req, timeout=180) as r:
         return json.loads(r.read())
+
+
+def upload_raw(path: Path, class_id: str = ""):
+    boundary = "----dshboundary"
+    body = io.BytesIO()
+    if class_id:
+        body.write(f"--{boundary}\r\n".encode())
+        body.write(b'Content-Disposition: form-data; name="class_id"\r\n\r\n')
+        body.write(class_id.encode())
+        body.write(b"\r\n")
+    body.write(f"--{boundary}\r\n".encode())
+    body.write(f'Content-Disposition: form-data; name="file"; filename="{path.name}"\r\n'.encode())
+    body.write(b"Content-Type: application/pdf\r\n\r\n")
+    body.write(path.read_bytes())
+    body.write(f"\r\n--{boundary}--\r\n".encode())
+    req = urllib.request.Request(
+        f"{BASE}/api/analyze/upload", data=body.getvalue(), method="POST",
+        headers={"Content-Type": f"multipart/form-data; boundary={boundary}"})
+    try:
+        with urllib.request.urlopen(req, timeout=180) as r:
+            return r.status, json.loads(r.read())
+    except urllib.error.HTTPError as e:
+        return e.code, e.read()
 
 
 def get(path):
@@ -214,17 +242,33 @@ def main():
     check("下载内容与原文件一致", body == PDF.read_bytes(), f"{len(body)} vs {PDF.stat().st_size}")
 
     docs = getjson("/api/documents")
-    mine = [d for d in docs if d["job_id"] == job_id]
+    mine = [d for d in docs if d["job_id"] == job_id or (job.get("sha256") and d["id"] == job.get("sha256"))]
     check("原件已入库", bool(mine), str(docs[:2]))
     check("按 sha256 存储且记录大小",
           mine and len(mine[0]["id"]) == 64 and mine[0]["size"] == PDF.stat().st_size,
           str(mine[0]) if mine else "")
 
-    again = upload(PDF)
-    check("同一文件重复上传 → 复用作业",
+    print("6. 重复上传与小类独立性验证")
+    # 6.0 未指定产品小类时应返回 422
+    st, _ = upload_raw(PDF, class_id="")
+    check("未提供 class_id 时拒绝上传 (422)", st == 422, f"status={st}")
+
+    # 6.1 同文件 + 相同小类 → 复用已有作业
+    again = upload(PDF, class_id="cls-bolt")
+    check("同一文件 + 相同小类 → 复用作业",
           again.get("reused") is True and again.get("job_id") == job_id, str(again))
     check("同一 sha 只存一份", len([d for d in getjson("/api/documents")
                                    if d["id"] == mine[0]["id"]]) == 1)
+
+    # 6.2 同一文件 + 不同小类（cls-screw）→ 建立新作业并复用 OCR 数据
+    diff_class = upload(PDF, class_id="cls-screw")
+    check("同一文件 + 不同小类 → 创建新作业",
+          diff_class.get("job_id") != job_id, f"diff job={diff_class.get('job_id')}")
+    check("复用 OCR 结果秒级就绪",
+          diff_class.get("reused_ocr") is True and diff_class.get("status") == "done", str(diff_class))
+    diff_job = getjson(f"/api/analyze/jobs/{diff_class['job_id']}")
+    check("新作业绑定了对应小类",
+          diff_job.get("class_id") == "cls-screw", str(diff_job.get("class_id")))
 
     stds = getjson("/api/standards")
     mine_std = [x for x in stds if x["id"] == std_id]
@@ -316,6 +360,13 @@ def main():
     req = urllib.request.Request(f"{BASE}/api/analyze/jobs/{job_id}", method="DELETE")
     with urllib.request.urlopen(req, timeout=10) as r:
         check("删除作业", r.status == 200)
+    if diff_class.get("job_id"):
+        req2 = urllib.request.Request(f"{BASE}/api/analyze/jobs/{diff_class['job_id']}", method="DELETE")
+        try:
+            with urllib.request.urlopen(req2, timeout=10) as r2:
+                check("删除小类克隆作业", r2.status == 200)
+        except Exception:
+            pass
 
     print(f"\n结果：{PASS} 通过 / {FAIL} 失败")
     return 0 if FAIL == 0 else 1
