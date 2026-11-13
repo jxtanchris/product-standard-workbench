@@ -2,7 +2,11 @@
 
 数据库：SQLite，单文件 `data/app.db`。6 张表，全部逻辑关系由外键 + 级联删除表达。
 
-![数据逻辑视图](schema.png)
+![数据逻辑视图](db-logical-view.png)
+
+![实体关系图](db-er.png)
+
+> 两张图由 `docs/gen_db_diagrams.py` 生成（本地 mermaid + 无头 Chrome 截图），改表后重跑即可。
 
 ---
 ## 1. 表清单
