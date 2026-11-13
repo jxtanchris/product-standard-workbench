@@ -51,13 +51,23 @@ class Job:
     steps: dict = field(default_factory=dict)               # 每一步是否已确认
     links: dict = field(default_factory=dict)               # item_id -> 限值来源
     table_drafts: list[dict] = field(default_factory=list)   # 发布前在作业里建的限值表草稿
+    workbench_state: dict = field(default_factory=dict)      # 多步骤逐表拆解工作台状态 (table_id -> {status, split_mode, sub_count})
+    workbench_matrices: dict = field(default_factory=dict)   # 工作台中已拆解保存的矩阵定义 (table_id -> matrix_dict)
+    step_rules: dict = field(default_factory=dict)           # 从基础「识别规则库」默认带入并可在当前标准独立修改的各步骤识别规则
     created_at: float = field(default_factory=time.time)
 
     def public(self) -> dict:
         d = asdict(self)
         d["text"] = self.text[:4000]
         d["has_text"] = bool(self.text)
+        if not d.get("step_rules"):
+            d["step_rules"] = analyze.get_rules()
+        else:
+            d["step_rules"] = analyze.get_rules(d["step_rules"])
         return d
+
+    def to_dict_full(self) -> dict:
+        return asdict(self)
 
 
 class Store:
@@ -70,7 +80,10 @@ class Store:
             try:
                 raw = json.loads(f.read_text(encoding="utf-8"))
                 allowed = {f for f in Job.__dataclass_fields__}
-                self._jobs[raw["id"]] = Job(**{k: v for k, v in raw.items() if k in allowed})
+                j = Job(**{k: v for k, v in raw.items() if k in allowed})
+                if not j.step_rules:
+                    j.step_rules = analyze.get_rules()
+                self._jobs[raw["id"]] = j
             except Exception:
                 continue
 
@@ -81,7 +94,8 @@ class Store:
     def create(self, filename: str, class_id: str = "", sha256: str = "") -> Job:
         classes = [class_id] if class_id else []
         job = Job(id=uuid.uuid4().hex[:10], filename=filename,
-                  class_id=class_id, classes=classes, sha256=sha256)
+                  class_id=class_id, classes=classes, sha256=sha256,
+                  step_rules=analyze.get_rules())
         with _LOCK:
             self._jobs[job.id] = job
             self._save(job)
@@ -126,19 +140,35 @@ class Store:
     def pdf_path(self, job_id: str) -> Path:
         return UPLOADS / f"{job_id}.pdf"
 
+    def delete(self, job_id: str) -> bool:
+        with _LOCK:
+            job = self._jobs.pop(job_id, None)
+        self.pdf_path(job_id).unlink(missing_ok=True)
+        (JOBS / f"{job_id}.json").unlink(missing_ok=True)
+        return job is not None
+
 
 STORE = Store()
 
 
 def clone_from_ocr(new_job_id: str, src_job: Job, class_id: str):
-    """从已有完成 OCR 的作业中复用 OCR 文本与解析结果，瞬间生成绑定新小类的独立作业。"""
-    cands = [dict(c) for c in src_job.items]
+    """从已有完成 OCR 的作业中复用 OCR 文本与表格网格，按最新识别规则重新生成全新的 4 步初始数据。"""
+    s_rules = analyze.get_rules()
+    pages = _text_to_pages(src_job.text)
+    if pages:
+        cands_obj = analyze.parse(pages, rules_override=s_rules)
+        cands = [c.to_dict() for c in cands_obj]
+        params = analyze.suggest_params(pages, rules_override=s_rules)
+        limits = _default_limits(cands_obj)
+    else:
+        cands = [dict(c) for c in src_job.items]
+        params = [dict(p) for p in src_job.params_spec]
+        limits = copy.deepcopy(src_job.limits)
+
     for c in cands:
         c["class_id"] = class_id
-    params = [dict(p) for p in src_job.params_spec]
     for p in params:
         p["class_id"] = class_id
-    limits = copy.deepcopy(src_job.limits)
     tables = copy.deepcopy(src_job.tables)
 
     STORE.update(new_job_id,
@@ -154,7 +184,14 @@ def clone_from_ocr(new_job_id: str, src_job: Job, class_id: str):
                  items=cands,
                  params_spec=params,
                  limits=limits,
-                 tables=tables)
+                 tables=tables,
+                 steps={},
+                 links={},
+                 table_drafts=[],
+                 workbench_state={},
+                 workbench_matrices={},
+                 step_rules=s_rules,
+                 published_id="")
 
 
 def _drop_file_if_stored(job_id: str, pdf_path: Path) -> None:
@@ -178,6 +215,24 @@ def _default_limits(cands) -> dict:
 
 
 # ---------------------------------------------------------------- 分析流程
+def _text_to_pages(text: str) -> list[dict]:
+    """将作业已保存的全文按分页标记或整体还原为 pages 列表，供免 OCR 快速重跑各步识别规则。"""
+    if not text:
+        return []
+    import re as _re
+    parts = _re.split(r"---\s*第\s*(\d+)\s*页\s*---", text)
+    if len(parts) > 1:
+        pages = []
+        # parts[0] 为前缀，之后成对出现 (page_no, content)
+        for i in range(1, len(parts), 2):
+            pno = int(parts[i])
+            body = parts[i + 1] if i + 1 < len(parts) else ""
+            pages.append({"page": pno, "lines": [ln for ln in body.splitlines() if ln.strip()]})
+        if pages:
+            return pages
+    return [{"page": 1, "lines": [ln for ln in text.splitlines() if ln.strip()]}]
+
+
 def _run(job_id: str, pdf_path: Path):
     try:
         STORE.update(job_id, status="ocr", progress=10)
@@ -190,15 +245,16 @@ def _run(job_id: str, pdf_path: Path):
                      quality=extract_doc.quality(pages),
                      code=guess["code"], title=guess["title"])
         _drop_file_if_stored(job_id, pdf_path)
-        cands = analyze.parse(pages)
-        cand_dicts = [c.to_dict() for c in cands]
         job = STORE.get(job_id)
         cid = getattr(job, "class_id", "") if job else ""
+        s_rules = (job.step_rules if job and job.step_rules else None) or analyze.get_rules()
+        cands = analyze.parse(pages, rules_override=s_rules)
+        cand_dicts = [c.to_dict() for c in cands]
         if cid:
             for it in cand_dicts:
                 if not it.get("class_id"):
                     it["class_id"] = cid
-        params = analyze.suggest_params(pages)
+        params = analyze.suggest_params(pages, rules_override=s_rules)
         if cid:
             for p in params:
                 if not p.get("class_id"):
@@ -208,6 +264,7 @@ def _run(job_id: str, pdf_path: Path):
                      params_spec=params,
                      limits=_default_limits(cands),
                      tables=tablefind.detect(pages),
+                     step_rules=s_rules,
                      classes=[cid] if cid else [])
     except Exception as e:  # noqa: BLE001
         STORE.update(job_id, status="error", error=str(e), progress=100)
@@ -220,14 +277,16 @@ def start(job_id: str, pdf_path: Path):
 
 def run_from_text(job_id: str, text: str, class_id: str = ""):
     """无 PDF 或 OCR 不可用时的兜底：直接分析粘贴的文本。"""
+    job = STORE.get(job_id)
+    s_rules = (job.step_rules if job and job.step_rules else None) or analyze.get_rules()
     lines = [ln for ln in text.splitlines()]
     pages = [{"page": 1, "lines": lines}]
-    cands = analyze.parse(pages)
+    cands = analyze.parse(pages, rules_override=s_rules)
     cand_dicts = [c.to_dict() for c in cands]
     if class_id:
         for it in cand_dicts:
             it["class_id"] = class_id
-    params = analyze.suggest_params(pages)
+    params = analyze.suggest_params(pages, rules_override=s_rules)
     if class_id:
         for p in params:
             p["class_id"] = class_id
@@ -235,4 +294,62 @@ def run_from_text(job_id: str, text: str, class_id: str = ""):
                  text=text, quality=1.0, items=cand_dicts,
                  class_id=class_id, classes=[class_id] if class_id else [],
                  params_spec=params,
+                 step_rules=s_rules,
                  limits=_default_limits(cands))
+
+
+def apply_job_step_rules(
+    job_id: str,
+    rules_patch: dict,
+    step: int | None = None,
+    rerun_step: bool = True,
+    sync_to_base: bool = False,
+) -> dict:
+    """更新指定标准分析作业的识别规则（默认带入后针对单标准修改），并可按需重跑对应步骤及同步回基础库。"""
+    job = STORE.get(job_id)
+    if not job:
+        raise ValueError("作业不存在")
+
+    merged = analyze.get_rules({**(job.step_rules or {}), **(rules_patch or {})})
+    if sync_to_base:
+        merged = analyze.save_rules(merged)
+
+    updates: dict = {"step_rules": merged}
+    cid = getattr(job, "class_id", "") or ""
+    pages = _text_to_pages(job.text)
+
+    if rerun_step:
+        if step in (1, None) and pages:
+            cands = analyze.parse(pages, rules_override=merged)
+            cand_dicts = [c.to_dict() for c in cands]
+            if cid:
+                for it in cand_dicts:
+                    if not it.get("class_id"):
+                        it["class_id"] = cid
+            updates["items"] = cand_dicts
+            # 补充新检项的默认 limits
+            cur_limits = dict(job.limits or {})
+            for c in cands:
+                cur_limits.setdefault(c.id, {
+                    "mode": "range" if c.measurable else "none",
+                    "lower": None, "upper": None, "unit": "mm",
+                })
+            updates["limits"] = cur_limits
+
+        if step in (2, None) and pages:
+            params = analyze.suggest_params(pages, rules_override=merged)
+            if cid:
+                for p in params:
+                    if not p.get("class_id"):
+                        p["class_id"] = cid
+            updates["params_spec"] = params
+
+        if step in (4, None):
+            items_now = updates.get("items", job.items or [])
+            drafts_now = job.table_drafts or []
+            updates["links"] = analyze.auto_link_items_and_tables(
+                items_now, drafts_now, existing_links=job.links, rules_override=merged
+            )
+
+    STORE.update(job_id, **updates)
+    return STORE.get(job_id).public()

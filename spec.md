@@ -1,87 +1,134 @@
-# 规格说明书
+# 规格说明书 (Specification)
 
-> 版本：v0.5（2026-11-12）
-> 范围：本仓库当前实现的行为规格。描述"系统怎么工作"，不描述"将来要做什么"（后者见文末）。
-
----
-
-## 1. 目标与边界
-
-**目标**：把产品标准（PDF）里的"可检项目 + 限值"变成可计算、可判定、可导出的检验卡；
-并把参数、参数值、限值这些资产按**产品小类**沉淀，跨标准复用。
-
-**边界**：
-- 支持**几何尺寸公差**与**力学性能/复合大表**。
-- 限值表由**人确认**后入库；系统提供启发式提取与主从向导，不承诺从原文自动得出完全免校对的可判定数据。
-- 无鉴权，面向本机 / 内网。
+> 版本：v0.6（2026-11-13）  
+> 范围：本仓库当前实现的行为规格与系统架构规范。系统严格面向机械紧固件行业标准，将非结构化 PDF 文档转化为具备计算、查表与自动判定能力的结构化规则资产。
 
 ---
 
-## 2. 角色与主线
+## 1. 目标与系统边界
 
-| 角色 | 主线 | 入口 |
+### 1.1 目标
+- **标准数字化为可执行规则**：解析国家/国际标准（GB/T、ISO、ASTM、DIN 等），提炼出标准化检项、规格参数、限值表。
+- **多维复合参数体系与智能派生**：支持紧固件高阶主参数（如 `螺纹规格`）与二级参数坐标（`公英制`、`公称直径`、`螺距`、`粗细牙`）的联动解构，实现“一次输入、全检项自动满足”。
+- **工业复合大表拓扑解构**：提炼 USMP 矩阵解构协议，内置 5 种大表切分模式，将跨多指标、多工况的复合大表自动化解构为独立限值子表并与检项关联。
+- **参数资产按产品小类沉淀**：建立“产品小类 ↔ 参数名称 ↔ 二级参数 ↔ 参数定值”四级资产沉淀体系，实现跨标准完全复用。
+
+### 1.2 边界
+- **支持范围**：几何尺寸公差、机械和物理性能要求、表面渗碳层深度、扭矩与载荷等。
+- **人机协同确认机制**：AI 与启发式算法辅助提取，最终由标准分析员把关确认入库。
+- **运行环境**：无鉴权设计，面向本机或企业内网服务。
+
+---
+
+## 2. 角色与主业务流
+
+| 业务角色 | 核心主线 | 主要交互入口 |
 |---|---|---|
-| 标准分析员 | 上传 PDF → 四步确认 → 建表 → 发布 | `#/analyze` |
-| 复合大表拆解员 | 录入复合母表 → 自动继承公共参数 → 确认专属参数 → 展开生成明细 → 切分编译 | `#/tables/<标准>` 弹窗 |
-| 检验员 | 选标准与小类 → 填规格 → 出卡 → 录实测 → 判定 | `#/card` |
-| 参数维护 | 产品小类 → 参数名称 → 参数取值 | `#/catalog` |
+| **标准分析员** | 上传标准 PDF → 四步确认（检项/参数/限值/关联）→ 校验发布 | `#/analyze` |
+| **限值/大表拆解员** | 原表拆解工作台（5大模式切分）/ 录入复合母表 → 自动切分多维子表与检项绑定 | `#/tables/<标准>` |
+| **检验员** | 选择标准与小类 → 填报复合规格 → 自动派生限值 → 录入实测值 → 自动判定导出 | `#/card` |
+| **参数管理员** | 维护产品小类 ↔ 主参数表 ↔ 二级参数坐标表 ↔ 定值库 | `#/catalog` |
 
 ```
 PDF ──OCR──► 文本 ──条款切分──► 候选检项 ──①确认──┐
-                     └──表格识别──► 网格 ──②确认──► 参数 ──③限值──► ④关联 ──► 发布为标准
+                     └──表格识别──► 原表网格 ──②确认──► 参数 ──③限值──► ④关联 ──► 发布为标准
                                                       │                      ↓
-                                                      └─► 录入复合大表 (USMP 拓扑三层向导)
+                                                      └─► 原表拆解工作台 (5大工业切分模式)
                                                           选标准/小类 → 填规格 → 查表算限值 → 录实测 → 判定 → 导出
 ```
 
 ---
 
-## 3. 领域模型
+## 3. 领域模型与多维语义规范
 
-| 概念 | 说明 |
+### 3.1 核心领域概念
+
+| 实体概念 | 业务与技术定义 |
 |---|---|
-| **标准 standard** | 标准号 + 名称 + 覆盖的产品小类 + 若干**层** |
-| **层 standard_class** | 标准 × 产品小类。**一行只挂一个小类**，行下有自己的参数、检项、限值、限值表 |
-| **母表 limit_matrix** | 复合大表母表定义（如表3机械性能），包含公共参数池与按 No. 划分的主表列表 |
-| **限值表 limit_table** | 多维查询表：维度 → 展开行 → 限值。属于**某一层**（`sc_id`），可追溯母表血缘 |
-| **维度 dim** | 表的一个自变量，取值为枚举（`A,C`）或区间（`(0,4]`） |
-| **专属增量维度 extra_dim** | 某检项内部细分所派生的独占自变量（如公称抗拉强度、试验温度） |
-| **限值行 limit_row** | 维度取值组合 + 公称基准 + 下限/上限（数值或表达式），可标"不要求" |
-| **实测 measured** | 检验员录入的实测值，只用于判定，禁止参与查表 |
-| **参数库** | `product_class`（小类）→ `param_name`（参数名称，全局）→ `param_value`（取值） |
+| **标准 standard** | 标准编号 + 名称 + 适用的产品小类列表 + 若干小类分层（`Layer`） |
+| **层 standard_class** | 标准 × 产品小类的交集实体。一行严格绑定一个小类，持有专属的参数、检项与限值表映射 |
+| **多维主参数 primary param** | 紧固件的核心规格参数（如 `thread 螺纹规格`、`bm_thread 旋入机体端螺纹规格`），标记 `is_multi_dim='Y'` |
+| **二级参数 sub_param** | 组成多维复合参数的各坐标分量（如 `GYZLX 公英制类型`, `D 公称直径`, `P 螺距`, `YLX 粗细牙类型`） |
+| **母表 limit_matrix** | 复合大表母表实体，记录全局公共参数池（`common_dims`）与按 No. 划分的主表定义 |
+| **限值表 limit_table** | 多维查询表实体：定义自变量维度（`limit_dim`）与限值记录行（`limit_row`） |
+| **切分模式 table_split_mode** | 预置 5 种工业大表切分规则，指导母表自动切分编译为独立子表实体 |
 
-### 3.1 复合大表拓扑三层解构模型 (USMP)
+### 3.2 多维复合参数解构与主导权机制 (Multi-Dim Authority)
 
-国标复合大表（如 GB/T 3098.1 表3）采用三层拓扑模型解构：
-1. **Layer 1：表头公共自变量池 (`common_dims`)**：整张母表全局自变量（如：`property_class`、`d_nom`），所有主表默认自动继承；
-2. **Layer 2：按 No. 序号展开的独立限值主表 (`tables`)**：每一个 No.（如 No. 1 抗拉强度、No. 2 屈服强度、No. 5 保证应力）独立作为一张单指标限值主表实体；
-3. **Layer 3：专属增量自变量树 (`extra_dims`)**：由人工在界面确认该 No. 是否需要额外参数（如为 No. 1 抗拉强度加入 `公称抗拉强度 rm_nom`）；
-4. **指标总空间维度**：$\mathcal{D}_{\text{ind}} = \mathcal{D}_{\text{common}} \otimes \mathcal{D}_{\text{extra}}$。明细行采用完全正交复合 Key 寻址定位，支持大规格加严及标准公称基准值透传。
+为了彻底解决紧固件“规格选了 M8，公称直径残留旧值 2 导致限值表计算错误”的人为矛盾，系统制定以下计算语义：
+
+1. **主参数绝对主导权**：
+   - 当计算上下文（Context）中存在多维主参数（如 `thread = "M8×1.25粗牙"`）时，该参数享有**最高优先级**；
+   - 引擎自动通过坐标映射或智能解析提取出二级参数（`D = 8.0`, `P = 1.25`, `GYZLX = "公制"`, `YLX = "粗牙"`）；
+   - **强制覆写规则**：即使 Context 中已存在旧的单维参数（如 `d_nom = 2`），主参数解构出的新坐标将**强制覆写**旧值（更新为 `d_nom = 8.0`, `d = 8.0`），确保上下文中全量参数完全自洽。
+2. **多维坐标自适应查表匹配**：
+   - 下游限值表无论以多维主参数（`thread`）还是以解构后的二级单维参数（`d_nom`, `d`, `P`）作为维度，引擎均能自动精准命中；
+   - 弱类型数值容差匹配（`_val_eq`）：自动打通字符型枚举维度（如表中存储的 `"8"`）与数值型（`8.0`）的等价比对，消除格式差异。
+
+### 3.3 复合大表 5 大工业切分模式
+
+| 模式编码 | 模式名称 | 核心规则与编译行为 |
+|---|---|---|
+| `single_indicator` | **模式 1: 单值单表** | 原表单一指标，直接转换为标准限值表，支持跨直径组展开。 |
+| `multi_col_parallel` | **模式 2: 多指标按列拆分** | 复合大表按 No. 或表头指标列自动切分，每列独立生成子表实体，自动附加 Min/Max/Avg。 |
+| `matrix_2d_cross` | **模式 3: 双向交叉大表** | 横向维度与纵向维度形成双向笛卡尔积，解构为标准多维行列。 |
+| `composite_no_master` | **模式 4: 复合工况多维大表** | 跨等级、热处理状态等多重复合工况，抽离为独立维度构建正交表。 |
+| `ignore_skip` | **模式 5: 自由稀疏/忽略表** | 纯文字性或试验程序说明表，标记为跳过，不参与检项绑定。 |
 
 ---
 
-## 4. 数据模型
+## 4. 数据架构与 DDL 规格
 
-SQLite，文件 `data/app.db`。完整字段说明与逻辑视图见 [docs/schema.md](docs/schema.md)。
+底层存储采用 SQLite（`data/app.db`），核心表关系与关键字段如下：
 
-| 表 | 作用 |
-|---|---|
-| `standard` | 标准本体（code/title/category/scope/note/classes_json/source_json） |
-| `standard_class` | 标准 × 小类这一层：param_json / item_json / limits_json |
-| `limit_matrix` | 复合大表母表（std_id + local_id + title + matrix_json） |
-| `limit_table` | 限值表头（std_id + local_id + sc_id + matrix_local_id + nominal_param） |
-| `limit_dim` | 维度（code / kind / values_json） |
-| `limit_row` | 限值行（key_json / nominal / lower / upper / expr / na / note） |
-| `document` | 原件（sha256 主键，≤20MB 进库，超出只存路径） |
-| `standard_document` | 标准 ↔ 原件（多对多） |
-| `product_class` | 产品小类 |
-| `param_name` | 参数名称表（全局，code 唯一） |
-| `param_value` | 参数值表（挂在参数名称下，seq/sym/val） |
-| `class_param` | 小类 ↔ 参数（多对多） |
-
-关键 DDL 片段：
-
+### 4.1 参数库与二级参数表
 ```sql
+-- 参数名称定义表（全局）
+CREATE TABLE param_name (
+    id             TEXT PRIMARY KEY,             -- 如 QYCPMLCS00000000009
+    code           TEXT NOT NULL UNIQUE,         -- 规范代码，如 thread
+    name           TEXT NOT NULL,                -- 中文名称，如 螺纹规格
+    unit           TEXT DEFAULT '',              -- 默认单位
+    type           TEXT DEFAULT 'enum',          -- number | enum
+    help           TEXT DEFAULT '',
+    is_multi_dim   TEXT DEFAULT 'N',             -- 是否多维复合参数 (Y/N)
+    dim_count      INTEGER DEFAULT 0,            -- 维度定义 (2, 3, 4)
+    coord1_sub_id  TEXT DEFAULT '',              -- 坐标1关联二级参数ID
+    coord2_sub_id  TEXT DEFAULT '',              -- 坐标2关联二级参数ID
+    coord3_sub_id  TEXT DEFAULT '',              -- 坐标3关联二级参数ID
+    coord4_sub_id  TEXT DEFAULT '',              -- 坐标4关联二级参数ID
+    is_primary     INTEGER DEFAULT 0,            -- 是否主参数 (1/0)
+    category       TEXT DEFAULT ''               -- 参数分类
+);
+
+-- 二级参数定义表
+CREATE TABLE sub_param (
+    id             TEXT PRIMARY KEY,             -- 如 EJCPMLCS00000000000
+    class_id       TEXT NOT NULL,                -- 产品小类引用
+    param_id       TEXT NOT NULL REFERENCES param_name(id) ON DELETE CASCADE,
+    seq            INTEGER NOT NULL,             -- 坐标顺序 (1, 2, 3, 4)
+    code           TEXT NOT NULL,                -- 二级参数代码，如 D
+    name           TEXT NOT NULL,                -- 二级参数名称，如 公称直径
+    help           TEXT DEFAULT ''
+);
+
+-- 参数定值表（挂载坐标值）
+CREATE TABLE param_value (
+    id             INTEGER PRIMARY KEY AUTOINCREMENT,
+    param_id       TEXT NOT NULL REFERENCES param_name(id) ON DELETE CASCADE,
+    seq            INTEGER DEFAULT 0,
+    sym            TEXT DEFAULT '',              -- 参数符号，如 M8×1.25Coarse
+    val            TEXT NOT NULL,                -- 定值文本，如 M8×1.25粗牙
+    coord1_val     TEXT DEFAULT '',              -- 坐标1值，如 公制
+    coord2_val     TEXT DEFAULT '',              -- 坐标2值，如 8
+    coord3_val     TEXT DEFAULT '',              -- 坐标3值，如 1.25
+    coord4_val     TEXT DEFAULT ''               -- 坐标4值，如 粗牙
+);
+```
+
+### 4.2 限值表与复合母表
+```sql
+-- 复合大表母表
 CREATE TABLE limit_matrix (
     id            INTEGER PRIMARY KEY AUTOINCREMENT,
     std_id        TEXT NOT NULL REFERENCES standard(id) ON DELETE CASCADE,
@@ -93,6 +140,7 @@ CREATE TABLE limit_matrix (
     UNIQUE (std_id, local_id)
 );
 
+-- 限值表实体
 CREATE TABLE limit_table (
     id            INTEGER PRIMARY KEY AUTOINCREMENT,
     std_id        TEXT NOT NULL REFERENCES standard(id) ON DELETE CASCADE,
@@ -108,88 +156,69 @@ CREATE TABLE limit_table (
     UNIQUE (std_id, local_id)
 );
 
+-- 限值表维度
+CREATE TABLE limit_dim (
+    id            INTEGER PRIMARY KEY AUTOINCREMENT,
+    table_id      INTEGER NOT NULL REFERENCES limit_table(id) ON DELETE CASCADE,
+    seq           INTEGER DEFAULT 0,
+    code          TEXT NOT NULL,                 -- 维度参数代码，如 d_nom
+    kind          TEXT DEFAULT 'enum',          -- enum | size
+    values_json   TEXT DEFAULT '[]'
+);
+
+-- 限值明细行
 CREATE TABLE limit_row (
     id            INTEGER PRIMARY KEY AUTOINCREMENT,
-    table_id      INTEGER REFERENCES limit_table(id) ON DELETE CASCADE,
-    key_json      TEXT,
-    nominal       REAL,
-    lower         REAL,
-    upper         REAL,
+    table_id      INTEGER NOT NULL REFERENCES limit_table(id) ON DELETE CASCADE,
+    key_json      TEXT,                          -- 维度命中字典，如 {"d_nom": "8"}
+    nominal       REAL,                          -- 标准公称基准值
+    lower         REAL,                          -- 绝对下限
+    upper         REAL,                          -- 绝对上限
     lower_expr    TEXT,
     upper_expr    TEXT,
-    na            INTEGER DEFAULT 0,
+    na            INTEGER DEFAULT 0,             -- 不适用/不要求标记
     note          TEXT
 );
 ```
 
 ---
 
-## 5. 接口
+## 5. 核心接口规范
 
-基址 `http://127.0.0.1:8022`，全部 JSON（上传与导出除外）。
+服务基址：`http://127.0.0.1:8022`，通信格式：`application/json`。
 
-### 5.1 复合大表母表 (limit_matrix)
+### 5.1 解析与判定核心 API
 
-| 方法 | 路径 | 说明 |
-|---|---|---|
-| GET | `/api/standards/{id}/matrices` | 获取标准下母表概要列表 |
-| GET | `/api/standards/{id}/matrices/{mid}` | 获取母表完整矩阵与主从结构 |
-| POST | `/api/standards/{id}/matrices` | 保存母表并自动编译切分为多维子表联动检项 |
-| DELETE | `/api/standards/{id}/matrices/{mid}` | 级联删除母表及衍生所有子表 |
+| 方法 | 路径 | 请求体 / 参数 | 说明 |
+|---|---|---|---|
+| `POST` | `/api/resolve` | `{std: str, sc?: str, params: dict}` | **规格解析核心**：自动应用多维主导权解构坐标，匹配限值表并输出逐项上下限与公称基准值 |
+| `POST` | `/api/judge` | `{std: str, sc?: str, params: dict, measured: dict}` | **实测判定核心**：在限值解析基础上录入测量值，输出各单项及整单合格性判定结论 |
+| `GET` | `/api/meta` | `?std=&sc=` | 获取标准当前层元数据（规格参数清单、默认值、可检项目列表） |
+| `GET` | `/api/card.xlsx`| `?std=&sc=&<规格参数键值对>` | 导出当前规格配置的标准化 Excel 检验卡文件 |
 
-### 5.2 标准与解析
-
-| 方法 | 路径 | 说明 |
-|---|---|---|
-| GET | `/api/standards` | 标准列表（含 has_source / classes） |
-| GET | `/api/meta?std=&sc=` | 参数、检项、层信息、封面数据 |
-| POST | `/api/resolve` | `{std, sc?, params}` → 逐项限值与基准值 |
-| POST | `/api/judge` | `{std, sc?, params, measured}` → 判定 |
-| GET | `/api/card.xlsx?std=&sc=&<参数>` | 导出检验卡 |
-| POST | `/api/standards/publish` | 发布（含 classes / params / items / limits） |
-| POST | `/api/standards/unpublish/{id}` | 下架（内置标准禁止） |
-
-### 5.3 限值表
+### 5.2 参数库与复合母表 API
 
 | 方法 | 路径 | 说明 |
 |---|---|---|
-| GET | `/api/standards/{id}/editor?sc=` | 编辑器数据（参数/检项/表） |
-| PUT | `/api/standards/{id}/tables/{tid}` | 整表覆盖保存 |
-| DELETE | `/api/standards/{id}/tables/{tid}` | 删表 |
-
-### 5.4 原件与作业
-
-| 方法 | 路径 | 说明 |
-|---|---|---|
-| GET | `/api/standards/{id}/source.pdf` | 下载原件（`#page=N` 可定位） |
-| POST | `/api/standards/{id}/source` | 把某次上传挂到标准 |
-| GET | `/api/documents` | 已存档原件清单 |
-| POST | `/api/analyze/upload` | 上传 PDF（sha256 去重） |
-| GET | `/api/analyze/jobs[/{id}]` | 作业列表 / 详情 |
+| `GET` | `/api/catalog` | 查询产品小类、主参数（含多维标识）、二级参数列表与定值列表 |
+| `GET` | `/api/standards/{id}/matrices` | 获取标准下复合母表概要列表 |
+| `POST`| `/api/standards/{id}/matrices` | 保存复合母表并按 USMP 协议自动编译切分为多维子表 |
+| `GET` | `/api/tables/split-modes` | 获取 5 大大表拆分模式及其配置模板 |
+| `POST`| `/api/tables/split` | 原表拆解预览与编译切分执行 |
 
 ---
 
-## 6. 数据清空与脚本管理
+## 6. 测试矩阵与质量保障
 
-标准数据库文件为 `data/app.db`。系统提供了一键维护工具：
+全仓库测试矩阵覆盖自底向上的每一层关键逻辑：
 
-| 操作 | 命令 | 说明 |
-|---|---|---|
-| 一键清空业务数据 | `./clean_data.sh --restart` | 清空标准、限值表、母表、原件、作业缓存，保留参数库并重启 8022 |
-| 预览清空范围 | `./clean_data.sh --dry-run` | 查看受影响数据量，不实际删除 |
-| 灌入样例标准 | `.venv/bin/python g1/service/tools/load_gb3103.py` | 灌入 GB/T 3103.3 平垫圈标准样例 |
-
----
-
-## 7. 测试矩阵
-
-| 文件 | 项数 | 覆盖范围 |
-|---|---|---|
-| `g1/gb3103_3.py` | 28 | 引擎：8 张表、偏差叠加、不要求、区间边界 |
-| `g1/service/test_parse.py` | 15 | 条款切分、标题清洗、类别 |
-| `g1/service/test_limits.py` | 12 | 多维匹配、表达式、规则表 |
-| `g1/service/test_matrix.py` | 36 | 复合大表母表保存、按 No 主从切分、三维寻址与加严判定 |
-| `g1/service/test_generic.py` | 22 | 通用标准：参数校验、发布、解析 |
-| `g1/service/test_api.py` | 56 | 接口：母表 CRUD、元数据、解析、判定、导出、表编辑、参数库 |
-| `g1/service/test_analyze.py` | 69 | 全链路：上传 → OCR → 四步 → 发布 → 原件 → 分层 |
-| **总计** | **238 项** | 全部自动化回归验证通过 |
+| 测试模块 | 执行脚本 | 验证项数 | 核心断言与覆盖范围 |
+|---|---|:---:|---|
+| **基础引擎与平垫圈** | `g1/gb3103_3.py` | 28 | 验证 8 张限值表查表、公差偏差叠加、C级豁免、区间开闭边界判定 |
+| **条款与结构切分** | `g1/service/test_parse.py` | 15 | 验证条款候选提取、章节标题过滤、性能等级同形号排除 |
+| **规则表达式与限值** | `g1/service/test_limits.py` | 12 | 验证常量、动态公式、多维规则表达式及安全沙箱 |
+| **母表切分与三维加严** | `g1/service/test_matrix.py` | 52 | **5大工业切分模式验证**、No.主从切分、三维寻址与大规格加严计算 |
+| **通用标准发布模型** | `g1/service/test_generic.py` | 22 | 验证跨小类分层、自定义参数校验、上下文构建 |
+| **端到端 API 接口** | `g1/service/test_api.py` | 56 | 验证母表 CRUD、元数据接口、多维 resolve 判定、检验卡导出 |
+| **全链路分析验证** | `g1/service/test_analyze.py` | 69 | 验证 PDF 上传、Vision OCR、四步向导状态保存与发布 |
+| **总计** | | **254 项** | **全量自动化测试持续通过 (100% Pass Rate)** |

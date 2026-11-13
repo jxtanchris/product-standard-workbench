@@ -88,12 +88,22 @@ class Standard:
 
     # ---------- 参数校验：把用户输入整理成引擎上下文 ----------
     def build_context(self, raw: dict[str, Any]) -> tuple[dict[str, Any], list[str]]:
+        import db as _db
+        raw = dict(raw)
+        derived: dict[str, Any] = {}
+        for k in ("thread", "Thread", "螺纹规格", "bm_thread"):
+            if k in raw and raw[k]:
+                coords = _db.resolve_sub_coords(str(raw[k]))
+                derived.update(coords)
+                for ck, cv in coords.items():
+                    raw[ck] = cv  # 复合参数具有绝对主导权：强制覆盖二级参数，杜绝旧值残留
+
         ctx: dict[str, Any] = {}
         errors: list[str] = []
         known = {p.code: p for p in self.params}
 
         for key in raw:
-            if key not in known:
+            if key not in known and key not in derived:
                 errors.append(f"未知参数 {key}")
 
         for p in self.params:
@@ -103,7 +113,7 @@ class Standard:
                     errors.append(f"缺少必填参数 {p.name}（{p.code}）")
                 continue
             if p.type == "enum":
-                if v not in p.options:
+                if p.options and v not in p.options:
                     errors.append(f"{p.name} 取值 {v!r} 不在 {p.options} 中")
                     continue
                 ctx[p.code] = v
@@ -118,6 +128,11 @@ class Standard:
                 if p.maximum is not None and num > p.maximum:
                     errors.append(f"{p.name} = {num} 超出本标准适用范围上限 {p.maximum}")
                 ctx[p.code] = num
+
+        for dk, dv in derived.items():
+            if dk not in ctx:
+                ctx[dk] = dv
+
         return ctx, errors
 
     def layer(self, sc_id: str | None = None) -> "Layer | None":

@@ -37,12 +37,13 @@ ANALYSIS_TABLES = (
     "standard",
 )
 
-# 基础资料参数库表（默认保留）
+# 基础资料参数库与拆分模式库表（默认保留）
 CATALOG_TABLES = (
     "param_value",
     "class_param",
     "param_name",
     "product_class",
+    "table_split_mode",
 )
 
 

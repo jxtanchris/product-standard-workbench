@@ -162,6 +162,15 @@ class Row:
     nominal: float | None = None
 
 
+def _val_eq(k: Any, v: Any) -> bool:
+    if k == v or str(k) == str(v):
+        return True
+    try:
+        return float(k) == float(v)
+    except (ValueError, TypeError):
+        return False
+
+
 @dataclass
 class LimitTable:
     table_id: str
@@ -211,7 +220,7 @@ class LimitTable:
                 if val is None:
                     return None
                 if d.kind == "enum":
-                    if key != val:
+                    if not _val_eq(key, val):
                         ok = False
                         break
                 else:  # size: key = (from, to)

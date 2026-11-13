@@ -262,6 +262,157 @@ def run_tests():
     # 清理向导母表
     dbmod.delete_matrix(conn, test_std_id, "M-PROP-WIZARD")
 
+    # 9. 测试拆分模式库 (table_split_mode) 与多步骤原表拆解引擎 (matrix_protocol)
+    import matrix_protocol as mp
+    modes = dbmod.list_split_modes(conn)
+    ok(len(modes) == 5, f"拆分模式库预置了 5 种标准拆分模式 (实际: {len(modes)})")
+    mode_codes = [m["code"] for m in modes]
+    ok(
+        mode_codes == ["single_indicator", "multi_col_parallel", "matrix_2d_cross", "composite_no_master", "ignore_skip"],
+        f"5 种拆分模式顺序与编码正确: {mode_codes}"
+    )
+
+    # 模拟一份含表1(化学成分)、表3(多列机械性能)、表4(单指标渗碳层深度) 的标准作业
+    sample_job = {
+        "id": "job-test-wb",
+        "code": "GB/T 3098.7—2000",
+        "title": "紧固件机械性能 自挤螺钉",
+        "text": (
+            "表1 化学成分\n成分极限，%\n分析 碳 锰\n桶样 0.15~0.25 0.70~1.65\n检验 0.13~0.27 0.64~1.71\n"
+            "表2 机械和工作性能项目\n性能项目 技术要求（条或表） 试验方法（条）\n"
+            "表3 机械和工作性能要求\n破坏扭矩 拧入扭矩 破坏拉力载荷（参考）\n螺纹公称直径 min max min\nN•m N•m N\n2 0.5 0.3 1940\n3 2.1 1.1 4680\n"
+            "表4 表面渗碳层深度mm\n螺纹公称直径 min max\n2.2.5 0.04 0.12\n4.5 0.10 0.25\n"
+        ),
+        "tables": [
+            {
+                "page": 4, "rows": 4, "cols": 4,
+                "grid": [
+                    ["分析", "", "成分极限，%", ""],
+                    ["", "碳", "", "锰"],
+                    ["桶样", "0.15~0.25", "", "0.70~1.65"],
+                    ["检验", "0.13~0.27", "", "0.64~1.71"]
+                ]
+            },
+            {
+                "page": 5, "rows": 3, "cols": 4,
+                "grid": [
+                    ["", "N•m", "N•m", "N"],
+                    ["2", "0.5", "0.3", "1940"],
+                    ["3", "2.1", "1.1", "4680"]
+                ]
+            },
+            {
+                "page": 5, "rows": 3, "cols": 3,
+                "grid": [
+                    ["", "min", "max"],
+                    ["2.2.5", "0.04", "0.12"],
+                    ["4.5", "0.10", "0.25"]
+                ]
+            }
+        ]
+    }
+    discovered = mp.discover_source_tables(sample_job, {"code": "GB/T 3098.7", "items": []})
+    ok(len(discovered) == 4, f"discover_source_tables 成功识别出 4 张逻辑原表 (实际: {len(discovered)})")
+    d_by_label = {t["label"]: t for t in discovered}
+    ok(d_by_label["表2"]["recommended_mode"] == "ignore_skip", "表2 自动推荐为 ignore_skip（模式 5：非判定表）")
+    ok(d_by_label["表3"]["recommended_mode"] == "multi_col_parallel", "表3 自动推荐为 multi_col_parallel（模式 2：多指标按列拆分）")
+    ok(d_by_label["表4"]["recommended_mode"] == "single_indicator", "表4 自动推荐为 single_indicator（模式 1：单指标简单表）")
+
+    dec_t1 = mp.deconstruct_source_table(d_by_label["表1"], "multi_col_parallel", {"code": "GB/T 3098.7", "items": []})
+    t1_names = [t["name"] for t in dec_t1.get("tables", [])]
+    ok(
+        t1_names == ["碳含量 CMin", "碳含量 CMax", "锰含量 MnMin", "锰含量 MnMax"],
+        f"表1 按模式 2 及 Min/Max 拆出 4 笔限值主表: {t1_names}"
+    )
+
+    dec_t3 = mp.deconstruct_source_table(d_by_label["表3"], "multi_col_parallel", {"code": "GB/T 3098.7", "items": []})
+    t3_names = [t["name"] for t in dec_t3.get("tables", [])]
+    ok(
+        t3_names == ["破坏扭矩Min", "拧入扭矩Max", "破坏拉力载荷Min"],
+        f"表3 按模式 2 拆出 3 笔限值主表（指标名+Min/Max）: {t3_names}"
+    )
+
+    dec_t4 = mp.deconstruct_source_table(d_by_label["表4"], "single_indicator", {"code": "GB/T 3098.7", "items": []})
+    t4_names = [t["name"] for t in dec_t4.get("tables", [])]
+    ok(
+        t4_names == ["表面渗碳层深度Min", "表面渗碳层深度Max"]
+        and len(dec_t4["tables"][0]["rows"]) == 4
+        and len(dec_t4["tables"][1]["rows"]) == 4,
+        f"表4 按模式 1 拆出 2 笔限值主表（表面渗碳层深度Min/Max）且成功展开合并直径组: {t4_names}"
+    )
+
+    # 10. 测试含 Avg（平均值）与 Nom（公称值）等多统计特征列的拆解能力（模式 1 与模式 2）
+    avg_mode1_info = {
+        "t_no": "6",
+        "table_id": "SRC-TABLE-6",
+        "matrix_local_id": "M-TABLE6",
+        "title": "镀层厚度",
+        "full_title": "表6 镀层厚度",
+        "unit_hint": "μm",
+        "preview_grid": [
+            ["螺纹公称直径", "min", "max", "avg"],
+            ["4", "5", "12", "8"],
+            ["6", "6", "15", "10"],
+        ],
+        "context_lines": ["螺纹公称直径 min max avg"],
+    }
+    dec_avg_m1 = mp.deconstruct_source_table(avg_mode1_info, "single_indicator", {"code": "GB/T 5267.1", "items": []})
+    avg_m1_names = [t["name"] for t in dec_avg_m1.get("tables", [])]
+    ok(
+        avg_m1_names == ["镀层厚度Min", "镀层厚度Max", "镀层厚度Avg"]
+        and dec_avg_m1["tables"][2]["rows"][0]["lower"] == 8.0,
+        f"模式 1 含 min/max/avg 三列时自动拆出 3 笔限值表: {avg_m1_names}"
+    )
+
+    avg_mode2_info = {
+        "t_no": "7",
+        "table_id": "SRC-TABLE-7",
+        "matrix_local_id": "M-TABLE7",
+        "title": "涂层与冲击性能",
+        "full_title": "表7 涂层与冲击性能",
+        "unit_hint": "",
+        "preview_grid": [
+            ["规格", "镀层厚度", "", "冲击功"],
+            ["", "min", "max", "平均值"],
+            ["M8", "5", "12", "27"],
+            ["M10", "6", "15", "34"],
+        ],
+        "context_lines": [],
+    }
+    dec_avg_m2 = mp.deconstruct_source_table(avg_mode2_info, "multi_col_parallel", {"code": "GB/T 5267.1", "items": []})
+    avg_m2_names = [t["name"] for t in dec_avg_m2.get("tables", [])]
+    ok(
+        avg_m2_names == ["镀层厚度Min", "镀层厚度Max", "冲击功Avg"]
+        and dec_avg_m2["tables"][2]["rows"][0]["lower"] == 27.0,
+        f"模式 2 双层表头含 min/max/平均值 时自动拆出 3 笔限值表: {avg_m2_names}"
+    )
+
+    # 11. 测试 4 步识别规则库与单标准自定义规则覆盖 (step1~step4)
+    import analyze as _analyze
+    rcat = _analyze.rules_catalog()
+    ok(len(rcat.get("steps_meta", [])) == 4, "识别规则库包含完整的 4 个分析步骤元数据")
+    sample_pages = [{"page": 1, "lines": ["5.1 特殊敲击度", "本条要求特殊敲击度不大于 0.5mm，对边宽度 s 应符合规定。"]}]
+    cands_default = _analyze.parse(sample_pages)
+    ok(not cands_default[0].selected, "默认规则下未知词汇「敲击度」未被选为检项")
+    custom_rules = {"metric_words": _analyze.get_rules()["metric_words"] + ["敲击度"]}
+    cands_custom = _analyze.parse(sample_pages, rules_override=custom_rules)
+    ok(cands_custom[0].selected, "单标准在 Step 1 增加「敲击度」识别词后即刻命中检项")
+
+    custom_param_rules = {
+        "param_rules": _analyze.get_rules()["param_rules"] + [
+            {"pattern": "对边宽度", "code": "s_nom", "name": "对边宽度 s", "type": "number", "unit": "mm", "options": [], "required": True}
+        ]
+    }
+    sug_params = _analyze.suggest_params(sample_pages, rules_override=custom_param_rules)
+    ok(any(p["code"] == "s_nom" for p in sug_params), "单标准在 Step 2 增加「对边宽度 -> s_nom」规则后成功提取参数")
+
+    syn_links = _analyze.auto_link_items_and_tables(
+        [{"id": "it-1", "title": "抗拉强度", "selected": True}],
+        [{"id": "T1-RM-MIN", "name": "RmMin"}],
+        existing_links={},
+    )
+    ok(syn_links.get("it-1") == "T1-RM-MIN", f"Step 4 同义词规则成功将「抗拉强度」自动关联到「RmMin」限值表: {syn_links}")
+
     # 清理测试标准
     dbmod.delete(conn, test_std_id)
     ok(True, "清理临时测试标准完成")

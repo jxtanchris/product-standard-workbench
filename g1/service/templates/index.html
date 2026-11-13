@@ -16,7 +16,7 @@
        font-family:-apple-system,BlinkMacSystemFont,"PingFang SC","Microsoft YaHei",system-ui,sans-serif;
        font-size:14px;line-height:1.55}
   header{background:linear-gradient(135deg,#1f4e79,#2f6fb0);color:#fff;padding:18px 28px}
-  header .row{display:flex;align-items:baseline;gap:14px;flex-wrap:wrap}
+  header .row{display:flex;align-items:center;gap:14px;flex-wrap:wrap}
   header h1{margin:0;font-size:19px;font-weight:600;letter-spacing:.5px}
   header .sub{font-size:13px;opacity:.85}
   header select{margin-left:auto;background:rgba(255,255,255,.16);border:1px solid rgba(255,255,255,.3);
@@ -179,9 +179,9 @@
   header .brand{color:#fff;text-decoration:none;font-size:14px;font-weight:500;opacity:.85;
                 white-space:nowrap}
   header .brand:hover{opacity:1}
-  header .back{color:#cfe0f0;text-decoration:none;font-size:12.5px;padding:4px 10px;
-               border:1px solid rgba(255,255,255,.28);border-radius:999px;white-space:nowrap}
-  header .back:hover{background:rgba(255,255,255,.14);color:#fff}
+  header .back{background:#fff;color:var(--brand);text-decoration:none;font-size:13px;font-weight:600;
+               padding:8px 18px;border:0;border-radius:8px;white-space:nowrap;display:inline-flex;align-items:center}
+  header .back:hover{background:#eaf1f8;color:var(--brand)}
   header .crumb{display:flex;flex-direction:column;min-width:0}
   header .crumb h1{font-size:17px}
   header .crumb .sub{max-width:60vw;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
@@ -338,6 +338,178 @@
     border-color: #3b82f6;
     outline: 2px solid #bfdbfe;
   }
+  /* 多步骤逐表拆解工作台样式 */
+  .wb-layout {
+    display: grid;
+    grid-template-columns: 270px minmax(0, 1fr);
+    grid-template-rows: minmax(0, 1fr);
+    height: 75vh;
+    max-height: calc(90vh - 115px);
+    overflow: hidden;
+  }
+  .wb-left {
+    border-right: 1px solid #e2e8f0;
+    background: #f8fafc;
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+    height: 100%;
+    overflow: hidden;
+  }
+  .wb-left-head {
+    padding: 12px 14px;
+    border-bottom: 1px solid #e2e8f0;
+    background: #f1f5f9;
+  }
+  .wb-table-list {
+    list-style: none;
+    margin: 0;
+    padding: 8px;
+    overflow-y: auto;
+    flex: 1;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+  .wb-table-item {
+    padding: 10px 12px;
+    border-radius: 8px;
+    border: 1px solid #e2e8f0;
+    background: #fff;
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+  .wb-table-item:hover {
+    border-color: #93c5fd;
+    background: #f0f9ff;
+  }
+  .wb-table-item.active {
+    border-color: #0284c7;
+    background: #e0f2fe;
+    box-shadow: 0 1px 4px rgba(2, 132, 199, 0.15);
+  }
+  .wb-right {
+    padding: 16px 20px 28px;
+    min-height: 0;
+    height: 100%;
+    overflow-y: scroll;
+    background: #fff;
+  }
+  .wb-right::-webkit-scrollbar,
+  .wb-table-list::-webkit-scrollbar {
+    width: 9px;
+    height: 9px;
+  }
+  .wb-right::-webkit-scrollbar-track,
+  .wb-table-list::-webkit-scrollbar-track {
+    background: #f1f5f9;
+    border-radius: 4px;
+  }
+  .wb-right::-webkit-scrollbar-thumb,
+  .wb-table-list::-webkit-scrollbar-thumb {
+    background: #94a3b8;
+    border-radius: 4px;
+  }
+  .wb-right::-webkit-scrollbar-thumb:hover,
+  .wb-table-list::-webkit-scrollbar-thumb:hover {
+    background: #64748b;
+  }
+  .wb-mode-grid {
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    gap: 8px;
+    margin-top: 8px;
+  }
+  .wb-mode-card {
+    border: 1.5px solid #cbd5e1;
+    border-radius: 8px;
+    padding: 10px;
+    background: #fff;
+    cursor: pointer;
+    transition: all 0.15s;
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+  .wb-mode-card:hover {
+    border-color: #60a5fa;
+    background: #f8fafc;
+  }
+  .wb-mode-card.active {
+    border-color: #0284c7;
+    background: #f0f9ff;
+    box-shadow: 0 0 0 2px rgba(2, 132, 199, 0.18);
+  }
+  /* 顶部基础库下拉菜单 */
+  .baselib-dropdown {
+    position: relative;
+    margin-left: auto;
+    display: inline-block;
+  }
+  .baselib-btn {
+    background: #fff;
+    color: var(--brand);
+    font-size: 13px;
+    font-weight: 600;
+    padding: 8px 18px;
+    border: 0;
+    border-radius: 8px;
+    white-space: nowrap;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    transition: background 0.15s;
+  }
+  .baselib-btn:hover, .baselib-btn.is-active {
+    background: #eaf1f8;
+    color: var(--brand);
+  }
+  .baselib-menu {
+    position: absolute;
+    top: calc(100% + 8px);
+    right: 0;
+    min-width: 210px;
+    background: #fff;
+    border: 1px solid #cbd5e1;
+    border-radius: 10px;
+    box-shadow: 0 10px 28px rgba(15, 23, 42, 0.22);
+    padding: 6px;
+    z-index: 120;
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+  }
+  .baselib-item {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    padding: 8px 11px;
+    border-radius: 7px;
+    text-decoration: none;
+    color: #1e293b;
+    transition: background 0.12s;
+  }
+  .baselib-item:hover {
+    background: #f0f9ff;
+  }
+  .baselib-item.on {
+    background: #e0f2fe;
+    color: #0369a1;
+  }
+  .baselib-item b {
+    font-size: 13px;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+  .baselib-item span {
+    font-size: 11px;
+    color: #64748b;
+  }
 </style>
 </head>
 <body>
@@ -349,7 +521,26 @@
       <h1 id="stdTitle">全部标准</h1>
       <span class="sub" id="scope"></span>
     </div>
-    <a class="back" id="navCatalog" href="#/catalog" style="margin-left:auto">参数库</a>
+    <div class="baselib-dropdown" id="navBaseLibWrap">
+      <button type="button" class="baselib-btn" id="btnBaseLib">
+        <span id="btnBaseLibText">基础库</span>
+        <span style="font-size:10px;opacity:.85">▾</span>
+      </button>
+      <div class="baselib-menu" id="menuBaseLib" hidden>
+        <a class="baselib-item" id="navCatalog" href="#/catalog">
+          <b><span>参数库</span><span style="font-size:11px;color:#0284c7">→</span></b>
+          <span>产品小类 · 规格参数 · 取值字典</span>
+        </a>
+        <a class="baselib-item" id="navSplitModes" href="#/split-modes">
+          <b><span>拆分模式库</span><span style="font-size:11px;color:#0284c7">→</span></b>
+          <span>标准表格 5 种预置拆解模式</span>
+        </a>
+        <a class="baselib-item" id="navRulesLib" href="#/rules-lib">
+          <b><span>识别规则库</span><span style="font-size:11px;color:#0284c7">→</span></b>
+          <span>4 步向导识别规则（检项/参数/限值/关联）</span>
+        </a>
+      </div>
+    </div>
     <button class="btn primary" id="btnUploadTop">上传标准做分析</button>
   </div>
 </header>
@@ -380,6 +571,39 @@
           <ul class="std-list" id="catList"></ul>
         </aside>
         <div class="pane-right" id="catDetail"></div>
+      </div>
+    </section>
+  </div>
+
+  <div class="view" id="view-split-modes" hidden>
+    <section class="card">
+      <div class="card-h">
+        <h2>标准表格拆分模式库</h2>
+        <span class="hint">预置 5 种标准限值表通用拆分模式；在「多步骤逐表拆解工作台」中针对每张原表按需选用</span>
+      </div>
+      <div class="split">
+        <aside class="pane-left">
+          <div class="pane-head"><span class="pill" id="smStat">5 种拆分模式</span></div>
+          <ul class="std-list" id="smList"></ul>
+        </aside>
+        <div class="pane-right" id="smDetail"></div>
+      </div>
+    </section>
+  </div>
+
+  <div class="view" id="view-rules-lib" hidden>
+    <section class="card">
+      <div class="card-h">
+        <h2>标准分析识别规则库</h2>
+        <span class="hint">管理 4 步向导的全局默认识别规则；上传分析具体标准时自动默认带入，并支持按单标准调整</span>
+        <button class="btn ghost" id="btnResetAllBaseRules" style="color:var(--bad);margin-left:auto">↺ 恢复全部出厂默认</button>
+      </div>
+      <div class="split">
+        <aside class="pane-left">
+          <div class="pane-head"><span class="pill" id="rlStat">4 个分析步骤</span></div>
+          <ul class="std-list" id="rlList"></ul>
+        </aside>
+        <div class="pane-right" id="rlDetail"></div>
       </div>
     </section>
   </div>
@@ -477,7 +701,7 @@
       <div class="card-h">
         <h2>② 确认检项</h2>
         <span class="hint">系统只给候选，勾选与改名由人决定；点「依据」看判定过程</span>
-        <button class="btn ghost" id="btnRules">识别规则</button>
+        <button class="btn ghost" id="btnRules" style="margin-left:auto" title="已从基础「识别规则库」默认带入，可针对当前标准修改">⚙️ 本步识别规则（检项）</button>
       </div>
       <div class="stdline">
         <span style="font-size:12px;color:var(--muted)">标准号</span>
@@ -532,6 +756,7 @@
       <div class="card-h">
         <h2>③ 选择规格参数</h2>
         <span class="hint">第 2 步做检验时，先填这些参数；代码建议 *_nom，枚举型填可选值</span>
+        <button class="btn ghost" id="btnRulesStep2" style="margin-left:auto" title="已从基础「识别规则库」默认带入，可针对当前标准修改">⚙️ 本步识别规则（参数）</button>
       </div>
       <div style="overflow-x:auto">
         <table class="analyze">
@@ -569,6 +794,8 @@
       <div class="card-h">
         <h2>④ 限值</h2>
         <span class="hint">第 2 步的判定就按这里来；留空表示只记录、不判定</span>
+        <button class="btn ghost" id="btnRulesStep3" style="margin-left:auto" title="已从基础「识别规则库」默认带入，可针对当前标准修改">⚙️ 本步识别规则（限值与表格）</button>
+        <button class="btn primary" id="btnAnalyzeWorkbench">🧭 多步骤逐表拆解工作台</button>
       </div>
       <div class="tabs2" id="limTabs" style="margin-bottom:12px">
         <button class="on" data-lim="rule">按检项填规则</button>
@@ -595,6 +822,7 @@
 
       <div id="limTable" hidden>
         <div class="summary">
+          <button class="btn primary" id="btnAnalyzeWorkbench2">🧭 多步骤逐表拆解工作台（盘点原表 → 选拆分模式 → 逐表生成）</button>
           <button class="btn ghost" id="btnImportTable">+ 从原文表格导入</button>
           <button class="btn ghost" id="btnNewDraft">+ 新建空表</button>
           <span class="pill" style="margin-left:auto">表在发布时随标准一起落库</span>
@@ -615,6 +843,7 @@
       <div class="card-h">
         <h2>④ 检查项与限值关联</h2>
         <span class="hint">每个检项的限值从哪来：手填规则，还是查一张限值表</span>
+        <button class="btn ghost" id="btnRulesStep4" style="margin-left:auto" title="已从基础「识别规则库」默认带入，可针对当前标准修改">⚙️ 本步识别规则（关联规则）</button>
       </div>
       <div style="overflow-x:auto">
         <table class="analyze">
@@ -642,11 +871,11 @@
     <section class="card">
       <div class="card-h">
         <h2>标准的限值表</h2>
-        <span class="hint">左选表、右看明细；标准表 1 拆成的多维查询表</span>
+        <span class="hint">左选表、右看明细；标准原表拆成的多维查询表</span>
         <button class="btn ghost" id="btnTableParams">参数信息</button>
         <button class="btn ghost" id="btnFromSource">从原文建表</button>
         <button class="btn ghost" id="btnNewTable">+ 新建限值表</button>
-        <button class="btn primary" id="btnNewMatrix">+ 录入复合大表(力学性能)</button>
+        <button class="btn primary" id="btnNewMatrix">🧭 多步骤逐表拆解工作台</button>
       </div>
       <div class="split">
         <aside class="pane-left">
@@ -898,60 +1127,130 @@
 </div>
 
 <div class="modal" id="matrixModal" hidden>
-  <div class="panel" style="max-width:96vw;width:1260px">
+  <div class="panel" style="max-width:97vw;width:1360px">
     <div class="mhead">
-      <h3 id="matTitleText">复合大表拆解与多维限值生成（按 No. 逐项向导）</h3>
+      <h3 id="matTitleText">🧭 多步骤逐表拆解工作台（① 盘点原表清单 → ② 人工选择拆分模式 → ③ 逐表拆解编译）</h3>
       <span class="pill" id="matSubText"></span>
-      <button class="btn ghost" id="matClose" style="margin-left:auto">关闭</button>
+      <button class="btn ghost" id="btnWbOpenModeLib" style="margin-left:auto;font-size:12px;color:#0284c7;border-color:#bae6fd;background:#f0f9ff" title="打开拆分模式库浏览 5 种预定义拆分模式详情">📖 浏览拆分模式库</button>
+      <button class="btn ghost" id="matClose" style="margin-left:8px">关闭</button>
     </div>
-    <div class="mbody" style="max-height:80vh;overflow-y:auto;padding:16px 20px">
-      <!-- 1. 母表基本信息 -->
-      <div class="summary" style="margin-bottom:14px;gap:14px;flex-wrap:wrap;align-items:flex-end;background:#f8fafc;padding:12px 14px;border-radius:8px;border:1px solid #e2e8f0">
-        <div style="flex:1;min-width:240px">
-          <div class="lbl" style="font-weight:600;color:#334155;margin-bottom:4px">母表名称</div>
-          <input type="text" id="matTitle" placeholder="如：GB/T 3098.1 表3 螺栓机械和物理性能" style="width:100%;height:32px;border:1px solid #cbd5e1;border-radius:6px;padding:0 10px;background:#fff">
-        </div>
-        <div style="width:200px">
-          <div class="lbl" style="font-weight:600;color:#334155;margin-bottom:4px">母表代号 (ID)</div>
-          <input type="text" id="matLocalId" placeholder="如：M-PROP-TABLE3" style="width:100%;height:32px;font-family:monospace;border:1px solid #cbd5e1;border-radius:6px;padding:0 10px;background:#fff">
-        </div>
-        <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
-          <button class="btn ghost" id="btnMatSample3" title="载入GB/T 3098.1 表3 螺栓机械性能总表">✨ 载入表3机械性能</button>
-          <button class="btn ghost" id="btnMatSample4" title="载入GB/T 3098.1 表4 粗牙螺栓最小拉力载荷表">✨ 载入表4拉力载荷</button>
-          <button class="btn primary" id="btnMatAddMasterTable">+ 新增限值主表 (No)</button>
-        </div>
-      </div>
-
-      <!-- 2. 表头公共参数池（所有 No. 主表自动继承） -->
-      <div style="background:#f0f7ff;border:1px solid #bae0ff;border-radius:8px;padding:12px 14px;margin-bottom:16px">
-        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
-          <div style="display:flex;align-items:center;gap:8px">
-            <b style="font-size:13.5px;color:#0050b3">📥 表头公共参数池（所有 No. 主表默认自动继承）</b>
-            <span style="font-size:11.5px;color:#595959">表中 No. 这一行涉及到的全局自变量参数</span>
+    <div class="mbody" style="padding:0;overflow:hidden">
+      <div class="wb-layout">
+        <!-- 左侧：第一步 本标准涉及的原表盘点清单 -->
+        <aside class="wb-left">
+          <div class="wb-left-head">
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px">
+              <b style="font-size:13px;color:#0f172a">① 本标准原表清单</b>
+              <span class="pill" id="wbTableProgress" style="font-size:11px;background:#e0f2fe;color:#0369a1;font-weight:600">0 / 0</span>
+            </div>
+            <div style="font-size:11px;color:#64748b" id="wbSourceFileHint">自动扫描标准 PDF 原件生成</div>
           </div>
-          <button class="btn ghost" id="btnMatAddCommonDim" style="padding:2px 10px;font-size:12px;color:#0969da;background:#fff;border-color:#91caff">+ 添加公共参数</button>
-        </div>
-        <div id="matCommonDimsContainer" style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;min-height:30px">
-          <!-- 动态渲染公共参数徽标 -->
-        </div>
-      </div>
+          <ul class="wb-table-list" id="wbTableList">
+            <!-- 动态渲染原表清单 -->
+          </ul>
+          <div style="padding:10px;border-top:1px solid #e2e8f0;background:#f1f5f9">
+            <button class="btn ghost" id="btnWbCustomTable" style="width:100%;font-size:12px;justify-content:center;background:#fff">+ 手工新增自定义母表</button>
+          </div>
+        </aside>
 
-      <!-- 3. 按 No. 序号生成的限值主表清单（卡片手风琴） -->
-      <div style="margin-bottom:8px;display:flex;justify-content:space-between;align-items:center">
-        <b style="font-size:14px;color:#1e293b">📋 限值主表列表（已拆分为 <span id="matMasterTableCount">0</span> 笔单指标限值主表）：</b>
-        <span style="font-size:12px;color:#64748b">针对每笔限值主表，自动继承表头公共参数，可由人工确认是否加入专属增量参数</span>
-      </div>
+        <!-- 右侧：第二步选拆分模式 + 第三步逐表拆解向导 -->
+        <div class="wb-right" id="wbRightPane">
+          <!-- 原表网格与原文对照区（可折叠） -->
+          <details id="wbSourcePreviewBox" open style="margin-bottom:14px;border:1px solid #cbd5e1;border-radius:8px;background:#f8fafc;overflow:hidden">
+            <summary style="padding:9px 14px;cursor:pointer;font-size:12.5px;font-weight:600;color:#1e293b;display:flex;align-items:center;gap:10px;background:#f1f5f9;user-select:none">
+              <span>📄 原表网格与标准原文对照：<b id="wbCurTableLabel" style="color:#0284c7">表—</b></span>
+              <span id="wbCurTableMeta" style="font-size:11.5px;font-weight:normal;color:#64748b"></span>
+              <span id="wbPdfLinkWrap" style="margin-left:auto"></span>
+            </summary>
+            <div style="padding:10px 14px;max-height:190px;overflow:auto;border-top:1px solid #e2e8f0;background:#fff" id="wbSourcePreviewContent">
+              <!-- 动态渲染原表网格预览与上下文 -->
+            </div>
+          </details>
 
-      <div id="matMasterList" style="display:flex;flex-direction:column;gap:12px">
-        <!-- 动态渲染按 No 拆分的各个限值主表卡片 -->
+          <!-- 第二步：由人决定当前表采用哪种拆分模式 -->
+          <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:12px 14px;margin-bottom:14px">
+            <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px">
+              <div style="display:flex;align-items:center;gap:8px">
+                <b style="font-size:13.5px;color:#0f172a">② 选择当前表格的「拆分模式」（由人工拍板决定）</b>
+                <span id="wbRecommendHint" style="font-size:11.5px;color:#0369a1;background:#e0f2fe;padding:2px 8px;border-radius:4px"></span>
+              </div>
+              <button class="btn ghost" id="btnWbReDeconstruct" style="padding:2px 10px;font-size:11.5px;color:#0284c7;background:#fff;border-color:#bae6fd" title="按当前所选模式重新从原表自动提取草稿">🔄 按所选模式重新解析此表</button>
+            </div>
+            <div class="wb-mode-grid" id="wbModeCards">
+              <!-- 动态渲染 5 种拆分模式卡片 -->
+            </div>
+          </div>
+
+          <!-- 第三步（模式 5 跳过状态面板） -->
+          <div id="wbStep3Skip" hidden style="padding:36px 24px;text-align:center;background:#f8fafc;border:1.5px dashed #94a3b8;border-radius:10px;margin-top:14px">
+            <div style="font-size:16px;font-weight:600;color:#334155;margin-bottom:8px">⏭️ 已选择「模式 5：非判定表 / 忽略跳过」</div>
+            <div style="font-size:13px;color:#64748b;max-width:580px;margin:0 auto 16px;line-height:1.7">
+              当前表格（如索引导览表、概念示例表、试板工装夹具表等）不直接产生产品合格判定限值表。<br>
+              点击下方或右下角按钮即可将该表标记为「已跳过」并自动进入下一张原表。
+            </div>
+            <button class="btn primary" id="btnWbConfirmSkip" style="padding:7px 20px;font-size:13px">确认跳过此表并进入下一张 →</button>
+          </div>
+
+          <!-- 第三步（模式 1~4 拆解与主从向导区） -->
+          <div id="wbStep3Active">
+            <!-- 3.1 母表基本信息 -->
+            <div class="summary" style="margin-bottom:12px;gap:14px;flex-wrap:wrap;align-items:flex-end;background:#f8fafc;padding:10px 14px;border-radius:8px;border:1px solid #e2e8f0">
+              <div style="flex:1;min-width:240px">
+                <div class="lbl" style="font-weight:600;color:#334155;margin-bottom:4px">③ 当前原表拆解母表名称</div>
+                <input type="text" id="matTitle" placeholder="如：GB/T 3098.1 表3 螺栓机械和物理性能" style="width:100%;height:32px;border:1px solid #cbd5e1;border-radius:6px;padding:0 10px;background:#fff;box-sizing:border-box">
+              </div>
+              <div style="width:185px">
+                <div class="lbl" style="font-weight:600;color:#334155;margin-bottom:4px">母表代号 (ID)</div>
+                <input type="text" id="matLocalId" placeholder="如：M-TABLE3" style="width:100%;height:32px;font-family:monospace;border:1px solid #cbd5e1;border-radius:6px;padding:0 10px;background:#fff;box-sizing:border-box">
+              </div>
+              <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+                <button class="btn primary" id="btnMatAddMasterTable">+ 新增限值主表 (No)</button>
+              </div>
+            </div>
+
+            <!-- 3.2 表头公共参数池（所有 No. 主表自动继承） -->
+            <div style="background:#f0f7ff;border:1px solid #bae0ff;border-radius:8px;padding:10px 14px;margin-bottom:14px">
+              <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:8px">
+                <div style="display:flex;align-items:center;gap:8px">
+                  <b style="font-size:13px;color:#0050b3">📥 表头公共参数池（所有 No. 限值主表默认自动继承）</b>
+                  <span style="font-size:11.5px;color:#595959" id="wbCommonDimHint">数据源：第 2 步「规格参数」中定义的参数</span>
+                </div>
+                <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap">
+                  <select id="selMatAddCommonParam" style="width:220px;height:28px;padding:2px 8px;font-size:12px;border:1px solid #91caff;border-radius:6px;background:#fff;color:#0f172a">
+                    <option value="">-- 从「2.规格参数」下拉选择 --</option>
+                  </select>
+                  <select id="selMatAddCommonKind" style="width:96px;height:28px;padding:2px 6px;font-size:12px;border:1px solid #91caff;border-radius:6px;background:#fff;color:#0f172a" title="作为查表维度的匹配方式">
+                    <option value="enum">枚举 (enum)</option>
+                    <option value="range">区间 (range)</option>
+                  </select>
+                  <button type="button" class="btn ghost" id="btnMatAddCommonDim" style="padding:3px 12px;font-size:12px;color:#0969da;background:#fff;border-color:#91caff;font-weight:600">+ 添加公共参数</button>
+                </div>
+              </div>
+              <div id="matCommonDimsContainer" style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;min-height:28px">
+                <!-- 动态渲染公共参数徽标 -->
+              </div>
+            </div>
+
+            <!-- 3.3 按 No. 序号生成的限值主表清单（卡片手风琴） -->
+            <div style="margin-bottom:8px;display:flex;justify-content:space-between;align-items:center">
+              <b style="font-size:13.5px;color:#1e293b">📋 拆解出的限值主表列表（共 <span id="matMasterTableCount">0</span> 笔单指标限值主表）：</b>
+              <span style="font-size:11.5px;color:#64748b">针对每笔限值主表，自动继承公共参数，可由人工确认是否加入专属增量参数并展开编辑明细</span>
+            </div>
+
+            <div id="matMasterList" style="display:flex;flex-direction:column;gap:12px">
+              <!-- 动态渲染按 No 拆分的各个限值主表卡片 -->
+            </div>
+          </div>
+        </div>
       </div>
     </div>
     <div class="mfoot">
       <span class="pill" id="matStatMsg"></span>
       <span style="flex:1"></span>
-      <button class="btn ghost" id="matDeleteBtn" style="color:var(--danger,#d9534f);display:none">删除母表及联动子表</button>
-      <button class="btn ghost" id="matCancelBtn">取消</button>
-      <button class="btn primary" id="matSaveBtn">保存并自动切分编译</button>
+      <button class="btn ghost" id="matDeleteBtn" style="color:var(--danger,#d9534f);display:none">删除此母表及联动子表</button>
+      <button class="btn ghost" id="matCancelBtn">关闭工作台</button>
+      <button class="btn ghost" id="matSaveBtn" style="border-color:#0284c7;color:#0284c7;font-weight:600">💾 仅保存并编译当前表</button>
+      <button class="btn primary" id="matSaveNextBtn">🚀 保存编译当前表，并进入下一张表 →</button>
     </div>
   </div>
 </div>
@@ -1003,7 +1302,28 @@ function renderForm(){
       onChange();
     };
   });
-  form.querySelectorAll('input,select').forEach(el => el.addEventListener('input', onChange));
+  form.querySelectorAll('input,select').forEach(el => {
+    el.addEventListener('input', onChange);
+    el.addEventListener('change', onChange);
+  });
+
+  const threadSel = form.querySelector('select[data-code="thread"],select[data-code="bm_thread"]');
+  if(threadSel){
+    const syncThreadToD = () => {
+      const val = threadSel.value || '';
+      const m = val.match(/[Mm](\d+(?:\.\d+)?)/);
+      if(m){
+        const dVal = m[1];
+        const dInp = form.querySelector('input[data-code="d_nom"],input[data-code="d"]');
+        if(dInp){
+          dInp.value = dVal;
+          dInp.placeholder = `已由螺纹规格自动带出: ${dVal}`;
+        }
+      }
+    };
+    threadSel.addEventListener('change', syncThreadToD);
+    threadSel.addEventListener('input', syncThreadToD);
+  }
 
   // 链接里带的规格参数直接预填，例如 ?std=xxx&d_nom=13&h_nom=2
   const q = new URLSearchParams(location.search);
@@ -1038,10 +1358,19 @@ function readParams(){
       if(v !== undefined && v !== '') out[p.code] = v;
     } else {
       const el = document.querySelector(`input[data-code="${p.code}"]`);
-      const raw = el.value.trim();
+      const raw = el ? el.value.trim() : '';
       if(raw !== '') out[p.code] = Number(raw);
     }
   });
+  // 如果选了复合螺纹规格，则公称直径强制由螺纹规格派生，杜绝被界面旧输入锁死
+  const tVal = out.thread || out.bm_thread;
+  if(tVal){
+    const m = String(tVal).match(/[Mm](\d+(?:\.\d+)?)/);
+    if(m){
+      out.d_nom = Number(m[1]);
+      out.d = Number(m[1]);
+    }
+  }
   return out;
 }
 
@@ -1134,6 +1463,15 @@ async function resolve(){
     return;
   }
   S.rows = data.rows;
+  if(data.context){
+    for(const [k, v] of Object.entries(data.context)){
+      const inp = document.querySelector(`input[data-code="${k}"]`);
+      if(inp && v !== undefined && v !== null){
+        inp.value = v;
+        inp.placeholder = `已由复合参数自动推导: ${v}`;
+      }
+    }
+  }
   render();
   $('#btnExport').disabled = false;
   const ok = S.rows.filter(r => r.status === 'OK').length;
@@ -1186,14 +1524,48 @@ $('#btnExport').onclick = () => {
 };
 
 /* ================= 路由 ================= */
-const VIEWS = ['standards', 'card', 'tables', 'analyze', 'catalog', 'params'];
+const VIEWS = ['standards', 'card', 'tables', 'analyze', 'catalog', 'split-modes', 'rules-lib', 'params'];
 
 function showView(name){
   document.querySelectorAll('.view').forEach(v => { v.hidden = (v.id !== 'view-' + name); });
   $('#backHome').hidden = (name === 'standards');
-  if($('#navCatalog')) $('#navCatalog').hidden = (name === 'catalog');
+  if($('#menuBaseLib')) $('#menuBaseLib').hidden = true;
+  if($('#navCatalog')) $('#navCatalog').classList.toggle('on', name === 'catalog');
+  if($('#navSplitModes')) $('#navSplitModes').classList.toggle('on', name === 'split-modes');
+  if($('#navRulesLib')) $('#navRulesLib').classList.toggle('on', name === 'rules-lib');
+  if($('#btnBaseLib')) $('#btnBaseLib').classList.toggle('is-active', name === 'catalog' || name === 'split-modes' || name === 'rules-lib');
+  if($('#btnBaseLibText')){
+    $('#btnBaseLibText').textContent = name === 'catalog'
+      ? '基础库 · 参数库'
+      : (name === 'split-modes'
+          ? '基础库 · 拆分模式库'
+          : (name === 'rules-lib' ? '基础库 · 识别规则库' : '基础库'));
+  }
   window.scrollTo(0, 0);
 }
+
+if($('#btnBaseLib')){
+  $('#btnBaseLib').onclick = e => {
+    e.stopPropagation();
+    const m = $('#menuBaseLib');
+    if(m) m.hidden = !m.hidden;
+  };
+}
+if($('#menuBaseLib')){
+  $('#menuBaseLib').onclick = e => {
+    const item = e.target.closest('a.baselib-item');
+    if(item){
+      $('#menuBaseLib').hidden = true;
+    }
+  };
+}
+document.addEventListener('click', e => {
+  const wrap = $('#navBaseLibWrap');
+  const m = $('#menuBaseLib');
+  if(m && !m.hidden && wrap && !wrap.contains(e.target)){
+    m.hidden = true;
+  }
+});
 
 function route(){
   const raw = (location.hash || '').replace(/^#\/?/, '');
@@ -1204,6 +1576,8 @@ function route(){
   if(name === 'tables') return initTables(seg[1] || '', seg[2] || '');
   if(name === 'analyze') return initAnalyze(seg[1] || '', Number(seg[2] || 0));
   if(name === 'catalog') return initCatalog(seg[1] || '');
+  if(name === 'split-modes') return initSplitModes(seg[1] || '');
+  if(name === 'rules-lib') return initRulesLib(seg[1] || '');
   if(name === 'params') return initStdParams(seg[1] || '');
   return initStandards(seg[1] || '');
 }
@@ -1729,6 +2103,185 @@ function openWhyHtml(title, sub, html, onOk){
   $('#whyOk').onclick = () => { if(onOk) onOk(); $('#whyModal').hidden = true; };
 }
 
+/* ================= 拆分模式库 (split-modes) ================= */
+let SPLIT_MODES = [];
+
+async function initSplitModes(selected){
+  SPLIT_MODES = await (await fetch('/api/split-modes')).json();
+  $('#stdTitle').textContent = '拆分模式库';
+  $('#scope').textContent = `${SPLIT_MODES.length} 种标准预定义表格拆分模式　·　支持对任意标准 PDF 原表按需选用`;
+  document.title = '标准表格拆分模式库';
+  $('#smStat').textContent = `${SPLIT_MODES.length} 种拆分模式`;
+
+  if(!SPLIT_MODES.length){
+    $('#smList').innerHTML = '<div class="lbl" style="padding:10px 12px">暂无拆分模式</div>';
+    $('#smDetail').innerHTML = '<div class="empty-box"><div class="big">拆分模式库为空</div></div>';
+    return;
+  }
+
+  const cur = SPLIT_MODES.some(m => m.id === selected || m.code === selected)
+    ? (SPLIT_MODES.find(m => m.id === selected || m.code === selected).id)
+    : SPLIT_MODES[0].id;
+
+  $('#smList').innerHTML = SPLIT_MODES.map(m => `
+    <li data-sm="${esc(m.id)}" class="${m.id === cur ? 'on' : ''}">
+      <div class="tname" style="display:flex;align-items:center;justify-content:space-between;gap:6px">
+        <span>${esc(m.name)}</span>
+        <span class="pill" style="font-size:10.5px;padding:1px 6px;background:${esc(m.badge_color || '#0284c7')}18;color:${esc(m.badge_color || '#0284c7')};font-weight:600">${esc(m.complexity)}</span>
+      </div>
+      <span class="tmeta"><code>${esc(m.code)}</code></span>
+      <span class="tmeta" style="color:#0369a1;font-weight:500">${esc(m.output_ratio)}</span>
+    </li>`).join('');
+
+  $('#smList').onclick = e => {
+    const li = e.target.closest('[data-sm]');
+    if(li) location.hash = '#/split-modes/' + li.dataset.sm;
+  };
+  renderSplitModeDetail(cur);
+}
+
+function renderSplitModeDetail(modeId){
+  const m = SPLIT_MODES.find(x => x.id === modeId);
+  if(!m){ $('#smDetail').innerHTML = ''; return; }
+
+  const before = m.sample_before || {};
+  const beforeHeaders = (before.headers || []).map(h => `<th>${esc(h)}</th>`).join('');
+  const beforeRows = (before.rows || []).map(r => `<tr>${r.map(c => `<td>${esc(c)}</td>`).join('')}</tr>`).join('');
+
+  const afterList = m.sample_after || [];
+  const afterHtml = afterList.length ? afterList.map(t => `
+    <div style="border:1px solid #cbd5e1;border-radius:8px;background:#fff;padding:10px 12px;margin-bottom:8px">
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;flex-wrap:wrap">
+        <span class="pill" style="background:#0284c7;color:#fff;font-weight:600;font-size:11px">No.${esc(t.no)}</span>
+        <b style="font-size:13px;color:#0f172a">${esc(t.name)}</b>
+        ${t.unit ? `<span class="pill" style="font-size:11px">单位: ${esc(t.unit)}</span>` : ''}
+      </div>
+      <div style="font-size:11.5px;color:#475569;margin-bottom:6px;display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+        <span>📥 继承公共参数: <b style="color:#0284c7">${esc((t.common_dims || []).join(' × ') || '无')}</b></span>
+        ${(t.extra_dims && t.extra_dims.length) ? `<span>｜ 专属增量参数: <b style="color:#7e22ce">${esc(t.extra_dims.join(' × '))}</b></span>` : ''}
+      </div>
+      <div style="font-size:11.5px;color:#334155;background:#f8fafc;padding:6px 10px;border-radius:6px;border:1px solid #e2e8f0">
+        ${(t.preview_rows || []).map(pr => `<div style="font-family:monospace;line-height:1.6">• [${esc(pr.key)}] ⇒ 下限: <b>${esc(pr.lower)}</b> , 上限: <b>${esc(pr.upper)}</b></div>`).join('')}
+      </div>
+    </div>
+  `).join('') : `<div style="padding:24px;text-align:center;color:#64748b;background:#f8fafc;border:1px dashed #cbd5e1;border-radius:8px">⏭️ 此模式标记为「非产品判定限值表」，不拆分生成限值子表（保留原表备查）</div>`;
+
+  const examplesHtml = (m.std_examples || []).map(ex => `
+    <tr>
+      <td style="width:160px;font-weight:600;color:#0f172a"><code>${esc(ex.std)}</code></td>
+      <td style="width:220px;font-weight:600;color:#0284c7">${esc(ex.table)}</td>
+      <td style="color:#475569">${esc(ex.desc)}</td>
+    </tr>
+  `).join('') || '<tr><td colspan="3" class="muted">暂无示例</td></tr>';
+
+  $('#smDetail').innerHTML = `
+    <div class="det-head" style="margin-bottom:10px;display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+      <b style="font-size:18px;color:#0f172a">${esc(m.name)}</b>
+      <span class="pill" style="background:#f1f5f9;font-family:monospace"><code>${esc(m.code)}</code></span>
+      <span class="pill" style="background:${esc(m.badge_color || '#0284c7')}18;color:${esc(m.badge_color || '#0284c7')};font-weight:600">复杂度：${esc(m.complexity)}</span>
+      <span class="pill" style="background:#e0f2fe;color:#0369a1;font-weight:600">${esc(m.output_ratio)}</span>
+      <button class="btn ghost" id="btnEditSplitMode" style="margin-left:auto">✏️ 编辑模式说明</button>
+    </div>
+
+    <!-- 1. 适用表格形态与拆解规则 -->
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:16px">
+      <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:10px;padding:14px">
+        <div style="font-weight:600;font-size:13.5px;color:#0f172a;margin-bottom:8px">📌 适用表格形态与场景说明</div>
+        <div style="font-size:13px;color:#334155;line-height:1.75;white-space:pre-line">${esc(m.scenario)}</div>
+      </div>
+      <div style="background:#f0f9ff;border:1px solid #bae6fd;border-radius:10px;padding:14px">
+        <div style="font-weight:600;font-size:13.5px;color:#0369a1;margin-bottom:8px">⚙️ 拆解逻辑与参数继承规则</div>
+        <div style="font-size:13px;color:#0f172a;line-height:1.75;white-space:pre-line">${esc(m.rule_summary)}</div>
+      </div>
+    </div>
+
+    <!-- 2. 原表结构 vs 拆解后目标结构对比 -->
+    <div style="margin-bottom:18px">
+      <div class="panel-h" style="margin-bottom:8px">
+        <b>🔄 结构拆解前后直观对比（Before → After）</b>
+        <span class="lbl">左看标准 PDF 中的原始表格形态，右看按本模式拆解后的限值主表结构</span>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;align-items:start">
+        <div style="border:1px solid #e2e8f0;border-radius:10px;padding:12px;background:#fafaf9">
+          <div style="font-size:12.5px;font-weight:600;color:#475569;margin-bottom:8px">📄 拆解前（PDF 原表形态）：${esc(before.caption || '')}</div>
+          <div style="overflow-x:auto">
+            <table class="analyze" style="margin:0;background:#fff">
+              <thead><tr>${beforeHeaders}</tr></thead>
+              <tbody>${beforeRows}</tbody>
+            </table>
+          </div>
+        </div>
+        <div style="border:1px solid #bae6fd;border-radius:10px;padding:12px;background:#f0f9ff">
+          <div style="font-size:12.5px;font-weight:600;color:#0369a1;margin-bottom:8px">🎯 拆解后（生成的 No. 限值主表与多维明细）：</div>
+          ${afterHtml}
+        </div>
+      </div>
+    </div>
+
+    <!-- 3. 典型国家/行业标准案例 -->
+    <div>
+      <div class="panel-h" style="margin-bottom:8px">
+        <b>📚 典型国家/行业标准应用实例</b>
+        <span class="lbl">以下标准中的对应表格适合直接采用本拆分模式</span>
+      </div>
+      <table class="analyze">
+        <thead>
+          <tr>
+            <th style="width:160px">标准代号</th>
+            <th style="width:220px">典型表格名称</th>
+            <th>表格特征与拆解说明</th>
+          </tr>
+        </thead>
+        <tbody>${examplesHtml}</tbody>
+      </table>
+    </div>
+  `;
+
+  $('#btnEditSplitMode').onclick = () => {
+    const html = `
+      <div style="display:flex;flex-direction:column;gap:10px">
+        <div>
+          <div class="lbl">模式名称</div>
+          <input type="text" id="smEditName" value="${esc(m.name)}" style="width:100%">
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+          <div>
+            <div class="lbl">产出比例描述</div>
+            <input type="text" id="smEditRatio" value="${esc(m.output_ratio)}" style="width:100%">
+          </div>
+          <div>
+            <div class="lbl">复杂度标签</div>
+            <input type="text" id="smEditComp" value="${esc(m.complexity)}" style="width:100%">
+          </div>
+        </div>
+        <div>
+          <div class="lbl">适用表格形态说明</div>
+          <textarea id="smEditScenario" rows="3" style="width:100%;padding:6px;border:1px solid var(--line);border-radius:6px">${esc(m.scenario)}</textarea>
+        </div>
+        <div>
+          <div class="lbl">拆解逻辑与参数继承规则</div>
+          <textarea id="smEditRule" rows="4" style="width:100%;padding:6px;border:1px solid var(--line);border-radius:6px">${esc(m.rule_summary)}</textarea>
+        </div>
+      </div>
+    `;
+    openWhyHtml('编辑拆分模式说明 · ' + m.short_name, m.code, html, async () => {
+      const payload = {
+        name: $('#smEditName').value.trim() || m.name,
+        output_ratio: $('#smEditRatio').value.trim() || m.output_ratio,
+        complexity: $('#smEditComp').value.trim() || m.complexity,
+        scenario: $('#smEditScenario').value.trim(),
+        rule_summary: $('#smEditRule').value.trim(),
+      };
+      await fetch(`/api/split-modes/${encodeURIComponent(m.id)}`, {
+        method: 'PUT',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify(payload)
+      });
+      await initSplitModes(m.id);
+    });
+  };
+}
+
 /* ================= 参数库 ================= */
 let CAT = [];
 let CLASSMAP_G = {};      // 首页用的小类 id → 名称
@@ -1767,24 +2320,73 @@ function renderCatDetail(cid){
   if(!c.params.some(p => p.id === CATSEL)) CATSEL = c.params[0] ? c.params[0].id : null;
   const sel = c.params.find(p => p.id === CATSEL);
 
-  const paramRows = c.params.map((p, i) => `
+  const paramRows = c.params.map((p, i) => {
+    const isMulti = p.is_multi_dim === 'Y' || (p.sub_params && p.sub_params.length > 0);
+    const multiTag = isMulti ? ` <span class="pill" style="font-size:10.5px;padding:1px 5px;background:#e0f2fe;color:#0284c7;font-weight:600">多维·${p.dim_count || (p.sub_params ? p.sub_params.length : 2)}维</span>` : '';
+    const subCount = (p.sub_params && p.sub_params.length) ? `${p.sub_params.length}二级 / ` : '';
+    return `
     <tr data-p="${esc(p.id)}" class="${p.id === CATSEL ? 'on' : ''}" style="cursor:pointer">
       <td style="color:var(--muted)">${i + 1}</td>
       <td><code>${esc(p.code)}</code></td>
-      <td>${esc(p.name)}</td>
-      <td style="color:var(--muted)">${isFreeValues(p.values) ? '自由取值'
-        : p.values.length + ' 个'}</td>
-    </tr>`).join('') || '<tr><td colspan="4" class="muted" style="padding:16px">还没有参数</td></tr>';
+      <td>${esc(p.name)}${multiTag}</td>
+      <td style="color:var(--muted);white-space:nowrap">${isFreeValues(p.values) ? '自由取值' : (subCount + p.values.length + ' 个')}</td>
+    </tr>`;
+  }).join('') || '<tr><td colspan="4" class="muted" style="padding:16px">还没有参数</td></tr>';
+
+  // 二级参数展示卡片 (若当前参数为多维)
+  const subParams = (sel && sel.sub_params) || [];
+  const isMulti = sel && (sel.is_multi_dim === 'Y' || subParams.length > 0);
+  const subParamBlock = (!isMulti || !subParams.length) ? '' : `
+    <div style="background:#f0f7ff;border:1px solid #bae0fd;border-radius:8px;padding:12px;margin-bottom:12px">
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
+        <span style="font-weight:700;font-size:13px;color:#0369a1">🧩 二级参数列表 (${subParams.length} 维坐标定义)</span>
+        <span class="pill" style="font-size:11px;background:#e0f2fe;color:#0284c7;font-weight:600">多维参数</span>
+        <span style="font-size:12px;color:var(--muted);margin-left:auto">当前主参数的所有定值均按此坐标顺序拆解</span>
+      </div>
+      <div style="display:grid;grid-template-columns:repeat(auto-fill, minmax(200px, 1fr));gap:8px">
+        ${subParams.map(sp => `
+          <div style="background:#fff;border:1px solid #d0e7fb;border-radius:6px;padding:8px 10px;font-size:12px">
+            <div style="display:flex;align-items:center;gap:6px;margin-bottom:4px">
+              <span class="pill" style="font-size:10px;padding:1px 5px;background:#0284c7;color:#fff;font-weight:600">第 ${sp.seq} 坐标</span>
+              <b style="color:#0f172a">${esc(sp.name)}</b>
+            </div>
+            <div style="color:var(--muted);font-size:11.5px;display:flex;justify-content:space-between">
+              <span>代码: <code>${esc(sp.code)}</code></span>
+              <span>单位/说明: ${esc(sp.help || '—')}</span>
+            </div>
+          </div>`).join('')}
+      </div>
+    </div>`;
+
+  // 判断是否多维带坐标拆解
+  const hasCoordVals = isMulti && sel && sel.values.some(v => v.coord1_val || v.coord2_val || v.coord3_val || v.coord4_val);
+  const coordHeaders = !hasCoordVals ? '' : subParams.map(sp => `<th style="background:#f8fafc;position:sticky;top:0;z-index:2;white-space:nowrap">${esc(sp.name || ('坐标' + sp.seq))}</th>`).join('');
 
   const valRows = !sel ? '' : (sel.values.length
     ? sel.values.map((v, i) => `
-      <tr>
-        <td style="color:var(--muted)">${v.seq ?? i + 1}</td>
+      <tr data-val-i="${i}" id="catValRow_${i}">
+        <td style="color:var(--muted);width:56px">${v.seq ?? i + 1}</td>
         <td><code>${esc(v.sym ?? '')}</code></td>
-        <td>${esc(v.val ?? '')}${isFreeValues(sel.values)
-          ? '<span class="muted">（值不固定）</span>' : ''}</td>
+        <td style="font-weight:600">${esc(v.val ?? '')}${isFreeValues(sel.values) ? '<span class="muted">（值不固定）</span>' : ''}</td>
+        ${hasCoordVals ? `
+          <td style="color:#0284c7">${esc(v.coord1_val || '—')}</td>
+          <td style="color:#0284c7;font-weight:600">${esc(v.coord2_val || '—')}</td>
+          <td style="color:#0284c7">${esc(v.coord3_val || '—')}</td>
+          <td style="color:#0284c7">${esc(v.coord4_val || '—')}</td>
+        ` : ''}
       </tr>`).join('')
-    : '<tr><td colspan="3" class="muted" style="padding:16px">这个参数还没有取值</td></tr>');
+    : `<tr><td colspan="${hasCoordVals ? 7 : 3}" class="muted" style="padding:16px">这个参数还没有取值</td></tr>`);
+
+  // 下拉选择项
+  const valSelectOpts = !sel || !sel.values.length ? '' : `
+    <select id="catValJump" style="flex:1;max-width:280px;font-size:12px;padding:4px 8px;border-radius:6px;border:1px solid #cbd5e1;background:#fff;cursor:pointer">
+      <option value="">▼ 下拉浏览/定位定值 (共 ${sel.values.length} 项)...</option>
+      ${sel.values.map((v, i) => {
+        const coords = [v.coord1_val, v.coord2_val, v.coord3_val, v.coord4_val].filter(Boolean).join(' | ');
+        const label = `${v.seq ?? (i+1)}. ${v.val}${coords ? '  [' + coords + ']' : ''}`;
+        return `<option value="${i}">${esc(label)}</option>`;
+      }).join('')}
+    </select>`;
 
   $('#catDetail').innerHTML = `
     <div class="detail-title">${esc(c.name || c.code)}</div>
@@ -1797,23 +2399,42 @@ function renderCatDetail(cid){
 
     <div class="cat-grid">
       <div>
-        <div class="panel-h"><b>参数名称</b><span class="lbl">点一行看取值</span></div>
-        <table class="analyze">
-          <thead><tr><th style="width:44px">#</th><th style="width:120px">参数代码</th>
-            <th>参数名称</th><th style="width:80px">取值</th></tr></thead>
-          <tbody id="catParams">${paramRows}</tbody>
-        </table>
+        <div class="panel-h">
+          <b>参数列表</b>
+          <input type="text" id="catParamFilter" placeholder="搜索参数..." style="max-width:140px;font-size:12px;padding:3px 8px;border:1px solid #cbd5e1;border-radius:6px;margin-left:auto">
+        </div>
+        <div style="max-height:560px;overflow-y:auto;border:1px solid var(--line,#e2e8f0);border-radius:8px">
+          <table class="analyze" style="margin:0">
+            <thead style="position:sticky;top:0;background:#f8fafc;z-index:2;box-shadow:0 1px 2px rgba(0,0,0,.05)">
+              <tr><th style="width:40px">#</th><th style="width:110px">代码</th><th>参数名称</th><th style="width:100px">取值统计</th></tr>
+            </thead>
+            <tbody id="catParams">${paramRows}</tbody>
+          </table>
+        </div>
       </div>
       <div>
-        <div class="panel-h"><b>参数取值</b>
-          <span class="lbl">${sel ? esc(sel.code) + '　' + esc(sel.name) : ''}</span>
-          ${sel ? '<button class="btn ghost" id="btnEditVals" style="margin-left:auto">编辑取值</button>' : ''}
+        ${subParamBlock}
+        <div class="panel-h" style="flex-wrap:wrap;gap:8px">
+          <b>参数定值</b>
+          <span class="lbl" style="font-weight:600;color:#0f172a">${sel ? esc(sel.code) + ' · ' + esc(sel.name) : ''}</span>
+          ${valSelectOpts}
+          <input type="text" id="catValFilter" placeholder="过滤定值..." style="max-width:110px;font-size:12px;padding:4px 8px;border-radius:6px;border:1px solid #cbd5e1">
+          ${sel ? '<button class="btn ghost" id="btnEditVals" style="margin-left:auto;padding:3px 10px;font-size:12px">编辑取值</button>' : ''}
         </div>
-        <table class="analyze">
-          <thead><tr><th style="width:64px">顺序号</th><th style="width:140px">参数符号</th>
-            <th>参数定值</th></tr></thead>
-          <tbody>${valRows}</tbody>
-        </table>
+        <div id="catValWrap" style="max-height:420px;overflow:auto;border:1px solid var(--line,#e2e8f0);border-radius:8px">
+          <table class="analyze" style="margin:0">
+            <thead style="position:sticky;top:0;background:#f8fafc;z-index:2;box-shadow:0 1px 2px rgba(0,0,0,.05)">
+              <tr>
+                <th style="width:56px">序号</th>
+                <th style="width:130px">参数符号</th>
+                <th>参数定值</th>
+                ${coordHeaders}
+              </tr>
+            </thead>
+            <tbody id="catValTbody">${valRows}</tbody>
+          </table>
+        </div>
+        ${sel && sel.values.length > 30 ? `<div class="lbl" style="margin-top:6px;text-align:right">共 ${sel.values.length} 条定值（已在容器内滚动显示，无需滚动全页）</div>` : ''}
       </div>
     </div>
 
@@ -1829,6 +2450,47 @@ function renderCatDetail(cid){
     CATSEL = tr.dataset.p;
     renderCatDetail(cid);
   };
+
+  // 左侧参数搜索过滤
+  const pFilter = $('#catParamFilter');
+  if(pFilter){
+    pFilter.oninput = e => {
+      const q = e.target.value.trim().toLowerCase();
+      document.querySelectorAll('#catParams tr').forEach(tr => {
+        const text = tr.textContent.toLowerCase();
+        tr.style.display = (!q || text.includes(q)) ? '' : 'none';
+      });
+    };
+  }
+
+  // 右侧下拉快速定位定值
+  const valJump = $('#catValJump');
+  if(valJump){
+    valJump.onchange = e => {
+      const idx = e.target.value;
+      if(!idx) return;
+      const targetRow = document.getElementById(`catValRow_${idx}`);
+      if(targetRow){
+        targetRow.scrollIntoView({behavior: 'smooth', block: 'center'});
+        targetRow.style.transition = 'background 0.3s';
+        targetRow.style.background = '#fef08a';
+        setTimeout(() => { targetRow.style.background = ''; }, 1800);
+      }
+    };
+  }
+
+  // 右侧定值搜索过滤
+  const vFilter = $('#catValFilter');
+  if(vFilter){
+    vFilter.oninput = e => {
+      const q = e.target.value.trim().toLowerCase();
+      document.querySelectorAll('#catValTbody tr').forEach(tr => {
+        const text = tr.textContent.toLowerCase();
+        tr.style.display = (!q || text.includes(q)) ? '' : 'none';
+      });
+    };
+  }
+
   $('#btnEditVals') && ($('#btnEditVals').onclick = () => {
     openVals({type: 'catalog', paramId: sel.id, classId: c.id, title: sel.code, sub: sel.name,
               list: sel.values.map((v, i) => ({seq: v.seq ?? (i + 1), sym: v.sym, val: v.val}))});
@@ -1912,132 +2574,767 @@ function showWhy(it){
 }
 if($('#whyClose')) $('#whyClose').onclick = () => { $('#whyModal').hidden = true; };
 
-async function showRules(){
-  $('#whyTitle').textContent = '检查项与参数识别规则配置';
-  $('#whySub').textContent = '可直接手工修改保存，无需改动源码，保存后即刻全局生效';
+/* ================= 基础库：标准分析 4 步识别规则库 & 单标准步骤规则弹窗 ================= */
+const RL_STEPS = [
+  {
+    step: 1,
+    key: 'step1_items',
+    name: '① 检查项识别规则',
+    short: '第 1 步 · 检查项',
+    badge: '条款切分 · 检项词典',
+    desc: '控制标准 PDF 条款切分、可测量检项命中词、检验动作词、排除章节/过程小节以及检项自动分类词典。'
+  },
+  {
+    step: 2,
+    key: 'step2_params',
+    name: '② 规格参数识别规则',
+    short: '第 2 步 · 规格参数',
+    badge: '正文正则 → 参数代码',
+    desc: '控制从标准正文中自动扫描并推荐规格参数（正则表达式 → 参数代码、名称、类型、单位与默认枚举值）。'
+  },
+  {
+    step: 3,
+    key: 'step3_limits',
+    name: '③ 限值与表格拆解规则',
+    short: '第 3 步 · 限值与拆表',
+    badge: 'Min/Max/Avg · 维度映射',
+    desc: '控制表格拆解时的特征值列识别（Min/Max/Avg/Nom/Typ/Ref 等）、表头维度参数自动映射及 5 种拆分模式判别词。'
+  },
+  {
+    step: 4,
+    key: 'step4_links',
+    name: '④ 检项与限值关联规则',
+    short: '第 4 步 · 自动关联',
+    badge: '同名绑定 · 同义词库',
+    desc: '控制检查项目与拆分后的限值子表之间的自动绑定策略及专业指标同义词/代号映射字典（如 抗拉强度 ↔ Rm）。'
+  }
+];
+
+let RL_STATE = {
+  baseCfg: null,
+  curKey: 'step1_items',
+  modalStep: 1,
+};
+
+function splitRuleWords(raw){
+  return String(raw || '').split(/[\n,，、;；]+/).map(s => s.trim()).filter(Boolean);
+}
+
+function renderStepRuleFormHtml(stepNum, cfg){
+  if(stepNum === 1){
+    const metricWords = (cfg.metric_words || []).join('、');
+    const actionWords = (cfg.action_words || []).join('、');
+    const sectionTitles = (cfg.section_titles || []).join('、');
+    const processTitles = (cfg.process_titles || []).join('、');
+    const skipTitles = (cfg.skip_titles || []).join('、');
+    const gradeClauses = (cfg.grade_clauses || []).join('、');
+    const cats = cfg.categories || [];
+    const collapse = cfg.collapse_subclauses !== false;
+
+    return `
+      <div style="display:flex;flex-direction:column;gap:14px">
+        <div style="display:flex;align-items:center;justify-content:space-between;background:#f0f9ff;border:1px solid #bae6fd;border-radius:8px;padding:10px 14px">
+          <div>
+            <b style="color:#0369a1;font-size:13px">父子条款自动折叠</b>
+            <span class="hint" style="margin-left:8px">当上级条款已被识别为检查项目时，将其下属子条款自动折叠为方法步骤</span>
+          </div>
+          <label style="display:inline-flex;align-items:center;gap:6px;cursor:pointer;font-weight:600;color:#0369a1">
+            <input type="checkbox" class="chk" id="rfCollapseSub" ${collapse ? 'checked' : ''}> 启用父子折叠
+          </label>
+        </div>
+
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+          <div style="background:#fafbfd;border:1px solid var(--line);border-radius:8px;padding:12px">
+            <div style="font-weight:600;font-size:13px;margin-bottom:4px;color:var(--brand)">1. 检验对象词（metric_words）</div>
+            <div class="hint" style="margin-bottom:6px">标题包含这些词即判定为可测量检查项目（顿号/逗号/换行分隔）：</div>
+            <textarea id="rfMetricWords" style="width:100%;height:88px;border:1px solid var(--line);border-radius:6px;padding:8px;font-size:12.5px;line-height:1.5">${esc(metricWords)}</textarea>
+          </div>
+          <div style="background:#fafbfd;border:1px solid var(--line);border-radius:8px;padding:12px">
+            <div style="font-weight:600;font-size:13px;margin-bottom:4px;color:var(--brand)">2. 检验动作词（action_words）</div>
+            <div class="hint" style="margin-bottom:6px">标题含这些检验动作词时也作为检项候选依据：</div>
+            <textarea id="rfActionWords" style="width:100%;height:88px;border:1px solid var(--line);border-radius:6px;padding:8px;font-size:12.5px;line-height:1.5">${esc(actionWords)}</textarea>
+          </div>
+        </div>
+
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+          <div style="background:#fafbfd;border:1px solid var(--line);border-radius:8px;padding:12px">
+            <div style="font-weight:600;font-size:13px;margin-bottom:4px;color:#d9534f">3. 排除章节标题（section_titles）</div>
+            <div class="hint" style="margin-bottom:6px">整章讲规矩/通则的标题自动排除：</div>
+            <textarea id="rfSectionTitles" style="width:100%;height:74px;border:1px solid var(--line);border-radius:6px;padding:8px;font-size:12.5px;line-height:1.5">${esc(sectionTitles)}</textarea>
+          </div>
+          <div style="background:#fafbfd;border:1px solid var(--line);border-radius:8px;padding:12px">
+            <div style="font-weight:600;font-size:13px;margin-bottom:4px;color:#d9534f">4. 排除过程性小节（process_titles）</div>
+            <div class="hint" style="margin-bottom:6px">讲试验设备、程序、报告而非检验对象本身的小节自动排除：</div>
+            <textarea id="rfProcessTitles" style="width:100%;height:74px;border:1px solid var(--line);border-radius:6px;padding:8px;font-size:12.5px;line-height:1.5">${esc(processTitles)}</textarea>
+          </div>
+        </div>
+
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+          <div style="background:#fafbfd;border:1px solid var(--line);border-radius:8px;padding:12px">
+            <div style="font-weight:600;font-size:13px;margin-bottom:4px;color:#64748b">5. 直接跳过标题前缀（skip_titles）</div>
+            <textarea id="rfSkipTitles" style="width:100%;height:52px;border:1px solid var(--line);border-radius:6px;padding:8px;font-size:12.5px">${esc(skipTitles)}</textarea>
+          </div>
+          <div style="background:#fafbfd;border:1px solid var(--line);border-radius:8px;padding:12px">
+            <div style="font-weight:600;font-size:13px;margin-bottom:4px;color:#64748b">6. 性能等级同形号排除（grade_clauses）</div>
+            <textarea id="rfGradeClauses" style="width:100%;height:52px;border:1px solid var(--line);border-radius:6px;padding:8px;font-size:12.5px">${esc(gradeClauses)}</textarea>
+          </div>
+        </div>
+
+        <div style="background:#fff;border:1px solid var(--line);border-radius:8px;padding:12px">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
+            <div>
+              <b style="font-size:13px;color:#0f172a">7. 检项自动分类词典（categories）</b>
+              <span class="hint" style="margin-left:8px">按标题与正文命中的关键词自动归入「尺寸 / 形位 / 性能 / 表面 / 标记」</span>
+            </div>
+            <button type="button" class="btn ghost" id="rfAddCatRow" style="padding:4px 10px;font-size:12px">+ 新增分类</button>
+          </div>
+          <table class="analyze" id="rfCatTable">
+            <thead>
+              <tr>
+                <th style="width:130px">分类名称</th>
+                <th>匹配关键词（顿号或逗号分隔）</th>
+                <th style="width:42px"></th>
+              </tr>
+            </thead>
+            <tbody>
+              ${cats.map(c => `
+                <tr>
+                  <td><input type="text" class="rf-cat-name" value="${esc(c.name || '')}" placeholder="如：性能"></td>
+                  <td><input type="text" class="rf-cat-words" value="${esc((c.words || []).join('、'))}" placeholder="关键词，以顿号分隔"></td>
+                  <td style="text-align:center"><button type="button" class="rowdel rf-row-del" title="删除">×</button></td>
+                </tr>
+              `).join('')}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    `;
+  }
+
+  if(stepNum === 2){
+    const pRules = cfg.param_rules || [];
+    const autoImport = cfg.auto_import_class_params !== false;
+    return `
+      <div style="display:flex;flex-direction:column;gap:14px">
+        <div style="display:flex;align-items:center;justify-content:space-between;background:#f0f9ff;border:1px solid #bae6fd;border-radius:8px;padding:10px 14px">
+          <div>
+            <b style="color:#0369a1;font-size:13px">结合产品小类参数库推荐</b>
+            <span class="hint" style="margin-left:8px">除正文正则扫描外，支持一键从当前标准绑定的「产品小类」参数库带入规格参数</span>
+          </div>
+          <label style="display:inline-flex;align-items:center;gap:6px;cursor:pointer;font-weight:600;color:#0369a1">
+            <input type="checkbox" class="chk" id="rfAutoClassParams" ${autoImport ? 'checked' : ''}> 启用小类参数联动
+          </label>
+        </div>
+
+        <div style="background:#fff;border:1px solid var(--line);border-radius:8px;padding:12px">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
+            <div>
+              <b style="font-size:13.5px;color:#0f172a">正文规格参数识别规则表（param_rules）</b>
+              <span class="hint" style="margin-left:8px">当标准正文任意页命中「正则匹配词」时，自动在第 2 步推荐对应规格参数</span>
+            </div>
+            <button type="button" class="btn ghost" id="rfAddParamRuleRow" style="padding:4px 10px;font-size:12px">+ 新增参数识别规则</button>
+          </div>
+          <table class="analyze" id="rfParamRuleTable">
+            <thead>
+              <tr>
+                <th style="width:210px">正文匹配正则（pattern）</th>
+                <th style="width:120px">参数代码（code）</th>
+                <th style="width:130px">参数名称（name）</th>
+                <th style="width:90px">类型</th>
+                <th style="width:70px">单位</th>
+                <th>默认枚举可选值（逗号分隔）</th>
+                <th style="width:55px;text-align:center">必填</th>
+                <th style="width:38px"></th>
+              </tr>
+            </thead>
+            <tbody>
+              ${pRules.map(r => `
+                <tr>
+                  <td><input type="text" class="rf-pr-pat" value="${esc(r.pattern || '')}" placeholder="如：螺纹公称直径|公称直径"></td>
+                  <td><input type="text" class="rf-pr-code" value="${esc(r.code || '')}" placeholder="如：d_nom"></td>
+                  <td><input type="text" class="rf-pr-name" value="${esc(r.name || '')}" placeholder="如：公称直径 d"></td>
+                  <td>
+                    <select class="rf-pr-type">
+                      <option value="number" ${(r.type || 'number') === 'number' ? 'selected' : ''}>number</option>
+                      <option value="enum" ${r.type === 'enum' ? 'selected' : ''}>enum</option>
+                    </select>
+                  </td>
+                  <td><input type="text" class="rf-pr-unit" value="${esc(r.unit || '')}" placeholder="mm"></td>
+                  <td><input type="text" class="rf-pr-opts" value="${esc((r.options || []).join(', '))}" placeholder="枚举值，如：4.8, 8.8, 10.9"></td>
+                  <td style="text-align:center"><input type="checkbox" class="chk rf-pr-req" ${r.required ? 'checked' : ''}></td>
+                  <td style="text-align:center"><button type="button" class="rowdel rf-row-del" title="删除">×</button></td>
+                </tr>
+              `).join('')}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    `;
+  }
+
+  if(stepNum === 3){
+    const sqList = cfg.stat_qualifiers || [];
+    const dhList = cfg.dim_hints || [];
+    const skipKw = (cfg.skip_table_keywords || []).join('、');
+    const compKw = (cfg.composite_no_keywords || []).join('、');
+    const crossKw = (cfg.cross_matrix_keywords || []).join('、');
+
+    return `
+      <div style="display:flex;flex-direction:column;gap:14px">
+        <div style="background:#fff;border:1px solid var(--line);border-radius:8px;padding:12px">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
+            <div>
+              <b style="font-size:13.5px;color:#0f172a">1. 表格特征值/统计列拆解词典（stat_qualifiers）</b>
+              <span class="hint" style="margin-left:8px">模式 1~4 遇到表头含以下特征词时，自动拆分为「表格标题/指标名 + 特征值代码」限值表（如 Min / Max / Avg / Nom）</span>
+            </div>
+            <button type="button" class="btn ghost" id="rfAddStatQualRow" style="padding:4px 10px;font-size:12px">+ 新增特征值类型</button>
+          </div>
+          <table class="analyze" id="rfStatQualTable">
+            <thead>
+              <tr>
+                <th style="width:120px">特征值后缀（code）</th>
+                <th style="width:160px">特征说明（name）</th>
+                <th>表头/子表头识别词（顿号或逗号分隔）</th>
+                <th style="width:38px"></th>
+              </tr>
+            </thead>
+            <tbody>
+              ${sqList.map(sq => `
+                <tr>
+                  <td><input type="text" class="rf-sq-code" value="${esc(sq.code || '')}" placeholder="如：Avg"></td>
+                  <td><input type="text" class="rf-sq-name" value="${esc(sq.name || '')}" placeholder="如：平均值 / 均值"></td>
+                  <td><input type="text" class="rf-sq-words" value="${esc((sq.words || []).join('、'))}" placeholder="如：avg、average、mean、平均、平均值、均值"></td>
+                  <td style="text-align:center"><button type="button" class="rowdel rf-row-del" title="删除">×</button></td>
+                </tr>
+              `).join('')}
+            </tbody>
+          </table>
+        </div>
+
+        <div style="background:#fff;border:1px solid var(--line);border-radius:8px;padding:12px">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
+            <div>
+              <b style="font-size:13.5px;color:#0f172a">2. 表头维度参数自动映射规则（dim_hints）</b>
+              <span class="hint" style="margin-left:8px">表格表头匹配正则时，自动将该列映射为对应的查表维度参数</span>
+            </div>
+            <button type="button" class="btn ghost" id="rfAddDimHintRow" style="padding:4px 10px;font-size:12px">+ 新增维度映射</button>
+          </div>
+          <table class="analyze" id="rfDimHintTable">
+            <thead>
+              <tr>
+                <th>表头匹配正则（pattern）</th>
+                <th style="width:160px">映射参数代码（code）</th>
+                <th style="width:160px">参数名称（name）</th>
+                <th style="width:38px"></th>
+              </tr>
+            </thead>
+            <tbody>
+              ${dhList.map(dh => `
+                <tr>
+                  <td><input type="text" class="rf-dh-pat" value="${esc(dh.pattern || '')}" placeholder="如：螺纹规格|公称直径|d\\b"></td>
+                  <td><input type="text" class="rf-dh-code" value="${esc(dh.code || '')}" placeholder="如：d_nom"></td>
+                  <td><input type="text" class="rf-dh-name" value="${esc(dh.name || '')}" placeholder="如：公称直径 d"></td>
+                  <td style="text-align:center"><button type="button" class="rowdel rf-row-del" title="删除">×</button></td>
+                </tr>
+              `).join('')}
+            </tbody>
+          </table>
+        </div>
+
+        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px">
+          <div style="background:#fafbfd;border:1px solid var(--line);border-radius:8px;padding:12px">
+            <div style="font-weight:600;font-size:12.5px;margin-bottom:4px;color:#64748b">3. 非判定表推荐词（模式 5）</div>
+            <textarea id="rfSkipTblKw" style="width:100%;height:64px;border:1px solid var(--line);border-radius:6px;padding:8px;font-size:12px">${esc(skipKw)}</textarea>
+          </div>
+          <div style="background:#fafbfd;border:1px solid var(--line);border-radius:8px;padding:12px">
+            <div style="font-weight:600;font-size:12.5px;margin-bottom:4px;color:#7e22ce">4. 主从复合表推荐词（模式 4）</div>
+            <textarea id="rfCompTblKw" style="width:100%;height:64px;border:1px solid var(--line);border-radius:6px;padding:8px;font-size:12px">${esc(compKw)}</textarea>
+          </div>
+          <div style="background:#fafbfd;border:1px solid var(--line);border-radius:8px;padding:12px">
+            <div style="font-weight:600;font-size:12.5px;margin-bottom:4px;color:#d97706">5. 二维交叉表推荐词（模式 3）</div>
+            <textarea id="rfCrossTblKw" style="width:100%;height:64px;border:1px solid var(--line);border-radius:6px;padding:8px;font-size:12px">${esc(crossKw)}</textarea>
+          </div>
+        </div>
+      </div>
+    `;
+  }
+
+  // Step 4: 检项与限值关联规则
+  const byName = cfg.auto_bind_by_name !== false;
+  const byTref = cfg.auto_bind_by_table_ref !== false;
+  const autoCreate = cfg.auto_create_missing_item !== false;
+  const synList = cfg.synonym_rules || [];
+
+  return `
+    <div style="display:flex;flex-direction:column;gap:14px">
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px">
+        <label style="display:flex;align-items:flex-start;gap:8px;background:#f0f9ff;border:1px solid #bae6fd;border-radius:8px;padding:10px 12px;cursor:pointer">
+          <input type="checkbox" class="chk" id="rfBindByName" ${byName ? 'checked' : ''} style="margin-top:3px">
+          <div>
+            <b style="color:#0369a1;font-size:12.5px;display:block">按名称/去特征后缀匹配</b>
+            <span class="hint">自动将「表面渗碳层深度Min」等限值表关联到对应检项</span>
+          </div>
+        </label>
+        <label style="display:flex;align-items:flex-start;gap:8px;background:#f0f9ff;border:1px solid #bae6fd;border-radius:8px;padding:10px 12px;cursor:pointer">
+          <input type="checkbox" class="chk" id="rfBindByTref" ${byTref ? 'checked' : ''} style="margin-top:3px">
+          <div>
+            <b style="color:#0369a1;font-size:12.5px;display:block">按正文引用表号匹配</b>
+            <span class="hint">检项正文提到「按表3规定」时自动关联表3拆出的限值表</span>
+          </div>
+        </label>
+        <label style="display:flex;align-items:flex-start;gap:8px;background:#f0f9ff;border:1px solid #bae6fd;border-radius:8px;padding:10px 12px;cursor:pointer">
+          <input type="checkbox" class="chk" id="rfAutoCreateItem" ${autoCreate ? 'checked' : ''} style="margin-top:3px">
+          <div>
+            <b style="color:#0369a1;font-size:12.5px;display:block">拆表指标自动补建检项</b>
+            <span class="hint">当原表拆出的限值表尚无对应检项时自动创建并绑定</span>
+          </div>
+        </label>
+      </div>
+
+      <div style="background:#fff;border:1px solid var(--line);border-radius:8px;padding:12px">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
+          <div>
+            <b style="font-size:13.5px;color:#0f172a">检项名称 ↔ 限值表代号/同义词映射表（synonym_rules）</b>
+            <span class="hint" style="margin-left:8px">解决标准正文检项名称（如「抗拉强度」）与表头简写（如「Rm」、「σb」）不一致时的自动关联</span>
+          </div>
+          <button type="button" class="btn ghost" id="rfAddSynRow" style="padding:4px 10px;font-size:12px">+ 新增同义词映射</button>
+        </div>
+        <table class="analyze" id="rfSynTable">
+          <thead>
+            <tr>
+              <th style="width:220px">检查项目关键词（item_keyword）</th>
+              <th>对应限值表名称 / 符号别名（table_aliases，顿号或逗号分隔）</th>
+              <th style="width:38px"></th>
+            </tr>
+          </thead>
+          <tbody>
+            ${synList.map(sr => `
+              <tr>
+                <td><input type="text" class="rf-syn-kw" value="${esc(sr.item_keyword || '')}" placeholder="如：抗拉强度"></td>
+                <td><input type="text" class="rf-syn-aliases" value="${esc((sr.table_aliases || []).join('、'))}" placeholder="如：Rm、σb、抗拉、抗拉强度"></td>
+                <td style="text-align:center"><button type="button" class="rowdel rf-row-del" title="删除">×</button></td>
+              </tr>
+            `).join('')}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  `;
+}
+
+function wireStepRuleFormEvents(container){
+  container.onclick = e => {
+    const delBtn = e.target.closest('.rf-row-del');
+    if(delBtn){
+      const tr = delBtn.closest('tr');
+      if(tr) tr.remove();
+      return;
+    }
+    if(e.target.closest('#rfAddCatRow')){
+      const tb = container.querySelector('#rfCatTable tbody');
+      if(tb){
+        tb.insertAdjacentHTML('beforeend', `
+          <tr>
+            <td><input type="text" class="rf-cat-name" value="" placeholder="新分类名"></td>
+            <td><input type="text" class="rf-cat-words" value="" placeholder="关键词，以顿号分隔"></td>
+            <td style="text-align:center"><button type="button" class="rowdel rf-row-del" title="删除">×</button></td>
+          </tr>
+        `);
+      }
+    }
+    if(e.target.closest('#rfAddParamRuleRow')){
+      const tb = container.querySelector('#rfParamRuleTable tbody');
+      if(tb){
+        tb.insertAdjacentHTML('beforeend', `
+          <tr>
+            <td><input type="text" class="rf-pr-pat" value="" placeholder="如：对边宽度|s"></td>
+            <td><input type="text" class="rf-pr-code" value="" placeholder="如：s_nom"></td>
+            <td><input type="text" class="rf-pr-name" value="" placeholder="如：对边宽度 s"></td>
+            <td>
+              <select class="rf-pr-type">
+                <option value="number" selected>number</option>
+                <option value="enum">enum</option>
+              </select>
+            </td>
+            <td><input type="text" class="rf-pr-unit" value="mm" placeholder="mm"></td>
+            <td><input type="text" class="rf-pr-opts" value="" placeholder="枚举值，逗号分隔"></td>
+            <td style="text-align:center"><input type="checkbox" class="chk rf-pr-req" checked></td>
+            <td style="text-align:center"><button type="button" class="rowdel rf-row-del" title="删除">×</button></td>
+          </tr>
+        `);
+      }
+    }
+    if(e.target.closest('#rfAddStatQualRow')){
+      const tb = container.querySelector('#rfStatQualTable tbody');
+      if(tb){
+        tb.insertAdjacentHTML('beforeend', `
+          <tr>
+            <td><input type="text" class="rf-sq-code" value="" placeholder="如：Avg"></td>
+            <td><input type="text" class="rf-sq-name" value="" placeholder="如：平均值"></td>
+            <td><input type="text" class="rf-sq-words" value="" placeholder="如：avg、平均、均值"></td>
+            <td style="text-align:center"><button type="button" class="rowdel rf-row-del" title="删除">×</button></td>
+          </tr>
+        `);
+      }
+    }
+    if(e.target.closest('#rfAddDimHintRow')){
+      const tb = container.querySelector('#rfDimHintTable tbody');
+      if(tb){
+        tb.insertAdjacentHTML('beforeend', `
+          <tr>
+            <td><input type="text" class="rf-dh-pat" value="" placeholder="如：公称直径|d\\b"></td>
+            <td><input type="text" class="rf-dh-code" value="" placeholder="如：d_nom"></td>
+            <td><input type="text" class="rf-dh-name" value="" placeholder="如：公称直径 d"></td>
+            <td style="text-align:center"><button type="button" class="rowdel rf-row-del" title="删除">×</button></td>
+          </tr>
+        `);
+      }
+    }
+    if(e.target.closest('#rfAddSynRow')){
+      const tb = container.querySelector('#rfSynTable tbody');
+      if(tb){
+        tb.insertAdjacentHTML('beforeend', `
+          <tr>
+            <td><input type="text" class="rf-syn-kw" value="" placeholder="如：冲击吸收功"></td>
+            <td><input type="text" class="rf-syn-aliases" value="" placeholder="如：KV2、AKV、冲击功"></td>
+            <td style="text-align:center"><button type="button" class="rowdel rf-row-del" title="删除">×</button></td>
+          </tr>
+        `);
+      }
+    }
+  };
+}
+
+function readStepRuleFormPayload(container, stepNum, baseCfg){
+  const out = JSON.parse(JSON.stringify(baseCfg || {}));
+  if(stepNum === 1){
+    out.collapse_subclauses = !!container.querySelector('#rfCollapseSub')?.checked;
+    out.metric_words = splitRuleWords(container.querySelector('#rfMetricWords')?.value);
+    out.action_words = splitRuleWords(container.querySelector('#rfActionWords')?.value);
+    out.section_titles = splitRuleWords(container.querySelector('#rfSectionTitles')?.value);
+    out.process_titles = splitRuleWords(container.querySelector('#rfProcessTitles')?.value);
+    out.skip_titles = splitRuleWords(container.querySelector('#rfSkipTitles')?.value);
+    out.grade_clauses = splitRuleWords(container.querySelector('#rfGradeClauses')?.value);
+    out.categories = [...container.querySelectorAll('#rfCatTable tbody tr')].map(tr => ({
+      name: (tr.querySelector('.rf-cat-name')?.value || '').trim(),
+      words: splitRuleWords(tr.querySelector('.rf-cat-words')?.value),
+    })).filter(c => c.name);
+  } else if(stepNum === 2){
+    out.auto_import_class_params = !!container.querySelector('#rfAutoClassParams')?.checked;
+    out.param_rules = [...container.querySelectorAll('#rfParamRuleTable tbody tr')].map(tr => ({
+      pattern: (tr.querySelector('.rf-pr-pat')?.value || '').trim(),
+      code: (tr.querySelector('.rf-pr-code')?.value || '').trim(),
+      name: (tr.querySelector('.rf-pr-name')?.value || '').trim(),
+      type: tr.querySelector('.rf-pr-type')?.value || 'number',
+      unit: (tr.querySelector('.rf-pr-unit')?.value || '').trim(),
+      options: splitRuleWords(tr.querySelector('.rf-pr-opts')?.value),
+      required: !!tr.querySelector('.rf-pr-req')?.checked,
+    })).filter(r => r.pattern && r.code);
+  } else if(stepNum === 3){
+    out.stat_qualifiers = [...container.querySelectorAll('#rfStatQualTable tbody tr')].map(tr => ({
+      code: (tr.querySelector('.rf-sq-code')?.value || '').trim(),
+      name: (tr.querySelector('.rf-sq-name')?.value || '').trim(),
+      words: splitRuleWords(tr.querySelector('.rf-sq-words')?.value),
+    })).filter(sq => sq.code);
+    out.dim_hints = [...container.querySelectorAll('#rfDimHintTable tbody tr')].map(tr => ({
+      pattern: (tr.querySelector('.rf-dh-pat')?.value || '').trim(),
+      code: (tr.querySelector('.rf-dh-code')?.value || '').trim(),
+      name: (tr.querySelector('.rf-dh-name')?.value || '').trim(),
+    })).filter(dh => dh.pattern && dh.code);
+    out.skip_table_keywords = splitRuleWords(container.querySelector('#rfSkipTblKw')?.value);
+    out.composite_no_keywords = splitRuleWords(container.querySelector('#rfCompTblKw')?.value);
+    out.cross_matrix_keywords = splitRuleWords(container.querySelector('#rfCrossTblKw')?.value);
+  } else if(stepNum === 4){
+    out.auto_bind_by_name = !!container.querySelector('#rfBindByName')?.checked;
+    out.auto_bind_by_table_ref = !!container.querySelector('#rfBindByTref')?.checked;
+    out.auto_create_missing_item = !!container.querySelector('#rfAutoCreateItem')?.checked;
+    out.synonym_rules = [...container.querySelectorAll('#rfSynTable tbody tr')].map(tr => ({
+      item_keyword: (tr.querySelector('.rf-syn-kw')?.value || '').trim(),
+      table_aliases: splitRuleWords(tr.querySelector('.rf-syn-aliases')?.value),
+    })).filter(sr => sr.item_keyword);
+  }
+  return out;
+}
+
+function stepRuleStatText(stepNum, cfg){
+  if(!cfg) return '';
+  if(stepNum === 1) return `${(cfg.metric_words || []).length} 个对象词 · ${(cfg.categories || []).length} 个分类`;
+  if(stepNum === 2) return `${(cfg.param_rules || []).length} 条参数匹配规则`;
+  if(stepNum === 3) return `${(cfg.stat_qualifiers || []).length} 种特征值 · ${(cfg.dim_hints || []).length} 条维度映射`;
+  if(stepNum === 4) return `${(cfg.synonym_rules || []).length} 组同义词映射`;
+  return '';
+}
+
+async function initRulesLib(selectedKey){
+  $('#stdTitle').textContent = '基础库 · 识别规则库';
+  $('#scope').textContent = '标准分析 4 步向导全局识别规则（检项 / 规格参数 / 限值拆表 / 自动关联），分析具体标准时默认带入';
+  document.title = '识别规则库';
+  const d = await (await fetch('/api/rules')).json();
+  RL_STATE.baseCfg = d.configurable || {};
+  const cur = RL_STEPS.some(s => s.key === selectedKey) ? selectedKey : RL_STATE.curKey || 'step1_items';
+  RL_STATE.curKey = cur;
+  renderRulesLibList();
+  renderRulesLibDetail(cur);
+}
+
+function renderRulesLibList(){
+  const cfg = RL_STATE.baseCfg || {};
+  $('#rlList').innerHTML = RL_STEPS.map(s => `
+    <li data-rk="${esc(s.key)}" class="${s.key === RL_STATE.curKey ? 'on' : ''}">
+      <div class="tname">
+        <span>${esc(s.name)}</span>
+        <span class="pill" style="margin-left:auto;font-size:10.5px;padding:1px 6px;background:#e0f2fe;color:#0369a1">${esc(s.badge)}</span>
+      </div>
+      <span class="tmeta" style="margin-top:4px">${esc(stepRuleStatText(s.step, cfg))}</span>
+    </li>
+  `).join('');
+  $('#rlList').onclick = e => {
+    const li = e.target.closest('li[data-rk]');
+    if(!li) return;
+    location.hash = '#/rules-lib/' + li.dataset.rk;
+  };
+}
+
+function renderRulesLibDetail(stepKey){
+  const s = RL_STEPS.find(x => x.key === stepKey) || RL_STEPS[0];
+  const cfg = RL_STATE.baseCfg || {};
+  const box = $('#rlDetail');
+  box.innerHTML = `
+    <div class="det-head" style="margin-bottom:6px;display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+      <b style="font-size:18px;color:#0f172a">${esc(s.name)}</b>
+      <span class="pill" style="background:#e0f2fe;color:#0369a1;font-weight:600">${esc(stepRuleStatText(s.step, cfg))}</span>
+      <div style="margin-left:auto;display:flex;gap:8px;align-items:center">
+        <span id="rlSaveMsg" style="font-size:12.5px;color:#0f7b4f;font-weight:600"></span>
+        <button type="button" class="btn ghost" id="btnResetStepBaseRule" style="color:var(--bad)">↺ 恢复本步默认</button>
+        <button type="button" class="btn primary" id="btnSaveStepBaseRule">💾 保存本步规则到基础库</button>
+      </div>
+    </div>
+    <div class="detail-sub" style="margin-bottom:14px">${esc(s.desc)}</div>
+    <div id="rlFormWrap">${renderStepRuleFormHtml(s.step, cfg)}</div>
+  `;
+  const formWrap = $('#rlFormWrap');
+  wireStepRuleFormEvents(formWrap);
+
+  $('#btnSaveStepBaseRule').onclick = async () => {
+    const nextCfg = readStepRuleFormPayload(formWrap, s.step, RL_STATE.baseCfg);
+    $('#rlSaveMsg').textContent = '保存中…';
+    try{
+      const r = await fetch('/api/rules', {
+        method: 'PUT',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify(nextCfg),
+      });
+      const res = await r.json();
+      if(!r.ok) throw new Error(res.detail || r.statusText);
+      RL_STATE.baseCfg = res.rules || nextCfg;
+      renderRulesLibList();
+      $('#rlSaveMsg').textContent = '✓ 已保存到基础识别规则库（后续上传标准将默认带入）';
+    }catch(err){
+      $('#rlSaveMsg').textContent = '保存失败：' + err.message;
+    }
+  };
+
+  $('#btnResetStepBaseRule').onclick = async () => {
+    if(!confirm(`确定要将「${s.name}」恢复为系统出厂默认设置吗？`)) return;
+    const r = await fetch('/api/rules/reset', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({step_key: s.key}),
+    });
+    const res = await r.json();
+    if(r.ok){
+      RL_STATE.baseCfg = res.rules;
+      renderRulesLibList();
+      renderRulesLibDetail(s.key);
+      $('#rlSaveMsg').textContent = '✓ 已恢复本步出厂默认规则';
+    }
+  };
+}
+
+if($('#btnResetAllBaseRules')){
+  $('#btnResetAllBaseRules').onclick = async () => {
+    if(!confirm('确定要将全部 4 个步骤的识别规则恢复为系统出厂默认设置吗？')) return;
+    const r = await fetch('/api/rules/reset', {method: 'POST'});
+    const res = await r.json();
+    if(r.ok){
+      RL_STATE.baseCfg = res.rules;
+      renderRulesLibList();
+      renderRulesLibDetail(RL_STATE.curKey);
+      if($('#rlSaveMsg')) $('#rlSaveMsg').textContent = '✓ 全部步骤已恢复出厂默认';
+    }
+  };
+}
+
+async function showRules(stepNum){
+  const curStep = Number(stepNum || S.step || 1);
+  RL_STATE.modalStep = [1, 2, 3, 4].includes(curStep) ? curStep : 1;
+  const hasJob = !!(A.job && A.job.id);
+  const panel = $('#whyModal .panel');
+  if(panel) panel.style.maxWidth = '960px';
+
+  $('#whyTitle').textContent = hasJob
+    ? `当前标准识别规则 · ${A.job.code || A.job.filename || A.job.id}`
+    : '标准分析 4 步识别规则配置';
+  $('#whySub').textContent = hasJob
+    ? '已从基础「识别规则库」默认带入，可针对本标准独立修改并重跑本步识别'
+    : '保存后即刻全局生效';
   $('#whyBody').innerHTML = '加载规则中…';
   $('#whyModal').hidden = false;
-  let d;
+
+  let cfg = {};
   try{
-    d = await (await fetch('/api/rules')).json();
+    const url = hasJob
+      ? `/api/analyze/jobs/${encodeURIComponent(A.job.id)}/step-rules`
+      : '/api/rules';
+    const d = await (await fetch(url)).json();
+    cfg = d.configurable || {};
   }catch(e){
     $('#whyBody').textContent = '读取规则失败：' + e;
     return;
   }
-  const cfg = d.configurable || {};
-  const metricWords = (cfg.metric_words || []).join('、');
-  const actionWords = (cfg.action_words || []).join('、');
-  const sectionTitles = (cfg.section_titles || []).join('、');
-  const processTitles = (cfg.process_titles || []).join('、');
 
-  $('#whyBody').innerHTML = `
-    <div style="display:flex;flex-direction:column;gap:14px;max-height:65vh;overflow-y:auto;padding-right:4px">
-      <div style="background:#fafbfd;border:1px solid var(--line);border-radius:8px;padding:12px">
-        <div style="font-weight:600;font-size:13.5px;margin-bottom:4px;color:var(--brand)">
-          1. 检验对象词（METRIC_WORDS）
+  const renderModalStep = (stNum) => {
+    RL_STATE.modalStep = stNum;
+    const stepMeta = RL_STEPS.find(x => x.step === stNum) || RL_STEPS[0];
+    $('#whyBody').innerHTML = `
+      <div style="display:flex;flex-direction:column;gap:12px;max-height:74vh;overflow-y:auto;padding-right:4px">
+        <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap;background:#f8fafc;padding:8px 12px;border-radius:8px;border:1px solid #e2e8f0">
+          <div style="display:flex;gap:6px;flex-wrap:wrap" id="modalRuleStepTabs">
+            ${RL_STEPS.map(x => `
+              <button type="button" class="btn ${x.step === stNum ? 'primary' : 'ghost'}" data-rstep="${x.step}" style="padding:5px 12px;font-size:12.5px">
+                ${esc(x.short)}
+              </button>
+            `).join('')}
+          </div>
+          <a href="#/rules-lib/${esc(stepMeta.key)}" id="goBaseRulesLibLink" style="font-size:12px;color:var(--brand-2);text-decoration:none;font-weight:600">
+            打开基础「识别规则库」全屏管理 →
+          </a>
         </div>
-        <div class="hint" style="margin-bottom:8px">
-          标题只要包含这些词，系统就判定属于可测量的检查项目。可自由增删（支持顿号、逗号、空格或换行分隔）：
+
+        <div style="font-size:12.5px;color:#475569;padding:0 4px">
+          <b>${esc(stepMeta.name)}</b>：${esc(stepMeta.desc)}
         </div>
-        <textarea id="ruleMetric" style="width:100%;height:80px;border:1px solid var(--line);border-radius:6px;padding:8px;font-size:12.5px;line-height:1.5">${esc(metricWords)}</textarea>
+
+        <div id="modalRuleFormContainer">
+          ${renderStepRuleFormHtml(stNum, cfg)}
+        </div>
+
+        <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-top:6px;position:sticky;bottom:0;background:#fff;padding:12px 0 4px;border-top:1px solid var(--line)">
+          ${hasJob ? `
+            <button type="button" class="btn primary" id="btnApplyJobRules">⚡ 应用到当前标准并重新识别本步</button>
+            <button type="button" class="btn ghost" id="btnApplyAndSyncBase" style="color:#0369a1;border-color:#7dd3fc">💾 应用到当前标准并同步保存到基础库</button>
+            <button type="button" class="btn ghost" id="btnResetJobStepFromBase" style="color:var(--bad)">↺ 从基础库重新默认带入</button>
+          ` : `
+            <button type="button" class="btn primary" id="btnSaveRules">💾 保存到基础识别规则库</button>
+            <button type="button" class="btn ghost" id="btnResetRules" style="color:var(--bad)">↺ 恢复本步出厂默认</button>
+          `}
+          <span id="ruleMsg" style="font-size:12.5px;color:var(--brand);font-weight:600;margin-left:auto"></span>
+        </div>
       </div>
+    `;
 
-      <div style="background:#fafbfd;border:1px solid var(--line);border-radius:8px;padding:12px">
-        <div style="font-weight:600;font-size:13.5px;margin-bottom:4px;color:#d9534f">
-          2. 排除章节标题（SECTION_TITLES）
-        </div>
-        <div class="hint" style="margin-bottom:8px">
-          这些整章讲规矩的章节（如范围、引用文件、标记示例、包装等），系统会自动排除：
-        </div>
-        <textarea id="ruleSection" style="width:100%;height:65px;border:1px solid var(--line);border-radius:6px;padding:8px;font-size:12.5px;line-height:1.5">${esc(sectionTitles)}</textarea>
-      </div>
+    const formContainer = $('#modalRuleFormContainer');
+    wireStepRuleFormEvents(formContainer);
 
-      <div style="background:#fafbfd;border:1px solid var(--line);border-radius:8px;padding:12px">
-        <div style="font-weight:600;font-size:13.5px;margin-bottom:4px;color:#d9534f">
-          3. 排除过程性小节（PROCESS_TITLES）
-        </div>
-        <div class="hint" style="margin-bottom:8px">
-          这些小节讲的是试验设备、步骤、方法而非检验对象本身，系统会自动排除：
-        </div>
-        <textarea id="ruleProcess" style="width:100%;height:65px;border:1px solid var(--line);border-radius:6px;padding:8px;font-size:12.5px;line-height:1.5">${esc(processTitles)}</textarea>
-      </div>
-
-      <div style="background:#fafbfd;border:1px solid var(--line);border-radius:8px;padding:12px">
-        <div style="font-weight:600;font-size:13.5px;margin-bottom:4px;color:var(--brand)">
-          4. 检验动作词（ACTION_WORDS）
-        </div>
-        <div class="hint" style="margin-bottom:8px">
-          标题若含有检验动作词，也作为检验项目的判定依据：
-        </div>
-        <textarea id="ruleAction" style="width:100%;height:50px;border:1px solid var(--line);border-radius:6px;padding:8px;font-size:12.5px;line-height:1.5">${esc(actionWords)}</textarea>
-      </div>
-
-      <div style="display:flex;align-items:center;gap:12px;margin-top:6px;position:sticky;bottom:0;background:#fff;padding-top:10px;border-top:1px solid var(--line)">
-        <button class="btn primary" id="btnSaveRules">保存并应用规则</button>
-        <button class="btn ghost" id="btnResetRules" style="color:var(--bad)">恢复出厂默认</button>
-        ${A.job ? `<button class="btn ghost" id="btnRerunAnalyze" style="margin-left:auto;color:var(--brand);border-color:#bcd4ee">按新规则重新识别当前文件</button>` : ''}
-        <span id="ruleMsg" style="font-size:12.5px;color:var(--brand);font-weight:500"></span>
-      </div>
-    </div>`;
-
-  const parseInput = id => {
-    const v = $(id).value.trim();
-    return v.split(/[\n,，、\s]+/).map(s => s.trim()).filter(Boolean);
-  };
-
-  $('#btnSaveRules').onclick = async () => {
-    const payload = Object.assign({}, cfg, {
-      metric_words: parseInput('#ruleMetric'),
-      section_titles: parseInput('#ruleSection'),
-      process_titles: parseInput('#ruleProcess'),
-      action_words: parseInput('#ruleAction'),
-    });
-    $('#ruleMsg').textContent = '正在保存…';
-    try{
-      const r = await fetch('/api/rules', {
-        method:'PUT', headers:{'Content-Type':'application/json'},
-        body: JSON.stringify(payload)
-      });
-      const res = await r.json();
-      if(!r.ok) throw new Error(res.detail || r.statusText);
-      $('#ruleMsg').textContent = '规则已保存并即刻生效！';
-    }catch(err){
-      $('#ruleMsg').textContent = '保存失败：' + err.message;
+    const goLink = $('#goBaseRulesLibLink');
+    if(goLink){
+      goLink.onclick = () => { $('#whyModal').hidden = true; };
     }
-  };
 
-  $('#btnResetRules').onclick = async () => {
-    if(!confirm('确定要恢复为系统出厂默认规则吗？')) return;
-    $('#ruleMsg').textContent = '正在重置…';
-    try{
-      const r = await fetch('/api/rules/reset', {method:'POST'});
-      const res = await r.json();
-      if(!r.ok) throw new Error(res.detail || r.statusText);
-      $('#ruleMsg').textContent = '已恢复系统出厂规则！';
-      setTimeout(showRules, 600);
-    }catch(err){
-      $('#ruleMsg').textContent = '重置失败：' + err.message;
-    }
-  };
-
-  const rerunBtn = $('#btnRerunAnalyze');
-  if(rerunBtn){
-    rerunBtn.onclick = async () => {
-      if(!confirm('确定要按当前最新规则重新识别本文件的检项吗？')) return;
-      $('#ruleMsg').textContent = '正在重新识别…';
-      try{
-        const r = await fetch(`/api/analyze/jobs/${A.job.id}/rerun`, {method:'POST'});
-        const res = await r.json();
-        if(!r.ok) throw new Error(res.detail || r.statusText);
-        $('#whyModal').hidden = true;
-        $('#prog').hidden = false;
-        setProg(30, '重新识别检项中…');
-        pollJob(A.job.id);
-      }catch(err){
-        $('#ruleMsg').textContent = '重跑失败：' + err.message;
-      }
+    $('#modalRuleStepTabs').onclick = e => {
+      const b = e.target.closest('button[data-rstep]');
+      if(!b) return;
+      cfg = readStepRuleFormPayload(formContainer, stNum, cfg);
+      renderModalStep(Number(b.dataset.rstep));
     };
-  }
+
+    if(hasJob){
+      const applyToJob = async (syncBase) => {
+        cfg = readStepRuleFormPayload(formContainer, stNum, cfg);
+        $('#ruleMsg').textContent = '正在应用并重新识别本步…';
+        try{
+          const r = await fetch(`/api/analyze/jobs/${encodeURIComponent(A.job.id)}/step-rules`, {
+            method: 'PUT',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({
+              step: stNum,
+              rules: cfg,
+              rerun_step: true,
+              sync_to_base: !!syncBase,
+            }),
+          });
+          const res = await r.json();
+          if(!r.ok) throw new Error(res.detail || r.statusText);
+          if(res.job){
+            A.job = res.job;
+            JOB = res.job;
+            renderJob();
+            showStep(stNum, false);
+          }
+          $('#ruleMsg').textContent = syncBase
+            ? '✓ 已应用到当前标准并同步更新至基础识别规则库！'
+            : '✓ 已应用到当前标准并完成本步重新识别！';
+        }catch(err){
+          $('#ruleMsg').textContent = '操作失败：' + err.message;
+        }
+      };
+
+      $('#btnApplyJobRules').onclick = () => applyToJob(false);
+      $('#btnApplyAndSyncBase').onclick = () => applyToJob(true);
+      $('#btnResetJobStepFromBase').onclick = async () => {
+        if(!confirm(`确定要从基础「识别规则库」重新带入「${stepMeta.name}」并覆盖当前标准的修改吗？`)) return;
+        $('#ruleMsg').textContent = '正在从基础库重新带入…';
+        try{
+          const r = await fetch(`/api/analyze/jobs/${encodeURIComponent(A.job.id)}/step-rules/reset`, {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({step: stNum, step_key: stepMeta.key, rerun_step: true}),
+          });
+          const res = await r.json();
+          if(!r.ok) throw new Error(res.detail || r.statusText);
+          cfg = res.rules || cfg;
+          if(res.job){
+            A.job = res.job;
+            JOB = res.job;
+            renderJob();
+            showStep(stNum, false);
+          }
+          renderModalStep(stNum);
+          $('#ruleMsg').textContent = '✓ 已从基础库重新默认带入并重跑本步！';
+        }catch(err){
+          $('#ruleMsg').textContent = '重置失败：' + err.message;
+        }
+      };
+    } else {
+      $('#btnSaveRules').onclick = async () => {
+        cfg = readStepRuleFormPayload(formContainer, stNum, cfg);
+        $('#ruleMsg').textContent = '正在保存…';
+        const r = await fetch('/api/rules', {
+          method: 'PUT',
+          headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify(cfg),
+        });
+        const res = await r.json();
+        $('#ruleMsg').textContent = r.ok ? '✓ 规则已保存并即刻生效！' : ('保存失败：' + (res.detail || r.statusText));
+      };
+      $('#btnResetRules').onclick = async () => {
+        if(!confirm('确定要恢复本步为系统出厂默认规则吗？')) return;
+        const r = await fetch('/api/rules/reset', {
+          method: 'POST',
+          headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify({step_key: stepMeta.key}),
+        });
+        const res = await r.json();
+        if(r.ok){
+          cfg = res.rules || cfg;
+          renderModalStep(stNum);
+          $('#ruleMsg').textContent = '✓ 已恢复出厂默认规则！';
+        }
+      };
+    }
+  };
+
+  renderModalStep(RL_STATE.modalStep);
 }
 
 /* ================= 分步向导 ================= */
@@ -2121,11 +3418,11 @@ function renderDrafts(){
     return;
   }
   box.innerHTML = list.map(t => {
-    const dims = (t.dims || []).map(d => d.code).join(' × ') || '无维度';
+    const dims = (t.dims || []).map(d => paramLabel(d.code)).join(' × ') || '无维度';
     return `<div class="draft" data-id="${esc(t.id)}">
       <h4>${esc(t.id)}　${esc(t.name || '')}</h4>
       <div class="meta">${esc(dims)} · ${(t.rows || []).length} 行 · ${t.value_form === 'deviation'
-        ? '偏差型（叠加 ' + esc(t.nominal_param || '—') + '）' : '绝对值'}
+        ? '偏差型（叠加 ' + esc(paramLabel(t.nominal_param) || '—') + '）' : '绝对值'}
         ${t.item_code ? ' · 服务检项 ' + esc(t.item_code) : ''}</div>
       <div class="ops">
         <button class="btn ghost" data-op="edit">编辑</button>
@@ -2486,7 +3783,7 @@ function selectSourceTable(i){
   }</tbody></table>`;
 
   const opts = (sel) => ['<option value="">忽略</option>']
-    .concat(E.params.map(p => `<option value="dim:${p.code}" ${sel === 'dim:' + p.code ? 'selected' : ''}>维度 · ${esc(p.code)}</option>`))
+    .concat(E.params.map(p => `<option value="dim:${p.code}" ${sel === 'dim:' + p.code ? 'selected' : ''}>维度 · ${esc(p.name || p.code)}</option>`))
     .concat([`<option value="lower" ${sel === 'lower' ? 'selected' : ''}>下限</option>`,
              `<option value="upper" ${sel === 'upper' ? 'selected' : ''}>上限</option>`]).join('');
 
@@ -2744,7 +4041,10 @@ $('#sConfirm').onclick = async () => {
   $('#sMsg').textContent = `已生成 ${n}/${drafts.length} 张表，可在列表里逐张编辑`;
 };
 
-if($('#btnRules')) $('#btnRules').onclick = () => showRules();
+if($('#btnRules')) $('#btnRules').onclick = () => showRules(1);
+if($('#btnRulesStep2')) $('#btnRulesStep2').onclick = () => showRules(2);
+if($('#btnRulesStep3')) $('#btnRulesStep3').onclick = () => showRules(3);
+if($('#btnRulesStep4')) $('#btnRulesStep4').onclick = () => showRules(4);
 
 $('#sBuild').onclick = () => {
   const drafts = buildDraftsFromSource();
@@ -2786,16 +4086,21 @@ function openEditor(stdId, table, isNew){
   $('#eItem').innerHTML = '<option value="">—</option>' + E.items.map(i =>
     `<option value="${i.code}" ${i.code === E.t.item_code ? 'selected' : ''}>${esc(i.clause)} ${esc(i.name)}</option>`).join('');
   $('#eNominal').innerHTML = '<option value="">—</option>' + E.params.map(x =>
-    `<option value="${x.code}" ${x.code === E.t.nominal_param ? 'selected' : ''}>${esc(x.code)}</option>`).join('');
+    `<option value="${x.code}" ${x.code === E.t.nominal_param ? 'selected' : ''}>${esc(x.name || paramLabel(x.code))}</option>`).join('');
   $('#modal').hidden = false;
   renderDims(); renderRows();
 }
 
 function renderDims(){
-  $('#eDims').innerHTML = (E.t.dims || []).map((d, i) => `
+  $('#eDims').innerHTML = (E.t.dims || []).map((d, i) => {
+    const hasInParams = (E.params || []).some(x => x.code === d.code);
+    const extraOpt = (!hasInParams && d.code)
+      ? `<option value="${esc(d.code)}" selected>${esc(paramLabel(d.code))}</option>`
+      : '';
+    return `
     <div class="dimrow" data-i="${i}">
-      <select class="dcode">${E.params.map(x =>
-        `<option value="${x.code}" ${x.code === d.code ? 'selected' : ''}>${esc(x.code)}</option>`).join('')}</select>
+      <select class="dcode">${extraOpt}${E.params.map(x =>
+        `<option value="${x.code}" ${x.code === d.code ? 'selected' : ''}>${esc(x.name || paramLabel(x.code))}</option>`).join('')}</select>
       <select class="dkind">
         <option value="enum" ${d.kind === 'enum' ? 'selected' : ''}>枚举</option>
         <option value="range" ${d.kind === 'range' ? 'selected' : ''}>区间</option>
@@ -2803,7 +4108,8 @@ function renderDims(){
       <input type="text" class="dvals" value="${esc(dimValuesText(d))}"
              placeholder="${d.kind === 'range' ? '0~4, 4~20' : 'A, C'}">
       <button class="rowdel" data-del="${i}">×</button>
-    </div>`).join('') || '<div class="lbl">还没有维度，点「+ 加维度」</div>';
+    </div>`;
+  }).join('') || '<div class="lbl">还没有维度，点「+ 加维度」</div>';
 }
 
 function readDims(){
@@ -2818,7 +4124,7 @@ function expandRows(){
   const dims = readDims();
   if(!dims.length){ $('#eMsg').textContent = '先加至少一个维度'; return; }
   const bad = dims.find(d => !d.values.length);
-  if(bad){ $('#eMsg').textContent = `维度 ${bad.code} 没有取值`; return; }
+  if(bad){ $('#eMsg').textContent = `维度 ${paramLabel(bad.code)} 没有取值`; return; }
   let combos = [{}];
   for(const d of dims){
     const next = [];
@@ -2844,7 +4150,7 @@ function keyText(v){
 
 function renderRows(){
   const dims = E.t.dims || [];
-  $('#eThead').innerHTML = `<tr>${dims.map(d => `<th>${esc(d.code)}</th>`).join('')}
+  $('#eThead').innerHTML = `<tr>${dims.map(d => `<th>${esc(paramLabel(d.code))}</th>`).join('')}
     <th style="width:130px">下限</th><th style="width:130px">上限</th>
     <th style="width:64px">不要求</th><th style="width:150px">备注</th></tr>`;
   $('#eTbody').innerHTML = (E.t.rows || []).map((r, i) => `
@@ -2920,6 +4226,26 @@ async function saveEditor(){
 
 function paramOf(code){
   return (E.params || []).find(p => p.code === code) || null;
+}
+
+const PARAM_FALLBACK_NAMES = {
+  d_nom: '公称直径 d',
+  h_nom: '公称厚度 h',
+  l_nom: '公称长度 l',
+  p_pitch: '螺距 P',
+  thread: '螺纹规格',
+  thread_spec: '螺纹规格',
+  property_class: '性能等级',
+  grade: '产品等级',
+  material: '材料类型',
+  coating: '表面处理',
+};
+
+function paramLabel(code){
+  if(!code) return '';
+  const p = paramOf(code) || ((JOB && JOB.params_spec) || []).find(x => x.code === code);
+  if(p && p.name) return p.name;
+  return PARAM_FALLBACK_NAMES[code] || (p ? p.code : code);
 }
 
 function dimFromParam(code){
@@ -3101,12 +4427,13 @@ $('#eDims').onchange = e => {
     const d = E.t.dims[Number(row.dataset.i)];
     const p = paramOf(d.code);
     // 换了参数、或原来就没填取值 → 用该参数的枚举值补上
-    if(d && p && !d.values.length && (p.options || []).length){
+    if(d && p && (e.target.classList.contains('dcode') || !d.values.length) && (p.options || []).length){
       d.values = [...p.options];
       if(d.kind !== 'range') d.kind = 'enum';
     }
   }
   renderDims();
+  renderRows();
 };
 
 /* ================= 限值表浏览 ================= */
@@ -3202,10 +4529,10 @@ function renderTableDetail(id){
   const t = E.allTables.find(x => x.id === id);
   if(!t){ $('#tblDetail').innerHTML = ''; return; }
   const form = t.value_form === 'deviation'
-    ? `偏差型（叠加 <code>${esc(t.nominal_param || '')}</code>）` : '绝对值';
-  const dims = t.dims.map(d => `${d.code}`).join(' × ') || '无维度';
+    ? `偏差型（叠加 <code>${esc(paramLabel(t.nominal_param) || '')}</code>）` : '绝对值';
+  const dims = t.dims.map(d => `${paramLabel(d.code)}`).join(' × ') || '无维度';
   const hasNominal = t.rows.some(r => r.nominal !== null && r.nominal !== undefined);
-  const head = t.dims.map(d => `<th>${esc(d.code)}</th>`).join('') + (hasNominal ? '<th style="color:#0b5cab">公称基准</th>' : '');
+  const head = t.dims.map(d => `<th>${esc(paramLabel(d.code))}</th>`).join('') + (hasNominal ? '<th style="color:#0b5cab">公称基准</th>' : '');
   const body = t.rows.slice(0, 200).map(r => `
     <tr>${t.dims.map(d => {
       const v = r.key[d.code];
@@ -3270,113 +4597,441 @@ $('#btnNewTable').onclick = async () => {
   if(await ensureEditorData()) openEditor(E.std, null, true);
 };
 
-/* ================= 复合大表母表 (limit_matrix) 主从向导与切分 ================= */
+/* ================= 多步骤逐表拆解工作台 (limit_matrix & workbench) ================= */
 const MAT = {
+  contextType: 'standard',  // 'standard' | 'job'
   std: null,
+  jobId: null,
   isNew: true,
+  sourceTables: [],         // 第一步盘点出的原表清单
+  splitModes: [],           // 5 种预定义拆分模式
+  curTableId: null,         // 当前选中的原表 ID (如 SRC-TABLE-3)
+  curModeCode: 'composite_no_master',
   data: {
     local_id: '',
     title: '',
+    split_mode: 'composite_no_master',
+    source_table_id: '',
     common_dims: [],
     tables: []
   }
 };
 
+/* 在「限值表」页面点击打开工作台 */
 $('#btnNewMatrix').onclick = async () => {
-  if(await ensureEditorData()) openMatrixModal(E.std, null, true);
+  if(await ensureEditorData()) await openMatrixModal(E.std, null, true);
 };
 
-function openMatrixModal(stdId, matrixData, isNew){
+/* 在「标准分析（4步向导第3步：提取限值）」页面点击打开工作台 */
+if($('#btnAnalyzeWorkbench')){
+  $('#btnAnalyzeWorkbench').onclick = () => openJobWorkbench();
+}
+if($('#btnAnalyzeWorkbench2')){
+  $('#btnAnalyzeWorkbench2').onclick = () => openJobWorkbench();
+}
+
+async function openJobWorkbench(preferTableId){
+  if(!JOB || !JOB.id){
+    alert('当前没有正在分析的标准作业，请先上传或选择一个标准作业');
+    return;
+  }
+  try { await saveItems(true); } catch(e){}
+  E.params = (JOB.params_spec || []).map(p => ({code: p.code, name: p.name, type: p.type || 'number', options: p.options || []}));
+  E.items = (JOB.items || []).filter(i => i.selected).map(i => ({id: i.id, code: i.id, title: i.title || i.name}));
+
+  MAT.contextType = 'job';
+  MAT.jobId = JOB.id;
+  MAT.std = JOB.published_id || '';
+  MAT.isNew = true;
+
+  const resp = await fetch(`/api/analyze/jobs/${encodeURIComponent(JOB.id)}/workbench/tables`);
+  if(!resp.ok){
+    alert('无法加载原表清单');
+    return;
+  }
+  const wb = await resp.json();
+  MAT.sourceTables = wb.tables || [];
+  MAT.splitModes = wb.split_modes || [];
+
+  $('#matTitleText').textContent = '🧭 多步骤逐表拆解工作台 · 标准分析第3步（按原表选模式拆解）';
+  $('#matSubText').textContent = (wb.code || wb.filename || JOB.id);
+  $('#wbSourceFileHint').textContent = wb.filename ? `原件：${wb.filename}` : '自动扫描标准 PDF 原件生成';
+  $('#matrixModal').hidden = false;
+
+  renderWbTableList();
+  // 默认选中第一张待处理（且非 ignore_skip）的原表，若无则选第一张
+  let firstTarget = preferTableId
+    ? MAT.sourceTables.find(t => t.table_id === preferTableId)
+    : (MAT.sourceTables.find(t => t.status === 'pending' && t.recommended_mode !== 'ignore_skip')
+       || MAT.sourceTables.find(t => t.status === 'pending')
+       || MAT.sourceTables[0]);
+
+  if(firstTarget){
+    await selectWorkbenchTable(firstTarget.table_id, true);
+  } else {
+    initCustomMatrixInWorkbench();
+  }
+}
+
+async function openMatrixModal(stdId, matrixData, isNew){
+  MAT.contextType = 'standard';
   MAT.std = stdId;
   MAT.isNew = !!isNew;
-  if(matrixData){
-    MAT.data = JSON.parse(JSON.stringify(matrixData));
-    if(!MAT.data.common_dims && MAT.data.dims){
-      MAT.data.common_dims = MAT.data.dims;
-    }
-    if(!MAT.data.tables && MAT.data.indicators){
-      // 兼容旧格式转为新主从结构
-      const commonDims = MAT.data.common_dims || [];
-      MAT.data.tables = MAT.data.indicators.map((ind, idx) => {
-        const rows = (MAT.data.rows || []).map(r => {
-          const k = Object.assign({}, r.dim_values || {});
-          const ival = (r.indicator_values || {})[ind.col_key] || {};
-          return {
-            key: k,
-            nominal: ival.nominal ?? null,
-            lower: ival.lower ?? null,
-            upper: ival.upper ?? null,
-            na: !!ival.na,
-            note: ival.note || ''
-          };
-        });
-        return {
-          no: (idx + 1).toString(),
-          name: ind.name || `指标${idx+1}`,
-          unit: ind.unit || '',
-          local_table_id: ind.local_table_id || `T-${MAT.data.local_id}-${ind.col_key || idx+1}`,
-          item_id: ind.item_id || '',
-          extra_dims: ind.extra_dims || [],
-          expanded: idx === 0,
-          rows: rows
-        };
-      });
-    }
+
+  const resp = await fetch(`/api/standards/${encodeURIComponent(stdId)}/workbench/tables`);
+  if(resp.ok){
+    const wb = await resp.json();
+    MAT.sourceTables = wb.tables || [];
+    MAT.splitModes = wb.split_modes || [];
+    MAT.jobId = wb.job_id || '';
+    $('#matSubText').textContent = (wb.code ? `${wb.code} ${wb.title || ''}` : stdId);
+    $('#wbSourceFileHint').textContent = wb.filename ? `原件：${wb.filename}` : '自动扫描标准 PDF 原件生成';
   } else {
-    // 默认空母表
-    MAT.data = {
-      local_id: 'M-PROP-' + Date.now().toString(36).toUpperCase(),
-      title: '紧固件机械性能总表',
-      common_dims: [
-        { code: 'property_class', name: '性能等级', kind: 'enum' },
-        { code: 'd_nom', name: '公称直径 d', kind: 'range' }
-      ],
-      tables: [
-        {
-          no: '1',
-          name: '抗拉强度 Rm',
-          unit: 'MPa',
-          local_table_id: 'T-PROP-RM',
-          item_id: '',
-          extra_dims: [
-            { code: 'rm_nom', name: '公称抗拉强度', kind: 'enum' }
-          ],
-          expanded: true,
-          rows: [
-            { key: { property_class: '8.8', d_nom: '0~16', rm_nom: '800' }, nominal: 800, lower: 800, upper: 1000, na: false, note: '' },
-            { key: { property_class: '8.8', d_nom: '16~39', rm_nom: '800' }, nominal: 800, lower: 830, upper: 1030, na: false, note: '大规格加严' }
-          ]
-        },
-        {
-          no: '2',
-          name: '下屈服强度 ReL',
-          unit: 'MPa',
-          local_table_id: 'T-PROP-REL',
-          item_id: '',
-          extra_dims: [],
-          expanded: false,
-          rows: [
-            { key: { property_class: '4.6', d_nom: '0~39' }, nominal: 240, lower: 240, upper: null, na: false, note: '' },
-            { key: { property_class: '5.6', d_nom: '0~39' }, nominal: 300, lower: 300, upper: null, na: false, note: '' }
-          ]
-        }
-      ]
-    };
+    MAT.sourceTables = [];
+    MAT.splitModes = await (await fetch('/api/split-modes')).json().catch(() => []);
+    $('#matSubText').textContent = stdId;
   }
 
-  $('#matTitleText').textContent = isNew ? '复合大表拆解与多维限值生成（按 No. 逐项向导）' : '编辑复合大表（母表矩阵）';
-  $('#matSubText').textContent = stdId;
-  $('#matTitle').value = MAT.data.title || '';
-  $('#matLocalId').value = MAT.data.local_id || '';
-  $('#matDeleteBtn').style.display = isNew ? 'none' : 'inline-block';
-
-  renderMatrixWizard();
+  $('#matTitleText').textContent = '🧭 多步骤逐表拆解工作台（① 盘点原表清单 → ② 人工选择拆分模式 → ③ 逐表拆解编译）';
   $('#matrixModal').hidden = false;
+  renderWbTableList();
+
+  // 如果是从某张已存在的子表点击「🔗 打开所属复合母表编辑」进来
+  if(matrixData){
+    const normalized = normalizeMatrixData(matrixData);
+    MAT.data = normalized;
+    MAT.curTableId = normalized.source_table_id || '';
+    MAT.curModeCode = normalized.split_mode || 'composite_no_master';
+    // 尝试在左侧原表清单中匹配
+    if(!MAT.curTableId && normalized.local_id){
+      const hit = MAT.sourceTables.find(t => t.matrix_local_id === normalized.local_id);
+      if(hit) MAT.curTableId = hit.table_id;
+    }
+    renderWbTableList();
+    renderWbSourcePreview();
+    renderWbModeCards();
+    applyMatrixDataToDom();
+    return;
+  }
+
+  // 默认选中第一张待处理（且推荐非跳过）的原表，若全部已处理则选第一张非跳过表
+  const target = MAT.sourceTables.find(t => t.status === 'pending' && t.recommended_mode !== 'ignore_skip')
+    || MAT.sourceTables.find(t => t.recommended_mode !== 'ignore_skip')
+    || MAT.sourceTables[0];
+
+  if(target){
+    await selectWorkbenchTable(target.table_id, true);
+  } else {
+    initCustomMatrixInWorkbench();
+  }
 }
+
+function normalizeMatrixData(matrixData){
+  const copy = JSON.parse(JSON.stringify(matrixData));
+  if(!copy.common_dims && copy.dims){
+    copy.common_dims = copy.dims;
+  }
+  if(!copy.tables && copy.indicators){
+    const commonDims = copy.common_dims || [];
+    copy.tables = copy.indicators.map((ind, idx) => {
+      const rows = (copy.rows || []).map(r => {
+        const k = Object.assign({}, r.dim_values || {});
+        const ival = (r.indicator_values || {})[ind.col_key] || {};
+        return {
+          key: k,
+          nominal: ival.nominal ?? null,
+          lower: ival.lower ?? null,
+          upper: ival.upper ?? null,
+          na: !!ival.na,
+          note: ival.note || ''
+        };
+      });
+      return {
+        no: (idx + 1).toString(),
+        name: ind.name || `指标${idx+1}`,
+        unit: ind.unit || '',
+        local_table_id: ind.local_table_id || `T-${copy.local_id}-${ind.col_key || idx+1}`,
+        item_id: ind.item_id || '',
+        extra_dims: ind.extra_dims || [],
+        expanded: idx === 0,
+        rows: rows
+      };
+    });
+  }
+  (copy.tables || []).forEach((t, i) => {
+    if(t.expanded === undefined) t.expanded = (i === 0);
+  });
+  return copy;
+}
+
+function initCustomMatrixInWorkbench(){
+  MAT.curTableId = 'CUSTOM-' + Date.now().toString(36).toUpperCase();
+  MAT.curModeCode = 'composite_no_master';
+  MAT.data = {
+    local_id: 'M-CUSTOM-1',
+    title: '自定义复合限值母表',
+    split_mode: 'composite_no_master',
+    source_table_id: MAT.curTableId,
+    common_dims: [
+      { code: 'd_nom', name: '公称直径 d', kind: 'enum' }
+    ],
+    tables: [
+      {
+        no: '1',
+        name: '检验指标 1',
+        unit: 'mm',
+        local_table_id: 'T-CUSTOM-1',
+        item_id: '',
+        extra_dims: [],
+        expanded: true,
+        rows: []
+      }
+    ]
+  };
+  renderWbTableList();
+  renderWbSourcePreview();
+  renderWbModeCards();
+  applyMatrixDataToDom();
+}
+
+$('#btnWbCustomTable').onclick = () => {
+  initCustomMatrixInWorkbench();
+};
+
+$('#btnWbOpenModeLib').onclick = () => {
+  $('#matrixModal').hidden = true;
+  location.hash = '#/split-modes/' + encodeURIComponent(MAT.curModeCode || '');
+};
 
 $('#matClose').onclick = $('#matCancelBtn').onclick = () => {
   $('#matrixModal').hidden = true;
 };
+
+/* 第一步渲染：左侧本标准原表清单 */
+function renderWbTableList(){
+  const listEl = $('#wbTableList');
+  const progEl = $('#wbTableProgress');
+  if(!listEl) return;
+
+  const tables = MAT.sourceTables || [];
+  const doneCount = tables.filter(t => t.status === 'completed' || t.status === 'skipped').length;
+  if(progEl) progEl.textContent = `已处理 ${doneCount} / ${tables.length}`;
+
+  if(!tables.length){
+    listEl.innerHTML = `<li style="padding:18px 12px;text-align:center;color:#64748b;font-size:12px">当前标准无 OCR 原表记录，可点击下方「+ 手工新增自定义母表」</li>`;
+    return;
+  }
+
+  const modeShortMap = {};
+  (MAT.splitModes || []).forEach(m => { modeShortMap[m.code] = m.short_name || m.name; });
+
+  listEl.innerHTML = tables.map(t => {
+    const isAct = t.table_id === MAT.curTableId;
+    let statusBadge = '';
+    if(t.status === 'completed'){
+      statusBadge = `<span class="pill" style="font-size:10.5px;padding:1px 6px;background:#dcfce7;color:#15803d;font-weight:600">✅ 已拆(${t.sub_count || 1}表)</span>`;
+    } else if(t.status === 'skipped'){
+      statusBadge = `<span class="pill" style="font-size:10.5px;padding:1px 6px;background:#f1f5f9;color:#64748b">⏭️ 已跳过</span>`;
+    } else {
+      statusBadge = `<span class="pill" style="font-size:10.5px;padding:1px 6px;background:#fef3c7;color:#b45309">⏳ 待处理</span>`;
+    }
+    const modeLabel = modeShortMap[t.chosen_mode || t.recommended_mode] || t.recommended_mode;
+
+    return `
+      <li class="wb-table-item ${isAct ? 'active' : ''}" data-tid="${esc(t.table_id)}">
+        <div style="display:flex;align-items:center;justify-content:space-between;gap:4px;margin-bottom:4px">
+          <b style="font-size:12.5px;color:#0f172a;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(t.short_title || (t.label + ' ' + t.title))}</b>
+          ${statusBadge}
+        </div>
+        <div style="display:flex;align-items:center;justify-content:space-between;font-size:11px;color:#64748b">
+          <span>${t.page ? `P${t.page} · ` : ''}${t.rows}行×${t.cols}列</span>
+          <span style="color:#0369a1;font-weight:500">${esc(modeLabel)}</span>
+        </div>
+      </li>
+    `;
+  }).join('');
+
+  listEl.onclick = async e => {
+    const li = e.target.closest('[data-tid]');
+    if(!li) return;
+    await selectWorkbenchTable(li.dataset.tid, true);
+  };
+}
+
+/* 切换选中左侧某张原表 */
+async function selectWorkbenchTable(tableId, useSavedIfExist){
+  MAT.curTableId = tableId;
+  const tInfo = (MAT.sourceTables || []).find(t => t.table_id === tableId);
+  if(!tInfo){
+    renderWbTableList();
+    return;
+  }
+  MAT.curModeCode = tInfo.chosen_mode || tInfo.recommended_mode || 'multi_col_parallel';
+  renderWbTableList();
+  renderWbSourcePreview();
+  renderWbModeCards();
+  await deconstructCurrentTable(useSavedIfExist && tInfo.status === 'completed');
+}
+
+/* 渲染原表网格与原文对照区 */
+function renderWbSourcePreview(){
+  const tInfo = (MAT.sourceTables || []).find(t => t.table_id === MAT.curTableId);
+  const labelEl = $('#wbCurTableLabel');
+  const metaEl = $('#wbCurTableMeta');
+  const pdfEl = $('#wbPdfLinkWrap');
+  const contentEl = $('#wbSourcePreviewContent');
+
+  if(!tInfo){
+    labelEl.textContent = '自定义表格';
+    metaEl.textContent = '手工录入模式';
+    pdfEl.innerHTML = '';
+    contentEl.innerHTML = '<div class="muted" style="font-size:12px">当前为手工自定义母表，无关联 PDF 原表网格</div>';
+    return;
+  }
+
+  labelEl.textContent = tInfo.short_title || `${tInfo.label} ${tInfo.title}`;
+  metaEl.textContent = `${tInfo.page ? `第 ${tInfo.page} 页 · ` : ''}检测网格 ${tInfo.rows} 行 × ${tInfo.cols} 列`;
+  if(tInfo.page && MAT.std){
+    pdfEl.innerHTML = `<a href="/api/standards/${encodeURIComponent(MAT.std)}/source.pdf#page=${tInfo.page}" target="_blank" style="color:#0284c7;font-size:12px;font-weight:600" onclick="event.stopPropagation()">📄 打开 PDF 原件第 ${tInfo.page} 页 ↗</a>`;
+  } else {
+    pdfEl.innerHTML = '';
+  }
+
+  const grid = tInfo.preview_grid || [];
+  const ctxLines = tInfo.context_lines || [];
+
+  let gridHtml = '';
+  if(grid.length){
+    gridHtml = `
+      <table class="analyze" style="margin:0;font-size:11.5px;background:#fff">
+        <tbody>
+          ${grid.slice(0, 15).map((r, rIdx) => `
+            <tr style="${rIdx === 0 ? 'background:#f8fafc;font-weight:600' : ''}">
+              ${r.map(c => `<td style="padding:3px 8px;border:1px solid #e2e8f0">${esc(c)}</td>`).join('')}
+            </tr>
+          `).join('')}
+        </tbody>
+      </table>
+    `;
+  }
+
+  const ctxHtml = ctxLines.length ? `
+    <div style="margin-top:8px;padding:6px 10px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:6px;font-size:11.5px;color:#475569;line-height:1.6">
+      <b>表头及上下文原文行：</b> ${esc(ctxLines.slice(0, 8).join(' ｜ '))}
+    </div>
+  ` : '';
+
+  contentEl.innerHTML = (gridHtml || '<div class="muted">（未检测到结构化单元格，参见下方原文行）</div>') + ctxHtml;
+}
+
+/* 第二步渲染：5 种拆分模式卡片选择器 */
+function renderWbModeCards(){
+  const container = $('#wbModeCards');
+  const recHint = $('#wbRecommendHint');
+  if(!container) return;
+
+  const tInfo = (MAT.sourceTables || []).find(t => t.table_id === MAT.curTableId);
+  const recMode = tInfo ? tInfo.recommended_mode : 'composite_no_master';
+
+  if(recHint){
+    recHint.textContent = tInfo && tInfo.recommend_reason
+      ? `✨ 智能推荐理由：${tInfo.recommend_reason}`
+      : '请根据上方原表结构，选择最匹配的拆分模式';
+  }
+
+  const modes = (MAT.splitModes && MAT.splitModes.length) ? MAT.splitModes : [
+    { seq: 1, code: 'single_indicator', short_name: '单指标简单表', output_ratio: '1表 → 拆为 标题+Min/Max 两张表', complexity: '简单' },
+    { seq: 2, code: 'multi_col_parallel', short_name: '多指标按列拆分', output_ratio: '1表 → 按列拆为 指标+Min/Max', complexity: '中等' },
+    { seq: 3, code: 'matrix_2d_cross', short_name: '二维矩阵交叉表', output_ratio: '行×列 → 标题+Min/Max 正交表', complexity: '中等' },
+    { seq: 4, code: 'composite_no_master', short_name: 'No.复合大表向导', output_ratio: '1表 → 按No.拆为 指标+Min/Max', complexity: '高阶' },
+    { seq: 5, code: 'ignore_skip', short_name: '非判定表/跳过', output_ratio: '0张表（仅归档跳过）', complexity: '忽略' }
+  ];
+
+  container.innerHTML = modes.map(m => {
+    const isCur = m.code === MAT.curModeCode;
+    const isRec = m.code === recMode;
+    return `
+      <div class="wb-mode-card ${isCur ? 'active' : ''}" data-mcode="${esc(m.code)}">
+        <div style="display:flex;align-items:center;justify-content:space-between;gap:4px">
+          <span style="font-size:11px;font-weight:700;color:${isCur ? '#0284c7' : '#64748b'}">模式 ${m.seq}</span>
+          ${isRec ? `<span class="pill" style="font-size:10px;padding:0 5px;background:#fef3c7;color:#b45309;font-weight:600">✨ 推荐</span>` : ''}
+        </div>
+        <div style="font-size:12.5px;font-weight:600;color:#0f172a">${esc(m.short_name || m.name)}</div>
+        <div style="font-size:11px;color:#475569;line-height:1.35">${esc(m.output_ratio)}</div>
+      </div>
+    `;
+  }).join('');
+
+  container.onclick = async e => {
+    const card = e.target.closest('[data-mcode]');
+    if(!card) return;
+    const newMode = card.dataset.mcode;
+    if(newMode === MAT.curModeCode) return;
+    MAT.curModeCode = newMode;
+    renderWbModeCards();
+    await deconstructCurrentTable(false);
+  };
+}
+
+$('#btnWbReDeconstruct').onclick = async () => {
+  await deconstructCurrentTable(false);
+};
+
+/* 调用后端按当前所选拆分模式解构原表 */
+async function deconstructCurrentTable(useSaved){
+  const tInfo = (MAT.sourceTables || []).find(t => t.table_id === MAT.curTableId);
+  if(!tInfo){
+    applyMatrixDataToDom();
+    return;
+  }
+
+  const url = MAT.contextType === 'job'
+    ? `/api/analyze/jobs/${encodeURIComponent(MAT.jobId)}/workbench/deconstruct`
+    : `/api/standards/${encodeURIComponent(MAT.std)}/workbench/deconstruct`;
+
+  const resp = await fetch(url, {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({
+      table_id: tInfo.table_id,
+      matrix_local_id: tInfo.matrix_local_id,
+      mode_code: MAT.curModeCode,
+      use_saved: !!useSaved,
+      table_info: tInfo
+    })
+  });
+
+  if(resp.ok){
+    const dec = await resp.json();
+    MAT.data = normalizeMatrixData(dec);
+    if(MAT.data.split_mode) MAT.curModeCode = MAT.data.split_mode;
+  }
+  renderWbModeCards();
+  applyMatrixDataToDom();
+}
+
+function applyMatrixDataToDom(){
+  const isSkip = (MAT.curModeCode === 'ignore_skip');
+  $('#wbStep3Skip').hidden = !isSkip;
+  $('#wbStep3Active').hidden = isSkip;
+
+  const tInfo = (MAT.sourceTables || []).find(t => t.table_id === MAT.curTableId);
+  const isCompleted = tInfo && tInfo.status === 'completed';
+  $('#matDeleteBtn').style.display = (!isSkip && (isCompleted || !MAT.isNew) && MAT.contextType === 'standard') ? 'inline-block' : 'none';
+
+  if(isSkip){
+    $('#matSaveBtn').textContent = '⏭️ 标记此表为跳过';
+    $('#matSaveNextBtn').textContent = '⏭️ 标记跳过，并进入下一张表 →';
+    updateMatrixStatMsg();
+    return;
+  }
+
+  $('#matSaveBtn').textContent = '💾 仅保存并编译当前表';
+  $('#matSaveNextBtn').textContent = '🚀 保存编译当前表，并进入下一张表 →';
+  $('#matTitle').value = MAT.data.title || '';
+  $('#matLocalId').value = MAT.data.local_id || '';
+  renderMatrixWizard();
+}
 
 /* 渲染整个主从向导界面 */
 function renderMatrixWizard(){
@@ -3386,30 +5041,147 @@ function renderMatrixWizard(){
 }
 
 function updateMatrixStatMsg(){
+  const allSrc = (MAT.sourceTables || []).length;
+  const doneSrc = (MAT.sourceTables || []).filter(t => t.status === 'completed' || t.status === 'skipped').length;
+  if(MAT.curModeCode === 'ignore_skip'){
+    $('#matStatMsg').textContent = `总进度：已处理 ${doneSrc} / ${allSrc} 张原表 ｜ 当前表格选择「模式 5：非判定表 / 忽略跳过」`;
+    return;
+  }
   const tCount = (MAT.data.tables || []).length;
   let rCount = 0;
   (MAT.data.tables || []).forEach(t => { rCount += (t.rows || []).length; });
-  $('#matMasterTableCount').textContent = tCount;
-  $('#matStatMsg').textContent = `共 ${MAT.data.common_dims.length} 个公共参数，已拆分 ${tCount} 笔限值主表，累计 ${rCount} 行明细数据`;
+  if($('#matMasterTableCount')) $('#matMasterTableCount').textContent = tCount;
+  $('#matStatMsg').textContent = `总进度：已处理 ${doneSrc} / ${allSrc} 张原表 ｜ 当前表：${(MAT.data.common_dims || []).length} 个公共参数，拆出 ${tCount} 笔限值主表，共 ${rCount} 行明细`;
 }
 
-/* 1. 渲染表头公共参数池 */
+/* 获取第 2 步「2.规格参数」中定义的参数列表（供工作台下拉选择） */
+function getWorkbenchSpecParams(){
+  try {
+    if(MAT.contextType === 'job' && $('#ptbody') && $('#ptbody').children.length > 0 && typeof syncParams === 'function'){
+      syncParams();
+    }
+  } catch(_e){}
+  let raw = [];
+  if(MAT.contextType === 'job' && typeof A !== 'undefined' && A.job && Array.isArray(A.job.params_spec) && A.job.params_spec.length){
+    raw = A.job.params_spec;
+  } else if(typeof E !== 'undefined' && Array.isArray(E.params) && E.params.length){
+    raw = E.params;
+  } else if(typeof A !== 'undefined' && A.job && Array.isArray(A.job.params_spec)){
+    raw = A.job.params_spec;
+  }
+  const seen = new Set();
+  const list = [];
+  raw.forEach(p => {
+    if(!p || !p.code) return;
+    const code = String(p.code).trim();
+    if(!code || seen.has(code)) return;
+    seen.add(code);
+    list.push({
+      code,
+      name: String(p.name || code).trim(),
+      type: p.type || 'number',
+      unit: p.unit || '',
+      options: Array.isArray(p.options) ? p.options : []
+    });
+  });
+  return list;
+}
+
+/* 1. 渲染表头公共参数池（下拉数据源绑定第 2 步「规格参数」） */
 function renderCommonDims(){
   const container = $('#matCommonDimsContainer');
   if(!container) return;
+  const specParams = getWorkbenchSpecParams();
   const dims = MAT.data.common_dims || [];
+
+  /* 同步右上角「+ 添加公共参数」下拉框选项 */
+  const selParam = $('#selMatAddCommonParam');
+  const selKind = $('#selMatAddCommonKind');
+  if(selParam){
+    const prevVal = selParam.value;
+    if(!specParams.length){
+      selParam.innerHTML = `<option value="">（第2步「规格参数」暂无参数，请先在步骤2定义）</option>`;
+    } else {
+      selParam.innerHTML = `<option value="">-- 从「2.规格参数」下拉选择 (${specParams.length}项) --</option>` +
+        specParams.map(p => {
+          const already = dims.some(d => d.code === p.code);
+          const typeLabel = p.type === 'enum' ? '枚举' : '数值';
+          return `<option value="${esc(p.code)}" ${prevVal === p.code ? 'selected' : ''}>${esc(p.name)} (${esc(p.code)}) [${typeLabel}]${already ? ' ✓已添加' : ''}</option>`;
+        }).join('');
+    }
+    selParam.onchange = () => {
+      const picked = specParams.find(p => p.code === selParam.value);
+      if(picked && selKind){
+        selKind.value = (picked.type === 'enum' || (picked.options && picked.options.length > 0)) ? 'enum' : 'range';
+      }
+    };
+  }
+
   if(!dims.length){
-    container.innerHTML = `<span style="font-size:12px;color:#8c8c8c">当前未设定公共参数，请点击右侧「+ 添加公共参数」</span>`;
+    container.innerHTML = `<span style="font-size:12px;color:#8c8c8c">当前未设定公共参数，请从右上方下拉框选择「2.规格参数」中的参数并点击「+ 添加公共参数」</span>`;
     return;
   }
-  container.innerHTML = dims.map((d, idx) => `
-    <span class="mat-pill-common" title="参数代码: ${esc(d.code)}">
-      <b>${esc(d.name || d.code)}</b>
-      <span style="font-size:10px;opacity:0.8">(${d.kind === 'range' ? '区间' : '枚举'})</span>
-      <a href="javascript:void(0)" onclick="removeCommonDim(${idx})" style="color:#0284c7;text-decoration:none;font-weight:bold;margin-left:4px" title="移除该公共参数">✕</a>
-    </span>
-  `).join('');
+
+  container.innerHTML = dims.map((d, idx) => {
+    const inSpec = specParams.some(p => p.code === d.code);
+    const optHtml = [
+      !inSpec ? `<option value="${esc(d.code)}" selected>${esc(d.name || d.code)} (${esc(d.code)})</option>` : '',
+      ...specParams.map(p => `<option value="${esc(p.code)}" ${p.code === d.code ? 'selected' : ''}>${esc(p.name)} (${esc(p.code)})</option>`)
+    ].join('');
+
+    return `
+      <span class="mat-pill-common" style="display:inline-flex;align-items:center;gap:4px;padding:3px 8px" title="可直接下拉切换为「2.规格参数」中的参数">
+        <select onchange="changeCommonDimCode(${idx}, this.value)" style="border:none;background:transparent;font-weight:700;color:#0369a1;font-size:12px;cursor:pointer;outline:none;padding-right:2px">
+          ${optHtml}
+        </select>
+        <select onchange="changeCommonDimKind(${idx}, this.value)" style="border:1px solid #bae6fd;background:#fff;color:#0284c7;font-size:11px;border-radius:4px;padding:0 4px;height:20px;cursor:pointer" title="切换维度匹配方式">
+          <option value="enum" ${d.kind !== 'range' ? 'selected' : ''}>枚举</option>
+          <option value="range" ${d.kind === 'range' ? 'selected' : ''}>区间</option>
+        </select>
+        <a href="javascript:void(0)" onclick="removeCommonDim(${idx})" style="color:#0284c7;text-decoration:none;font-weight:bold;margin-left:2px" title="移除该公共参数">✕</a>
+      </span>
+    `;
+  }).join('');
 }
+
+window.changeCommonDimCode = function(idx, newCode){
+  if(!newCode) return;
+  const dims = MAT.data.common_dims || [];
+  const target = dims[idx];
+  if(!target || target.code === newCode) return;
+  if(dims.some((d, i) => i !== idx && d.code === newCode)){
+    alert(`公共参数「${newCode}」已在列表中，请勿重复选择`);
+    renderMatrixWizard();
+    return;
+  }
+  const oldCode = target.code;
+  const specParams = getWorkbenchSpecParams();
+  const picked = specParams.find(p => p.code === newCode);
+  target.code = newCode;
+  if(picked){
+    target.name = picked.name || newCode;
+    target.unit = picked.unit || '';
+    if(picked.options && picked.options.length) target.options = picked.options.slice();
+  }
+  /* 同步迁移所有子表明细行中的 key 键名 */
+  (MAT.data.tables || []).forEach(tbl => {
+    (tbl.rows || []).forEach(r => {
+      if(r.key && Object.prototype.hasOwnProperty.call(r.key, oldCode)){
+        r.key[newCode] = r.key[oldCode];
+        delete r.key[oldCode];
+      }
+    });
+  });
+  renderMatrixWizard();
+};
+
+window.changeCommonDimKind = function(idx, newKind){
+  const dims = MAT.data.common_dims || [];
+  if(dims[idx]){
+    dims[idx].kind = newKind === 'range' ? 'range' : 'enum';
+    renderMatrixWizard();
+  }
+};
 
 window.removeCommonDim = function(idx){
   if(!confirm('确定移除该公共参数？此操作将使后续子表默认不再继承此维度。')) return;
@@ -3418,15 +5190,30 @@ window.removeCommonDim = function(idx){
 };
 
 $('#btnMatAddCommonDim').onclick = () => {
-  const code = prompt('请输入公共参数代码（如 property_class、d_nom 等）：');
-  if(!code || !code.trim()) return;
-  const name = prompt('请输入公共参数中文名称（如 性能等级、公称直径 d）：', code) || code;
-  const isRange = confirm('该参数是否为数值区间类型？\n点击【确定】设为区间 (range)，点击【取消】设为枚举 (enum)');
+  const specParams = getWorkbenchSpecParams();
+  const selParam = $('#selMatAddCommonParam');
+  const selKind = $('#selMatAddCommonKind');
+  const code = selParam ? selParam.value.trim() : '';
+  if(!code){
+    alert(specParams.length ? '请先在左侧下拉框中选择要添加的「2.规格参数」项！' : '当前「2.规格参数」为空，请先在第 2 步「规格参数」中添加定义参数。');
+    if(selParam) selParam.focus();
+    return;
+  }
+  if(!MAT.data.common_dims) MAT.data.common_dims = [];
+  if(MAT.data.common_dims.some(d => d.code === code)){
+    alert(`参数「${code}」已存在于表头公共参数池中！`);
+    return;
+  }
+  const picked = specParams.find(p => p.code === code) || { code, name: code, type: 'enum', options: [] };
+  const kind = selKind ? selKind.value : (picked.type === 'enum' ? 'enum' : 'range');
   MAT.data.common_dims.push({
-    code: code.trim(),
-    name: name.trim(),
-    kind: isRange ? 'range' : 'enum'
+    code: picked.code,
+    name: picked.name || picked.code,
+    kind: kind === 'range' ? 'range' : 'enum',
+    unit: picked.unit || '',
+    options: Array.isArray(picked.options) ? picked.options.slice() : []
   });
+  if(selParam) selParam.value = '';
   renderMatrixWizard();
 };
 
@@ -3436,24 +5223,19 @@ function renderMasterTables(){
   if(!container) return;
   const tables = MAT.data.tables || [];
   if(!tables.length){
-    container.innerHTML = `<div style="text-align:center;padding:36px;color:#94a3b8;border:1px dashed #cbd5e1;border-radius:8px">暂无限值主表，请点击上方「+ 新增限值主表 (No)」或载入国标预置数据集</div>`;
+    container.innerHTML = `<div style="text-align:center;padding:32px;color:#94a3b8;border:1px dashed #cbd5e1;border-radius:8px">当前拆分模式下暂无限值主表，可点击上方「+ 新增限值主表 (No)」或切换其它拆分模式</div>`;
     return;
   }
 
   const commonDims = MAT.data.common_dims || [];
   const commonNames = commonDims.map(d => d.name || d.code).join(', ') || '无';
-
-  // 现有检项选项
-  const itemOptions = (E.items || []).map(it =>
-    `<option value="${esc(it.id)}">${esc(it.title)} [${esc(it.id)}]</option>`
-  ).join('');
+  const specParams = getWorkbenchSpecParams();
 
   container.innerHTML = tables.map((tbl, tIdx) => {
     const extraDims = tbl.extra_dims || [];
     const allDims = [...commonDims, ...extraDims];
     const isExpanded = !!tbl.expanded;
 
-    // 专属增量参数徽标
     const extraPillsHtml = extraDims.map((ed, edIdx) => `
       <span class="mat-pill-extra" title="专属参数代码: ${esc(ed.code)}">
         ⭐ ${esc(ed.name || ed.code)}
@@ -3462,7 +5244,13 @@ function renderMasterTables(){
       </span>
     `).join('');
 
-    // 明细行表格 HTML
+    const extraSelectOptions = specParams.length
+      ? `<option value="">-- 选择专属规格参数 --</option>` + specParams.map(p => {
+          const used = allDims.some(d => d.code === p.code);
+          return `<option value="${esc(p.code)}" ${used ? 'disabled' : ''}>${esc(p.name)} (${esc(p.code)})${used ? ' [已用]' : ''}</option>`;
+        }).join('')
+      : `<option value="">（无可选规格参数）</option>`;
+
     let detailGridHtml = '';
     if(isExpanded){
       detailGridHtml = buildDetailGridHtml(tbl, tIdx, allDims);
@@ -3470,7 +5258,6 @@ function renderMasterTables(){
 
     return `
       <div class="mat-master-card" id="matCard_${tIdx}">
-        <!-- 卡片头部 (主表核心属性与参数确认) -->
         <div class="mat-master-head ${isExpanded ? 'is-open' : ''}">
           <div style="display:flex;align-items:center;gap:6px">
             <span style="font-size:12px;font-weight:bold;color:#475569">No.</span>
@@ -3489,14 +5276,13 @@ function renderMasterTables(){
             <input type="text" class="card-tid" value="${esc(tbl.local_table_id || '')}" onchange="updateMasterTableField(${tIdx}, 'local_table_id', this.value)" placeholder="子表代号" style="width:100%;height:28px;font-family:monospace;font-size:11px;border:1px solid #cbd5e1;border-radius:4px;padding:0 6px;box-sizing:border-box">
           </div>
 
-          <div style="width:160px">
+          <div style="width:165px">
             <select class="card-item" onchange="updateMasterTableField(${tIdx}, 'item_id', this.value)" style="width:100%;height:28px;border:1px solid #cbd5e1;border-radius:4px;font-size:11px;box-sizing:border-box">
-              <option value="" ${!tbl.item_id ? 'selected' : ''}>✨ 自动新建同名检项</option>
-              ${(E.items || []).map(it => `<option value="${esc(it.id)}" ${it.id === tbl.item_id ? 'selected' : ''}>${esc(it.title)} [${esc(it.id)}]</option>`).join('')}
+              <option value="" ${!tbl.item_id ? 'selected' : ''}>✨ 自动匹配/新建同名检项</option>
+              ${(E.items || []).map(it => `<option value="${esc(it.id || it.code)}" ${(it.id || it.code) === tbl.item_id ? 'selected' : ''}>${esc(it.title || it.name)} [${esc(it.id || it.code)}]</option>`).join('')}
             </select>
           </div>
 
-          <!-- 操作按钮组 -->
           <div style="display:flex;gap:6px;align-items:center;margin-left:auto">
             <button class="btn ghost" onclick="toggleExpandMasterTable(${tIdx})" style="padding:2px 10px;font-size:12px;color:#0969da;background:#fff;border-color:#bfdbfe">
               ${isExpanded ? '▲ 收起明细' : `👁️ 展开明细 (${(tbl.rows||[]).length}行) ▼`}
@@ -3505,7 +5291,6 @@ function renderMasterTables(){
           </div>
         </div>
 
-        <!-- 参数继承与确认栏 -->
         <div style="padding:8px 14px;background:#f1f5f9;border-top:1px solid #e2e8f0;display:flex;align-items:center;gap:12px;flex-wrap:wrap">
           <div style="display:flex;align-items:center;gap:6px">
             <span style="font-size:11.5px;color:#475569">已继承公共参数:</span>
@@ -3514,12 +5299,14 @@ function renderMasterTables(){
 
           <div style="width:1px;height:16px;background:#cbd5e1"></div>
 
-          <!-- 专属增量参数确认区 -->
           <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap">
             <span style="font-size:11.5px;color:#475569;font-weight:bold">专属增量参数:</span>
             ${extraPillsHtml || '<span style="font-size:11.5px;color:#94a3b8">（无专属参数）</span>'}
-            <button class="btn ghost" onclick="promptAddExtraDim(${tIdx})" style="padding:1px 8px;font-size:11px;color:#7e22ce;background:#fff;border-color:#d8b4fe;border-radius:10px">
-              ＋确认加入专属参数
+            <select id="selExtraDim_${tIdx}" style="width:170px;height:24px;padding:0 6px;font-size:11px;border:1px solid #d8b4fe;border-radius:6px;background:#fff;color:#475569">
+              ${extraSelectOptions}
+            </select>
+            <button type="button" class="btn ghost" onclick="promptAddExtraDim(${tIdx})" style="padding:1px 8px;font-size:11px;color:#7e22ce;background:#fff;border-color:#d8b4fe;border-radius:10px">
+              ＋加入专属参数
             </button>
           </div>
 
@@ -3528,26 +5315,22 @@ function renderMasterTables(){
           </span>
         </div>
 
-        <!-- 展开后的明细表格区域 -->
         ${isExpanded ? detailGridHtml : ''}
       </div>
     `;
   }).join('');
 }
 
-/* 生成某张主表的专属明细表格 HTML */
 function buildDetailGridHtml(tbl, tIdx, allDims){
   const rows = tbl.rows || [];
 
-  // 表头维度列
-  const dimThs = allDims.map((d, dIdx) => `
+  const dimThs = allDims.map(d => `
     <th style="min-width:110px">
       ${esc(d.name || d.code)}
       <div style="font-size:10px;font-weight:normal;color:#64748b">${esc(d.code)} (${d.kind === 'range' ? '区间' : '枚举'})</div>
     </th>
   `).join('');
 
-  // 表体数据行
   let trsHtml = '';
   rows.forEach((r, rIdx) => {
     let dimCells = '';
@@ -3599,7 +5382,7 @@ function buildDetailGridHtml(tbl, tIdx, allDims){
 
   return `
     <div class="mat-detail-container">
-      <div style="overflow-x:auto;max-height:42vh;border:1px solid #cbd5e1;border-radius:6px;background:#fff">
+      <div style="overflow-x:auto;max-height:36vh;border:1px solid #cbd5e1;border-radius:6px;background:#fff">
         <table class="mat-sub-table">
           <thead>
             <tr>
@@ -3619,7 +5402,6 @@ function buildDetailGridHtml(tbl, tIdx, allDims){
         </table>
       </div>
 
-      <!-- 明细底部操作栏 -->
       <div style="margin-top:10px;display:flex;gap:8px;align-items:center">
         <button class="btn ghost" onclick="addDetailRow(${tIdx})" style="font-size:12px;padding:3px 10px">+ 添加一行</button>
         <button class="btn ghost" onclick="autoGenerateDetailRows(${tIdx})" style="font-size:12px;padding:3px 10px;color:#0969da;border-color:#bfdbfe">⚡ 自动按公共参数生成组合行</button>
@@ -3629,7 +5411,6 @@ function buildDetailGridHtml(tbl, tIdx, allDims){
   `;
 }
 
-/* 主表操作响应函数 */
 window.updateMasterTableField = function(tIdx, field, val){
   if(MAT.data.tables[tIdx]){
     MAT.data.tables[tIdx][field] = val;
@@ -3649,7 +5430,6 @@ window.removeMasterTable = function(tIdx){
   renderMatrixWizard();
 };
 
-/* 专属参数管理 */
 window.removeExtraDim = function(tIdx, edIdx){
   const tbl = MAT.data.tables[tIdx];
   if(!tbl) return;
@@ -3657,7 +5437,6 @@ window.removeExtraDim = function(tIdx, edIdx){
   if(!confirm(`确定从主表「${tbl.name}」中移除专属参数「${dimName}」？`)) return;
   const removedCode = tbl.extra_dims[edIdx].code;
   tbl.extra_dims.splice(edIdx, 1);
-  // 从明细行的 key 中移除该专属参数
   (tbl.rows || []).forEach(r => {
     if(r.key) delete r.key[removedCode];
   });
@@ -3668,48 +5447,36 @@ window.promptAddExtraDim = function(tIdx){
   const tbl = MAT.data.tables[tIdx];
   if(!tbl) return;
 
-  // 推荐参数库
-  const suggestions = [
-    { code: 'rm_nom', name: '公称抗拉强度', kind: 'enum' },
-    { code: 'sp_nom', name: '保证应力公称值', kind: 'enum' },
-    { code: 'test_temp', name: '试验温度', kind: 'enum' },
-    { code: 'notch_type', name: '缺口类型', kind: 'enum' },
-    { code: 'condition', name: '试样状态/部位', kind: 'enum' },
-    { code: 'surface', name: '表面状态', kind: 'enum' }
-  ];
-
-  let hintText = '请选择或输入要为该主表加入的专属参数：\n';
-  suggestions.forEach((s, i) => {
-    hintText += `[${i+1}] ${s.name} (${s.code})\n`;
-  });
-  hintText += '请输入数字编号 (1~6)，或直接输入自定义参数代码：';
-
-  const choice = prompt(hintText, '1');
-  if(!choice || !choice.trim()) return;
-
-  let newDim = null;
-  const num = parseInt(choice.trim(), 10);
-  if(num >= 1 && num <= suggestions.length){
-    newDim = Object.assign({}, suggestions[num - 1]);
-  } else {
-    const customCode = choice.trim();
-    const customName = prompt('请输入该参数的中文名称：', customCode) || customCode;
-    const isRange = confirm('该专属参数是否为数值区间？\n【确定】为区间，【取消】为枚举');
-    newDim = { code: customCode, name: customName, kind: isRange ? 'range' : 'enum' };
+  const sel = $(`#selExtraDim_${tIdx}`);
+  const code = sel ? sel.value.trim() : '';
+  const specParams = getWorkbenchSpecParams();
+  if(!code){
+    alert(specParams.length ? '请先在左侧下拉框中选择要加入的专属规格参数！' : '当前「2.规格参数」为空，请先在第 2 步「规格参数」中添加定义参数。');
+    if(sel) sel.focus();
+    return;
   }
 
+  const picked = specParams.find(p => p.code === code) || { code, name: code, type: 'enum', options: [] };
+  const isRange = !(picked.type === 'enum' || (picked.options && picked.options.length > 0));
+  const newDim = {
+    code: picked.code,
+    name: picked.name || picked.code,
+    kind: isRange ? 'range' : 'enum',
+    unit: picked.unit || '',
+    options: Array.isArray(picked.options) ? picked.options.slice() : []
+  };
+
   if(!tbl.extra_dims) tbl.extra_dims = [];
-  if(tbl.extra_dims.some(d => d.code === newDim.code)){
-    alert(`专属参数 ${newDim.code} 已存在`);
+  if(tbl.extra_dims.some(d => d.code === newDim.code) || (MAT.data.common_dims || []).some(d => d.code === newDim.code)){
+    alert(`参数「${newDim.name} (${newDim.code})」已存在于当前主表维度中`);
     return;
   }
 
   tbl.extra_dims.push(newDim);
-  tbl.expanded = true; // 自动展开明细供用户查看新增的列
+  tbl.expanded = true;
   renderMatrixWizard();
 };
 
-/* 明细行操作响应函数 */
 window.updateDetailRowKey = function(tIdx, rIdx, dimCode, val){
   const tbl = MAT.data.tables[tIdx];
   if(tbl && tbl.rows[rIdx]){
@@ -3759,7 +5526,6 @@ window.clearDetailRows = function(tIdx){
   updateMatrixStatMsg();
 };
 
-/* 根据公共参数一键生成组合行框架 */
 window.autoGenerateDetailRows = function(tIdx){
   const tbl = MAT.data.tables[tIdx];
   if(!tbl) return;
@@ -3796,17 +5562,16 @@ window.autoGenerateDetailRows = function(tIdx){
   updateMatrixStatMsg();
 };
 
-/* 顶部按钮交互 */
 $('#btnMatAddMasterTable').onclick = () => {
   const nextNo = ((MAT.data.tables || []).length + 1).toString();
-  const name = prompt(`请输入新限值主表 (No.${nextNo}) 的检项/指标名称：`, `机械性能指标${nextNo}`);
+  const name = prompt(`请输入新限值主表 (No.${nextNo}) 的检项/指标名称：`, `检验指标${nextNo}`);
   if(!name || !name.trim()) return;
 
   const newTable = {
     no: nextNo,
     name: name.trim(),
     unit: 'MPa',
-    local_table_id: `T-${MAT.data.local_id}-NO${nextNo}`,
+    local_table_id: `T-${MAT.data.local_id || 'MAT'}-NO${nextNo}`,
     item_id: '',
     extra_dims: [],
     expanded: true,
@@ -3817,298 +5582,184 @@ $('#btnMatAddMasterTable').onclick = () => {
   renderMatrixWizard();
 };
 
-/* ✨ 载入 GB/T 3098.1 表3 螺栓机械性能总表（按 No 拆分的完整主从体系） */
-$('#btnMatSample3').onclick = () => {
-  if(!confirm('是否载入 GB/T 3098.1 表3 螺栓机械和物理性能总表？\n包含 No.1 抗拉强度(带公称专属参数)、No.2 下屈服、No.3 规定非比例延伸、No.4 实物延伸、No.5 保证应力及保证应力比。现有数据将被替换。')) return;
+/* 第三步落地：保存当前原表拆解结果（支持仅保存 或 保存并进入下一张表） */
+async function saveWorkbenchCurrentTable(goNext){
+  const isSkip = (MAT.curModeCode === 'ignore_skip');
+  let matrixPayload = null;
 
-  MAT.data = {
-    local_id: 'M-PROP-TABLE3',
-    title: 'GB/T 3098.1 表3 螺栓机械和物理性能',
-    common_dims: [
-      { code: 'property_class', name: '性能等级', kind: 'enum' },
-      { code: 'd_nom', name: '公称直径 d', kind: 'range' }
-    ],
-    tables: [
-      {
-        no: '1',
-        name: '抗拉强度 Rm',
-        unit: 'MPa',
-        local_table_id: 'T-PROP-RM',
-        item_id: '',
-        extra_dims: [
-          { code: 'rm_nom', name: '公称抗拉强度', kind: 'enum' }
-        ],
-        expanded: true,
-        rows: [
-          { key: { property_class: '4.6', d_nom: '0~39', rm_nom: '400' }, nominal: 400, lower: 400, upper: null, na: false, note: '' },
-          { key: { property_class: '4.8', d_nom: '0~39', rm_nom: '400' }, nominal: 400, lower: 420, upper: null, na: false, note: '' },
-          { key: { property_class: '5.6', d_nom: '0~39', rm_nom: '500' }, nominal: 500, lower: 500, upper: null, na: false, note: '' },
-          { key: { property_class: '5.8', d_nom: '0~39', rm_nom: '500' }, nominal: 500, lower: 520, upper: null, na: false, note: '' },
-          { key: { property_class: '6.8', d_nom: '0~39', rm_nom: '600' }, nominal: 600, lower: 600, upper: null, na: false, note: '' },
-          { key: { property_class: '8.8', d_nom: '0~16', rm_nom: '800' }, nominal: 800, lower: 800, upper: 1000, na: false, note: '' },
-          { key: { property_class: '8.8', d_nom: '16~39', rm_nom: '800' }, nominal: 800, lower: 830, upper: 1030, na: false, note: '大规格加严' },
-          { key: { property_class: '9.8', d_nom: '0~16', rm_nom: '900' }, nominal: 900, lower: 900, upper: null, na: false, note: '' },
-          { key: { property_class: '10.9', d_nom: '0~39', rm_nom: '1000' }, nominal: 1000, lower: 1040, upper: null, na: false, note: '' },
-          { key: { property_class: '12.9', d_nom: '0~39', rm_nom: '1200' }, nominal: 1200, lower: 1220, upper: null, na: false, note: '' }
-        ]
-      },
-      {
-        no: '2',
-        name: '下屈服强度 ReL',
-        unit: 'MPa',
-        local_table_id: 'T-PROP-REL',
-        item_id: '',
-        extra_dims: [],
-        expanded: false,
-        rows: [
-          { key: { property_class: '4.6', d_nom: '0~39' }, nominal: 240, lower: 240, upper: null, na: false, note: '' },
-          { key: { property_class: '4.8', d_nom: '0~39' }, nominal: null, lower: null, upper: null, na: true, note: '—' },
-          { key: { property_class: '5.6', d_nom: '0~39' }, nominal: 300, lower: 300, upper: null, na: false, note: '' },
-          { key: { property_class: '5.8', d_nom: '0~39' }, nominal: null, lower: null, upper: null, na: true, note: '—' },
-          { key: { property_class: '6.8', d_nom: '0~39' }, nominal: null, lower: null, upper: null, na: true, note: '—' }
-        ]
-      },
-      {
-        no: '3',
-        name: '规定非比例延伸0.2%应力 Rp0.2',
-        unit: 'MPa',
-        local_table_id: 'T-PROP-RP02',
-        item_id: '',
-        extra_dims: [],
-        expanded: false,
-        rows: [
-          { key: { property_class: '8.8', d_nom: '0~16' }, nominal: 640, lower: 640, upper: null, na: false, note: '' },
-          { key: { property_class: '8.8', d_nom: '16~39' }, nominal: 640, lower: 660, upper: null, na: false, note: '大规格加严' },
-          { key: { property_class: '9.8', d_nom: '0~16' }, nominal: 720, lower: 720, upper: null, na: false, note: '' },
-          { key: { property_class: '10.9', d_nom: '0~39' }, nominal: 900, lower: 940, upper: null, na: false, note: '' },
-          { key: { property_class: '12.9', d_nom: '0~39' }, nominal: 1080, lower: 1100, upper: null, na: false, note: '' }
-        ]
-      },
-      {
-        no: '4',
-        name: '实物规定非比例延伸应力 RPf',
-        unit: 'MPa',
-        local_table_id: 'T-PROP-RPF',
-        item_id: '',
-        extra_dims: [],
-        expanded: false,
-        rows: [
-          { key: { property_class: '4.8', d_nom: '0~39' }, nominal: 320, lower: 340, upper: null, na: false, note: '' },
-          { key: { property_class: '5.8', d_nom: '0~39' }, nominal: 400, lower: 420, upper: null, na: false, note: '' },
-          { key: { property_class: '6.8', d_nom: '0~39' }, nominal: 480, lower: 480, upper: null, na: false, note: '' }
-        ]
-      },
-      {
-        no: '5',
-        name: '保证应力 Sp',
-        unit: 'MPa',
-        local_table_id: 'T-PROP-SP',
-        item_id: '',
-        extra_dims: [],
-        expanded: false,
-        rows: [
-          { key: { property_class: '4.6', d_nom: '0~39' }, nominal: 225, lower: 225, upper: 225, na: false, note: '' },
-          { key: { property_class: '4.8', d_nom: '0~39' }, nominal: 310, lower: 310, upper: 310, na: false, note: '' },
-          { key: { property_class: '5.6', d_nom: '0~39' }, nominal: 280, lower: 280, upper: 280, na: false, note: '' },
-          { key: { property_class: '5.8', d_nom: '0~39' }, nominal: 380, lower: 380, upper: 380, na: false, note: '' },
-          { key: { property_class: '6.8', d_nom: '0~39' }, nominal: 440, lower: 440, upper: 440, na: false, note: '' },
-          { key: { property_class: '8.8', d_nom: '0~16' }, nominal: 580, lower: 580, upper: 580, na: false, note: '' },
-          { key: { property_class: '8.8', d_nom: '16~39' }, nominal: 600, lower: 600, upper: 600, na: false, note: '' },
-          { key: { property_class: '9.8', d_nom: '0~16' }, nominal: 650, lower: 650, upper: 650, na: false, note: '' },
-          { key: { property_class: '10.9', d_nom: '0~39' }, nominal: 830, lower: 830, upper: 830, na: false, note: '' },
-          { key: { property_class: '12.9', d_nom: '0~39' }, nominal: 970, lower: 970, upper: 970, na: false, note: '' }
-        ]
-      },
-      {
-        no: '5b',
-        name: '保证应力比',
-        unit: '',
-        local_table_id: 'T-PROP-SPRATIO',
-        item_id: '',
-        extra_dims: [],
-        expanded: false,
-        rows: [
-          { key: { property_class: '4.6', d_nom: '0~39' }, nominal: 0.94, lower: 0.94, upper: 0.94, na: false, note: '' },
-          { key: { property_class: '4.8', d_nom: '0~39' }, nominal: 0.91, lower: 0.91, upper: 0.91, na: false, note: '' },
-          { key: { property_class: '5.6', d_nom: '0~39' }, nominal: 0.93, lower: 0.93, upper: 0.93, na: false, note: '' },
-          { key: { property_class: '5.8', d_nom: '0~39' }, nominal: 0.90, lower: 0.90, upper: 0.90, na: false, note: '' },
-          { key: { property_class: '6.8', d_nom: '0~39' }, nominal: 0.92, lower: 0.92, upper: 0.92, na: false, note: '' },
-          { key: { property_class: '8.8', d_nom: '0~39' }, nominal: 0.91, lower: 0.91, upper: 0.91, na: false, note: '' },
-          { key: { property_class: '9.8', d_nom: '0~16' }, nominal: 0.90, lower: 0.90, upper: 0.90, na: false, note: '' },
-          { key: { property_class: '10.9', d_nom: '0~39' }, nominal: 0.88, lower: 0.88, upper: 0.88, na: false, note: '' },
-          { key: { property_class: '12.9', d_nom: '0~39' }, nominal: 0.88, lower: 0.88, upper: 0.88, na: false, note: '' }
-        ]
-      }
-    ]
-  };
+  if(!isSkip){
+    MAT.data.title = ($('#matTitle').value || '').trim();
+    MAT.data.local_id = ($('#matLocalId').value || '').trim();
 
-  $('#matTitle').value = MAT.data.title;
-  $('#matLocalId').value = MAT.data.local_id;
-  renderMatrixWizard();
-};
-
-/* ✨ 载入 GB/T 3098.1 表4 粗牙螺栓最小拉力载荷表 */
-$('#btnMatSample4').onclick = () => {
-  if(!confirm('是否载入 GB/T 3098.1 表4 粗牙螺栓最小拉力载荷表？现有数据将被替换。')) return;
-
-  const specs = [
-    { d: 'M3', as: 5.03, f: [2010, 2110, 2510, 2620, 3020, 4020, 4530, 5230, 6140] },
-    { d: 'M6', as: 20.1, f: [8040, 8440, 10000, 10400, 12100, 16100, 18100, 20900, 24500] },
-    { d: 'M8', as: 36.6, f: [14600, 15400, 18300, 19000, 22000, 29200, 32900, 38100, 44600] },
-    { d: 'M10', as: 58, f: [23200, 24400, 29000, 30200, 34800, 46400, 52200, 60300, 70800] },
-    { d: 'M12', as: 84.3, f: [33700, 35400, 42200, 43800, 50600, 67400, 75900, 87700, 103000] },
-    { d: 'M16', as: 157, f: [62800, 65900, 78500, 81600, 94000, 125000, 141000, 163000, 192000] }
-  ];
-
-  const classes = ['4.6', '4.8', '5.6', '5.8', '6.8', '8.8', '9.8', '10.9', '12.9'];
-
-  const tables = classes.map((cls, cIdx) => {
-    const rows = specs.map(sp => ({
-      key: { thread_spec: sp.d, as_nom: sp.as.toString() },
-      nominal: sp.f[cIdx],
-      lower: sp.f[cIdx],
-      upper: null,
-      na: false,
-      note: ''
-    }));
-
-    return {
-      no: (cIdx + 1).toString(),
-      name: `${cls}级 最小拉力载荷 Fm,min`,
-      unit: 'N',
-      local_table_id: `T-LOAD-${cls.replace('.', '')}`,
-      item_id: '',
-      extra_dims: [],
-      expanded: cIdx === 0,
-      rows: rows
-    };
-  });
-
-  MAT.data = {
-    local_id: 'M-LOAD-TABLE4',
-    title: 'GB/T 3098.1 表4 粗牙螺栓最小拉力载荷',
-    common_dims: [
-      { code: 'thread_spec', name: '螺纹规格 d', kind: 'enum' },
-      { code: 'as_nom', name: '公称应力截面积 As (mm²)', kind: 'enum' }
-    ],
-    tables: tables
-  };
-
-  $('#matTitle').value = MAT.data.title;
-  $('#matLocalId').value = MAT.data.local_id;
-  renderMatrixWizard();
-};
-
-/* 保存并自动切分编译 */
-$('#matSaveBtn').onclick = async () => {
-  MAT.data.title = ($('#matTitle').value || '').trim();
-  MAT.data.local_id = ($('#matLocalId').value || '').trim();
-
-  if(!MAT.data.title){ alert('请输入母表名称'); return; }
-  if(!MAT.data.local_id){ alert('请输入母表代号 (ID)'); return; }
-  if(!MAT.data.tables || !MAT.data.tables.length){ alert('至少需要包含一笔限值主表'); return; }
-
-  // 整理数据，对区间类型 range 自动格式化为 [a, b]
-  const commonDims = (MAT.data.common_dims || []).map(d => ({
-    code: d.code,
-    name: d.name || d.code,
-    kind: d.kind || 'enum'
-  }));
-
-  const compiledTables = MAT.data.tables.map((tbl, tIdx) => {
-    const noLabel = (tbl.no || (tIdx + 1)).toString().trim();
-    const subTid = (tbl.local_table_id || `T-${MAT.data.local_id}-NO${noLabel}`).trim();
-    let itemId = (tbl.item_id || '').trim();
-    if(!itemId){
-      itemId = `it-${MAT.data.local_id.toLowerCase()}-no${noLabel.toLowerCase()}`;
+    if(!MAT.data.title){ alert('请输入母表名称'); return; }
+    if(!MAT.data.local_id){ alert('请输入母表代号 (ID)'); return; }
+    if(!MAT.data.tables || !MAT.data.tables.length){
+      alert('当前拆分模式下至少需要包含 1 笔限值主表（若该表无需生成限值表，请在上方切换为「模式 5：非判定表 / 忽略跳过」）');
+      return;
     }
 
-    const allDims = [...commonDims, ...(tbl.extra_dims || [])];
+    const commonDims = (MAT.data.common_dims || []).map(d => ({
+      code: d.code,
+      name: d.name || d.code,
+      kind: d.kind || 'enum',
+      unit: d.unit || '',
+      options: d.options || []
+    }));
 
-    const compiledRows = (tbl.rows || []).map(r => {
-      const formattedKey = {};
-      allDims.forEach(d => {
-        const rawV = (r.key ? r.key[d.code] : '') ?? '';
-        if(d.kind === 'range'){
-          if(Array.isArray(rawV)){
-            formattedKey[d.code] = rawV;
+    const compiledTables = MAT.data.tables.map((tbl, tIdx) => {
+      const noLabel = (tbl.no || (tIdx + 1)).toString().trim();
+      const subTid = (tbl.local_table_id || `T-${MAT.data.local_id}-NO${noLabel}`).trim();
+      const itemId = (tbl.item_id || '').trim();
+      const allDims = [...commonDims, ...(tbl.extra_dims || [])];
+
+      const compiledRows = (tbl.rows || []).map(r => {
+        const formattedKey = {};
+        allDims.forEach(d => {
+          const rawV = (r.key ? r.key[d.code] : '') ?? '';
+          if(d.kind === 'range'){
+            if(Array.isArray(rawV)){
+              formattedKey[d.code] = rawV;
+            } else {
+              const [a, b] = (rawV.toString()).split(/[~～\-]/).map(x => Number(x.trim()));
+              formattedKey[d.code] = [Number.isFinite(a) ? a : 0, Number.isFinite(b) ? b : 0];
+            }
           } else {
-            const [a, b] = (rawV.toString()).split(/[~～\-]/).map(x => Number(x.trim()));
-            formattedKey[d.code] = [Number.isFinite(a) ? a : 0, Number.isFinite(b) ? b : 0];
+            formattedKey[d.code] = rawV.toString().trim();
           }
-        } else {
-          formattedKey[d.code] = rawV.toString().trim();
-        }
+        });
+
+        return {
+          key: formattedKey,
+          nominal: (r.nominal !== undefined && r.nominal !== '' && r.nominal !== null) ? Number(r.nominal) : null,
+          lower: (r.lower !== undefined && r.lower !== '' && r.lower !== null) ? Number(r.lower) : null,
+          upper: (r.upper !== undefined && r.upper !== '' && r.upper !== null) ? Number(r.upper) : null,
+          na: !!r.na,
+          note: r.note || ''
+        };
       });
 
       return {
-        key: formattedKey,
-        nominal: (r.nominal !== undefined && r.nominal !== '' && r.nominal !== null) ? Number(r.nominal) : null,
-        lower: (r.lower !== undefined && r.lower !== '' && r.lower !== null) ? Number(r.lower) : null,
-        upper: (r.upper !== undefined && r.upper !== '' && r.upper !== null) ? Number(r.upper) : null,
-        na: !!r.na,
-        note: r.note || ''
+        no: noLabel,
+        name: tbl.name || `指标${noLabel}`,
+        unit: tbl.unit || '',
+        local_table_id: subTid,
+        item_id: itemId,
+        extra_dims: tbl.extra_dims || [],
+        dims: allDims,
+        rows: compiledRows
       };
     });
 
-    return {
-      no: noLabel,
-      name: tbl.name || `指标${noLabel}`,
-      unit: tbl.unit || '',
-      local_table_id: subTid,
-      item_id: itemId,
-      extra_dims: tbl.extra_dims || [],
-      dims: allDims,
-      rows: compiledRows
+    matrixPayload = {
+      local_id: MAT.data.local_id,
+      title: MAT.data.title,
+      split_mode: MAT.curModeCode,
+      source_table_id: MAT.curTableId,
+      common_dims: commonDims,
+      tables: compiledTables,
+      indicators: compiledTables.map(t => ({
+        col_key: t.no,
+        name: t.name,
+        unit: t.unit,
+        local_table_id: t.local_table_id,
+        item_id: t.item_id
+      }))
     };
-  });
+  } else {
+    matrixPayload = {
+      local_id: ($('#matLocalId').value || '').trim(),
+      title: ($('#matTitle').value || '').trim(),
+      split_mode: 'ignore_skip',
+      source_table_id: MAT.curTableId,
+      common_dims: [],
+      tables: []
+    };
+  }
 
-  const payload = {
-    local_id: MAT.data.local_id,
-    title: MAT.data.title,
-    common_dims: commonDims,
-    tables: compiledTables,
-    indicators: compiledTables.map(t => ({
-      col_key: t.no,
-      name: t.name,
-      unit: t.unit,
-      local_table_id: t.local_table_id,
-      item_id: t.item_id
-    }))
-  };
+  const saveUrl = MAT.contextType === 'job'
+    ? `/api/analyze/jobs/${encodeURIComponent(MAT.jobId)}/workbench/save`
+    : `/api/standards/${encodeURIComponent(MAT.std)}/workbench/save`;
 
   $('#matSaveBtn').disabled = true;
-  $('#matSaveBtn').textContent = '正在切分编译中...';
+  $('#matSaveNextBtn').disabled = true;
 
   try {
-    const resp = await fetch(`/api/standards/${encodeURIComponent(MAT.std)}/matrices`, {
+    const resp = await fetch(saveUrl, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload)
+      body: JSON.stringify({
+        table_id: MAT.curTableId,
+        split_mode: MAT.curModeCode,
+        matrix_local_id: matrixPayload.local_id,
+        matrix: matrixPayload
+      })
     });
     const res = await resp.json();
     if(!resp.ok) throw new Error(res.detail || JSON.stringify(res));
 
-    alert(`保存并切分成功！\n已根据 No. 序号成功生成 ${res.sub_tables.length} 张单指标限值主表，检项自动联动！`);
-    $('#matrixModal').hidden = true;
-
-    // 重新拉取标准数据
-    const d = await (await fetch(`/api/standards/${encodeURIComponent(MAT.std)}/editor`)).json();
-    E.params = d.params || [];
-    E.items = d.items || [];
-    E.allTables = d.tables || [];
-    if(res.sub_tables && res.sub_tables.length){
-      CURRENT = res.sub_tables[0];
+    // 更新左侧清单中的状态
+    const curEntry = (MAT.sourceTables || []).find(t => t.table_id === MAT.curTableId);
+    if(curEntry){
+      curEntry.status = res.status || (isSkip ? 'skipped' : 'completed');
+      curEntry.chosen_mode = MAT.curModeCode;
+      curEntry.sub_count = res.compiled_count || 0;
+      if(res.matrix_id) curEntry.matrix_local_id = res.matrix_id;
     }
-    renderTableList();
-    if(CURRENT) renderTableDetail(CURRENT);
+    renderWbTableList();
+    updateMatrixStatMsg();
+
+    // 同步刷新背后的主页面数据
+    if(MAT.contextType === 'job' && JOB && JOB.id === MAT.jobId){
+      const j_fresh = await (await fetch(`/api/analyze/jobs/${encodeURIComponent(MAT.jobId)}`)).json();
+      Object.assign(JOB, j_fresh);
+      A.job = JOB;
+      renderParams();
+      renderLimits();
+      renderDrafts();
+      renderLinks();
+      updateStat();
+    } else if(MAT.contextType === 'standard' && MAT.std){
+      const d = await (await fetch(`/api/standards/${encodeURIComponent(MAT.std)}/editor`)).json();
+      E.params = d.params || [];
+      E.items = d.items || [];
+      E.allTables = d.tables || [];
+      if(res.compiled_tables && res.compiled_tables.length){
+        CURRENT = res.compiled_tables[0];
+      }
+      renderTableList();
+      if(CURRENT) renderTableDetail(CURRENT);
+    }
+
+    if(goNext){
+      const tables = MAT.sourceTables || [];
+      const curIdx = tables.findIndex(t => t.table_id === MAT.curTableId);
+      let nextTbl = tables.slice(curIdx + 1).find(t => t.status === 'pending')
+        || tables.find(t => t.status === 'pending')
+        || tables[curIdx + 1];
+      if(nextTbl && nextTbl.table_id !== MAT.curTableId){
+        await selectWorkbenchTable(nextTbl.table_id, true);
+      } else {
+        alert('🎉 本标准原表清单中的所有表格均已处理完毕！');
+        $('#matrixModal').hidden = true;
+      }
+    } else {
+      alert(isSkip
+        ? '已将该表标记为「跳过（非判定表）」'
+        : `保存并编译成功！已生成 ${res.compiled_count || 1} 张限值子表并自动关联检项。`);
+    }
   } catch(err){
     alert('保存失败: ' + err.message);
   } finally {
     $('#matSaveBtn').disabled = false;
-    $('#matSaveBtn').textContent = '保存并自动切分编译';
+    $('#matSaveNextBtn').disabled = false;
   }
-};
+}
+
+$('#matSaveBtn').onclick = () => saveWorkbenchCurrentTable(false);
+$('#matSaveNextBtn').onclick = () => saveWorkbenchCurrentTable(true);
+if($('#btnWbConfirmSkip')){
+  $('#btnWbConfirmSkip').onclick = () => saveWorkbenchCurrentTable(true);
+}
 
 $('#matDeleteBtn').onclick = async () => {
   if(!confirm(`确定要彻底删除母表「${MAT.data.title}」及其拆分生成的所有子表吗？此操作不可恢复。`)) return;
@@ -4117,8 +5768,12 @@ $('#matDeleteBtn').onclick = async () => {
       method: 'DELETE'
     });
     if(!resp.ok) throw new Error('删除失败');
-    alert('母表及联动子表已删除');
-    $('#matrixModal').hidden = true;
+    const curEntry = (MAT.sourceTables || []).find(t => t.table_id === MAT.curTableId);
+    if(curEntry){
+      curEntry.status = 'pending';
+      curEntry.sub_count = 0;
+    }
+    renderWbTableList();
     const d = await (await fetch(`/api/standards/${encodeURIComponent(MAT.std)}/editor`)).json();
     E.params = d.params || [];
     E.items = d.items || [];
@@ -4126,6 +5781,7 @@ $('#matDeleteBtn').onclick = async () => {
     CURRENT = E.allTables[0] ? E.allTables[0].id : null;
     renderTableList();
     if(CURRENT) renderTableDetail(CURRENT);
+    alert('母表及联动子表已删除');
   } catch(err){
     alert('删除母表出错: ' + err.message);
   }
@@ -4203,6 +5859,9 @@ function renderJob(){
     CLASSMAP = Object.fromEntries(cat.map(c => [c.id, c.name || c.code]));
     const el = document.querySelector('#jobmeta .jobcls');
     if(el && j.class_id) el.textContent = CLASSMAP[j.class_id] || j.class_id;
+    document.querySelectorAll('#atbody select.icl option').forEach(opt => {
+      if(opt.value && CLASSMAP[opt.value]) opt.textContent = CLASSMAP[opt.value];
+    });
     if(JOB) renderParams();                 // 拿到名称后重渲染一次
   }).catch(() => { CLASSMAP = {}; });
   const jid = document.querySelector('#jobmeta .jid');
@@ -4231,13 +5890,13 @@ function renderJob(){
       <td><select class="cat">${CATS.map(c =>
         `<option ${c === it.category ? 'selected' : ''}>${c}</option>`).join('')}</select></td>
       <td style="text-align:center"><input type="checkbox" class="chk ms" ${it.measurable ? 'checked' : ''}></td>
-      <td><select class="icl">${['<option value="">—</option>'].concat(
-        (JOB.classes || []).map(cid => `<option value="${esc(cid)}" ${
-          (it.class_id || '') === cid ? 'selected' : ''}>${esc(CLASSMAP[cid] || cid)}</option>`)).join('')}</select></td>
       <td class="evi" style="padding:3px 6px">
         <input type="text" class="evi-in" value="${esc(it.evidence || '')}" placeholder="条款依据原文…" style="width:100%;font-size:12px;color:#334155" title="点击即可手工修改条款依据">
         ${!it.selected ? `<div style="color:#b26a00;font-size:11px;margin-top:2px">✕ ${esc(it.reason || '未通过判定')} · 勾选左侧加回</div>` : ''}
       </td>
+      <td><select class="icl">${['<option value="">—</option>'].concat(
+        (JOB.classes || []).map(cid => `<option value="${esc(cid)}" ${
+          (it.class_id || '') === cid ? 'selected' : ''}>${esc(CLASSMAP[cid] || cid)}</option>`)).join('')}</select></td>
       <td style="text-align:center;color:var(--muted)">${it.page || '—'}</td>
       <td style="white-space:nowrap">
         <button class="rowwhy" data-i="${i}" title="查看算法判定轨迹及详细依据">依据</button>

@@ -142,14 +142,33 @@ CREATE TABLE IF NOT EXISTS product_class (
     sort    INTEGER DEFAULT 0
 );
 
--- 参数名称表（全局，两层中的第一层）
+-- 参数名称表（支持按产品小类独立挂载各自参数定义与定值集合）
 CREATE TABLE IF NOT EXISTS param_name (
-    id   TEXT PRIMARY KEY,
-    code TEXT NOT NULL UNIQUE,
-    name TEXT,
-    type TEXT DEFAULT 'enum',
-    unit TEXT DEFAULT '',
-    help TEXT DEFAULT ''
+    id             TEXT PRIMARY KEY,
+    code           TEXT NOT NULL,
+    name           TEXT,
+    type           TEXT DEFAULT 'enum',
+    unit           TEXT DEFAULT '',
+    help           TEXT DEFAULT '',
+    is_multi_dim   TEXT DEFAULT 'N',     -- 是否多维: 'Y' / 'N'
+    dim_count      INTEGER DEFAULT 0,    -- 维度定义: 2, 3, 4
+    coord1_sub_id  TEXT DEFAULT '',      -- 第一坐标_引用二级参数 (二级参数id)
+    coord2_sub_id  TEXT DEFAULT '',      -- 第二坐标_引用二级参数
+    coord3_sub_id  TEXT DEFAULT '',      -- 第三坐标_引用二级参数
+    coord4_sub_id  TEXT DEFAULT '',      -- 第四坐标_引用二级参数
+    is_primary     INTEGER DEFAULT 0,    -- 主参数 (0/1)
+    category       TEXT DEFAULT ''       -- 参数分类
+);
+
+-- 二级参数表（对应 FileMaker: 产品目录_二级参数）
+CREATE TABLE IF NOT EXISTS sub_param (
+    id         TEXT PRIMARY KEY,          -- 记录编号，如 EJCPLCS00000000002
+    class_id   TEXT REFERENCES product_class(id) ON DELETE CASCADE,  -- 引用_产品目录_记录编号
+    param_id   TEXT NOT NULL REFERENCES param_name(id) ON DELETE CASCADE, -- 引用_产品目录参数_编号
+    seq        INTEGER DEFAULT 1,         -- 序号 (1, 2, 3, 4)
+    code       TEXT NOT NULL,             -- 参数代码，如 GYZLX, D, P, YLX
+    name       TEXT NOT NULL,             -- 参数名称，如 公英制类型, 公称直径
+    help       TEXT DEFAULT ''            -- 参数说明 / 单位 (如 mm, /)
 );
 
 -- 小类用哪些参数（多对多）
@@ -161,30 +180,149 @@ CREATE TABLE IF NOT EXISTS class_param (
     PRIMARY KEY (class_id, param_id)
 );
 
--- 参数值表（两层中的第二层，挂在参数名称下）
+-- 参数值表（挂在参数名称下，多维参数可含坐标拆解值）
 CREATE TABLE IF NOT EXISTS param_value (
-    id       INTEGER PRIMARY KEY AUTOINCREMENT,
-    param_id TEXT REFERENCES param_name(id) ON DELETE CASCADE,
-    seq      INTEGER,
-    sym      TEXT,
-    val      TEXT
+    id          INTEGER PRIMARY KEY AUTOINCREMENT,
+    param_id    TEXT REFERENCES param_name(id) ON DELETE CASCADE,
+    seq         INTEGER,
+    sym         TEXT,
+    val         TEXT,
+    coord1_val  TEXT DEFAULT '',          -- 第一坐标对应值 (如 公制)
+    coord2_val  TEXT DEFAULT '',          -- 第二坐标对应值 (如 1)
+    coord3_val  TEXT DEFAULT '',          -- 第三坐标对应值 (如 0.25)
+    coord4_val  TEXT DEFAULT ''           -- 第四坐标对应值 (如 粗牙)
 );
 
+CREATE INDEX IF NOT EXISTS idx_sub_param_param ON sub_param(param_id);
+CREATE INDEX IF NOT EXISTS idx_sub_param_class ON sub_param(class_id);
 CREATE INDEX IF NOT EXISTS idx_cp_class ON class_param(class_id);
 CREATE INDEX IF NOT EXISTS idx_pv_param ON param_value(param_id);
 CREATE INDEX IF NOT EXISTS idx_lt_std ON limit_table(std_id);
 CREATE INDEX IF NOT EXISTS idx_lr_tbl ON limit_row(table_id);
+
+-- 拆分模式库：预置 5 种标准表格拆分模式，支持浏览与配置
+CREATE TABLE IF NOT EXISTS table_split_mode (
+    id            TEXT PRIMARY KEY,
+    code          TEXT NOT NULL UNIQUE,
+    seq           INTEGER DEFAULT 1,
+    name          TEXT NOT NULL,
+    short_name    TEXT DEFAULT '',
+    output_ratio  TEXT DEFAULT '',
+    complexity    TEXT DEFAULT '简单',
+    badge_color   TEXT DEFAULT '#0b5cab',
+    scenario      TEXT DEFAULT '',
+    rule_summary  TEXT DEFAULT '',
+    std_examples  TEXT DEFAULT '[]',
+    sample_before TEXT DEFAULT '{}',
+    sample_after  TEXT DEFAULT '[]',
+    config_json   TEXT DEFAULT '{}'
+);
 """
 
 
 # ------------------------------------------------------------------ 连接与迁移
+def _migrate_param_name_unique(conn: sqlite3.Connection) -> None:
+    """移除旧版 param_name.code 的全局 UNIQUE 约束，并修复外键指向 param_name。"""
+    row_pn = conn.execute(
+        "SELECT sql FROM sqlite_master WHERE type='table' AND name='param_name'"
+    ).fetchone()
+    row_cp = conn.execute(
+        "SELECT sql FROM sqlite_master WHERE type='table' AND name='class_param'"
+    ).fetchone()
+    need_pn = bool(row_pn and "UNIQUE" in (row_pn[0] or "").upper())
+    need_fk = bool(row_cp and "_old_param_name" in (row_cp[0] or ""))
+    if not need_pn and not need_fk:
+        return
+    conn.execute("PRAGMA foreign_keys = OFF")
+    conn.execute("PRAGMA legacy_alter_table = ON")
+    if need_pn:
+        conn.executescript("""
+            ALTER TABLE param_name RENAME TO _old_param_name;
+            CREATE TABLE param_name (
+                id   TEXT PRIMARY KEY,
+                code TEXT NOT NULL,
+                name TEXT,
+                type TEXT DEFAULT 'enum',
+                unit TEXT DEFAULT '',
+                help TEXT DEFAULT ''
+            );
+            INSERT INTO param_name(id, code, name, type, unit, help)
+                SELECT id, code, name, type, unit, help FROM _old_param_name;
+            DROP TABLE _old_param_name;
+        """)
+    if need_fk:
+        conn.executescript("""
+            ALTER TABLE class_param RENAME TO _old_class_param;
+            CREATE TABLE class_param (
+                class_id TEXT NOT NULL REFERENCES product_class(id) ON DELETE CASCADE,
+                param_id TEXT NOT NULL REFERENCES param_name(id) ON DELETE CASCADE,
+                sort     INTEGER DEFAULT 0,
+                required INTEGER DEFAULT 1,
+                PRIMARY KEY (class_id, param_id)
+            );
+            INSERT INTO class_param(class_id, param_id, sort, required)
+                SELECT class_id, param_id, sort, required FROM _old_class_param;
+            DROP TABLE _old_class_param;
+
+            ALTER TABLE param_value RENAME TO _old_param_value;
+            CREATE TABLE param_value (
+                id       INTEGER PRIMARY KEY AUTOINCREMENT,
+                param_id TEXT REFERENCES param_name(id) ON DELETE CASCADE,
+                seq      INTEGER,
+                sym      TEXT,
+                val      TEXT
+            );
+            INSERT INTO param_value(id, param_id, seq, sym, val)
+                SELECT id, param_id, seq, sym, val FROM _old_param_value;
+            DROP TABLE _old_param_value;
+        """)
+    conn.commit()
+    conn.execute("PRAGMA legacy_alter_table = OFF")
+    conn.execute("PRAGMA foreign_keys = ON")
+
+
+def _migrate_multi_dim_params(conn: sqlite3.Connection) -> None:
+    """平滑升级表结构，支持多维参数、二级参数和坐标定值。"""
+    pn_cols = _columns(conn, "param_name")
+    if pn_cols:
+        new_cols = [
+            ("is_multi_dim", "TEXT DEFAULT 'N'"),
+            ("dim_count", "INTEGER DEFAULT 0"),
+            ("coord1_sub_id", "TEXT DEFAULT ''"),
+            ("coord2_sub_id", "TEXT DEFAULT ''"),
+            ("coord3_sub_id", "TEXT DEFAULT ''"),
+            ("coord4_sub_id", "TEXT DEFAULT ''"),
+            ("is_primary", "INTEGER DEFAULT 0"),
+            ("category", "TEXT DEFAULT ''"),
+        ]
+        for col_name, col_def in new_cols:
+            if col_name not in pn_cols:
+                conn.execute(f"ALTER TABLE param_name ADD COLUMN {col_name} {col_def}")
+
+    pv_cols = _columns(conn, "param_value")
+    if pv_cols:
+        new_pv_cols = [
+            ("coord1_val", "TEXT DEFAULT ''"),
+            ("coord2_val", "TEXT DEFAULT ''"),
+            ("coord3_val", "TEXT DEFAULT ''"),
+            ("coord4_val", "TEXT DEFAULT ''"),
+        ]
+        for col_name, col_def in new_pv_cols:
+            if col_name not in pv_cols:
+                conn.execute(f"ALTER TABLE param_value ADD COLUMN {col_name} {col_def}")
+    conn.commit()
+
+
 def connect() -> sqlite3.Connection:
     DB_PATH.parent.mkdir(parents=True, exist_ok=True)
     conn = sqlite3.connect(DB_PATH)
     conn.row_factory = sqlite3.Row
     conn.execute("PRAGMA foreign_keys = ON")
     _migrate(conn)
+    _migrate_param_name_unique(conn)
+    _migrate_multi_dim_params(conn)
     conn.executescript(SCHEMA)
+    ensure_split_modes(conn)
     return conn
 
 
@@ -470,6 +608,8 @@ def list_matrices(conn: sqlite3.Connection, std_id: str) -> list[dict]:
             "id": r["id"],
             "local_id": r["local_id"],
             "title": r["title"],
+            "split_mode": mjson.get("split_mode") or "composite_no_master",
+            "source_table_id": mjson.get("source_table_id") or "",
             "created_at": r["created_at"],
             "updated_at": r["updated_at"],
             "dims_count": len(common_dims),
@@ -562,21 +702,33 @@ def save_and_compile_matrix(conn: sqlite3.Connection, std_id: str, matrix_data: 
 
     # 3. 逐个切分/保存每张限值主表
     if tables:
-        # 新架构：按 No 序号生成的主从限值表列表
+        # 新架构：按 No 序号生成的主从限值表列表（名称直接采用 表格标题/指标名+Min(或Max)）
+        used_item_ids: set[str] = set()
         for idx, tbl in enumerate(tables):
             no_label = str(tbl.get("no") or (idx + 1)).strip()
-            name_label = tbl.get("name") or f"指标{idx+1}"
+            name_label = (tbl.get("name") or f"指标{idx+1}").strip()
             sub_tid = (tbl.get("local_table_id") or f"T-{mid}-NO{no_label}").strip()
             new_sub_tids.add(sub_tid)
 
             item_id = (tbl.get("item_id") or "").strip()
+            if not item_id:
+                for it in items:
+                    if (it.get("title") or it.get("name") or "").strip() == name_label:
+                        item_id = it.get("id") or ""
+                        break
+            if not item_id or item_id in used_item_ids:
+                suffix_slug = "max" if name_label.lower().endswith("max") else ("min" if name_label.lower().endswith("min") else no_label.lower())
+                item_id = f"m-{mid.lower()}-{idx+1}-{suffix_slug}"
+            used_item_ids.add(item_id)
             # 若需要一键新建检项
             if item_id and item_id not in item_map:
                 new_item = {
                     "id": item_id,
                     "clause": tbl.get("clause") or "",
                     "title": name_label,
+                    "name": name_label,
                     "category": tbl.get("category") or "性能",
+                    "kind": tbl.get("category") or "性能",
                     "table": sub_tid,
                     "evidence": f"源自母表 {title} No.{no_label}"
                 }
@@ -590,11 +742,21 @@ def save_and_compile_matrix(conn: sqlite3.Connection, std_id: str, matrix_data: 
 
             # 维度合并：表头公共参数 + 本表专属自增参数
             tbl_dims = tbl.get("dims") or (list(common_dims) + list(tbl.get("extra_dims") or []))
+            dim_kind_map = {d.get("code"): d.get("kind", "enum") for d in tbl_dims if d.get("code")}
 
-            # 整理明细行
+            # 整理明细行（将区间维度的 '0~16' 规范化为 [0.0, 16.0]）
             tbl_rows = []
             for r in tbl.get("rows") or []:
                 raw_key = dict(r.get("key") or {})
+                for k_code, k_val in list(raw_key.items()):
+                    if dim_kind_map.get(k_code) == "range" and isinstance(k_val, str) and "~" in k_val:
+                        parts = [p.strip() for p in k_val.split("~", 1)]
+                        try:
+                            lo_v = float(parts[0]) if parts[0] else None
+                            hi_v = float(parts[1]) if parts[1] else None
+                            raw_key[k_code] = [lo_v, hi_v]
+                        except ValueError:
+                            pass
                 tbl_rows.append({
                     "key": raw_key,
                     "nominal": r.get("nominal"),
@@ -608,7 +770,7 @@ def save_and_compile_matrix(conn: sqlite3.Connection, std_id: str, matrix_data: 
 
             sub_table_dict = {
                 "id": sub_tid,
-                "name": f"{title} - No.{no_label} {name_label}",
+                "name": name_label,
                 "unit": tbl.get("unit") or "",
                 "value_form": tbl.get("value_form") or "absolute",
                 "nominal_param": tbl.get("nominal_param") or None,
@@ -705,6 +867,8 @@ def save_and_compile_matrix(conn: sqlite3.Connection, std_id: str, matrix_data: 
         "matrix_id": mid,
         "title": title,
         "sub_tables": list(new_sub_tids),
+        "compiled_tables": list(new_sub_tids),
+        "compiled_count": len(new_sub_tids),
         "items_updated": items_changed
     }
 
@@ -1065,19 +1229,56 @@ def all_params(conn: sqlite3.Connection) -> list[dict]:
 
 
 def save_param_name(conn: sqlite3.Connection, pid: str, code: str, name: str,
-                    type_: str = "enum", unit: str = "", help: str = "") -> str:
-    conn.execute("INSERT INTO param_name(id, code, name, type, unit, help) VALUES (?,?,?,?,?,?)"
-                 " ON CONFLICT(id) DO UPDATE SET code=excluded.code, name=excluded.name,"
-                 " type=excluded.type, unit=excluded.unit, help=excluded.help",
-                 (pid, code, name, type_, unit, help))
+                    type_: str = "enum", unit: str = "", help: str = "",
+                    is_multi_dim: str = "N", dim_count: int = 0,
+                    coord1_sub_id: str = "", coord2_sub_id: str = "",
+                    coord3_sub_id: str = "", coord4_sub_id: str = "",
+                    is_primary: int = 0, category: str = "") -> str:
+    conn.execute(
+        "INSERT INTO param_name(id, code, name, type, unit, help, is_multi_dim, dim_count,"
+        " coord1_sub_id, coord2_sub_id, coord3_sub_id, coord4_sub_id, is_primary, category)"
+        " VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)"
+        " ON CONFLICT(id) DO UPDATE SET code=excluded.code, name=excluded.name,"
+        " type=excluded.type, unit=excluded.unit, help=excluded.help,"
+        " is_multi_dim=excluded.is_multi_dim, dim_count=excluded.dim_count,"
+        " coord1_sub_id=excluded.coord1_sub_id, coord2_sub_id=excluded.coord2_sub_id,"
+        " coord3_sub_id=excluded.coord3_sub_id, coord4_sub_id=excluded.coord4_sub_id,"
+        " is_primary=excluded.is_primary, category=excluded.category",
+        (pid, code, name, type_, unit, help, is_multi_dim, dim_count,
+         coord1_sub_id, coord2_sub_id, coord3_sub_id, coord4_sub_id, is_primary, category)
+    )
     conn.commit()
     return pid
 
 
+def save_sub_param(conn: sqlite3.Connection, sid: str, class_id: str, param_id: str,
+                   seq: int, code: str, name: str, help: str = "") -> str:
+    conn.execute(
+        "INSERT INTO sub_param(id, class_id, param_id, seq, code, name, help) VALUES (?,?,?,?,?,?,?)"
+        " ON CONFLICT(id) DO UPDATE SET class_id=excluded.class_id, param_id=excluded.param_id,"
+        " seq=excluded.seq, code=excluded.code, name=excluded.name, help=excluded.help",
+        (sid, class_id, param_id, seq, code, name, help)
+    )
+    conn.commit()
+    return sid
+
+
+def list_sub_params(conn: sqlite3.Connection, param_id: str) -> list[dict]:
+    rows = conn.execute("SELECT * FROM sub_param WHERE param_id=? ORDER BY seq, id", (param_id,)).fetchall()
+    return [dict(r) for r in rows]
+
+
+def delete_sub_param(conn: sqlite3.Connection, sid: str) -> None:
+    conn.execute("DELETE FROM sub_param WHERE id=?", (sid,))
+    conn.commit()
+
+
 def attach_param(conn: sqlite3.Connection, class_id: str, param_id: str,
                  sort: int = 0, required: bool = True) -> None:
-    conn.execute("INSERT OR IGNORE INTO class_param(class_id, param_id, sort, required)"
-                 " VALUES (?,?,?,?)", (class_id, param_id, sort, int(required)))
+    conn.execute("INSERT INTO class_param(class_id, param_id, sort, required)"
+                 " VALUES (?,?,?,?)"
+                 " ON CONFLICT(class_id, param_id) DO UPDATE SET sort=excluded.sort, required=excluded.required",
+                 (class_id, param_id, sort, int(required)))
     conn.commit()
 
 
@@ -1093,13 +1294,34 @@ def catalog(conn: sqlite3.Connection) -> list[dict]:
         for p in conn.execute(
                 "SELECT pn.*, cp.required AS req, cp.sort AS cpsort FROM param_name pn"
                 " JOIN class_param cp ON cp.param_id = pn.id"
-                " WHERE cp.class_id=? ORDER BY cp.sort, pn.code", (c["id"],)):
-            vals = [{"seq": v["seq"], "sym": v["sym"], "val": v["val"]}
-                    for v in conn.execute("SELECT * FROM param_value WHERE param_id=? ORDER BY seq, id",
-                                          (p["id"],))]
-            params.append({"id": p["id"], "code": p["code"], "name": p["name"], "type": p["type"],
-                           "unit": p["unit"], "required": bool(p["req"]), "help": p["help"],
-                           "values": vals})
+                " WHERE cp.class_id=? ORDER BY cp.sort, pn.id", (c["id"],)):
+            vals = [{
+                "seq": v["seq"], "sym": v["sym"], "val": v["val"],
+                "coord1_val": v["coord1_val"] if "coord1_val" in v.keys() else "",
+                "coord2_val": v["coord2_val"] if "coord2_val" in v.keys() else "",
+                "coord3_val": v["coord3_val"] if "coord3_val" in v.keys() else "",
+                "coord4_val": v["coord4_val"] if "coord4_val" in v.keys() else "",
+            } for v in conn.execute("SELECT * FROM param_value WHERE param_id=? ORDER BY seq, id",
+                                  (p["id"],))]
+
+            sub_params = [dict(sp) for sp in conn.execute(
+                "SELECT * FROM sub_param WHERE param_id=? ORDER BY seq, id", (p["id"],)
+            ).fetchall()]
+
+            params.append({
+                "id": p["id"], "code": p["code"], "name": p["name"], "type": p["type"],
+                "unit": p["unit"], "required": bool(p["req"]), "help": p["help"],
+                "is_multi_dim": p["is_multi_dim"] if "is_multi_dim" in p.keys() else "N",
+                "dim_count": p["dim_count"] if "dim_count" in p.keys() else 0,
+                "coord1_sub_id": p["coord1_sub_id"] if "coord1_sub_id" in p.keys() else "",
+                "coord2_sub_id": p["coord2_sub_id"] if "coord2_sub_id" in p.keys() else "",
+                "coord3_sub_id": p["coord3_sub_id"] if "coord3_sub_id" in p.keys() else "",
+                "coord4_sub_id": p["coord4_sub_id"] if "coord4_sub_id" in p.keys() else "",
+                "is_primary": p["is_primary"] if "is_primary" in p.keys() else 0,
+                "category": p["category"] if "category" in p.keys() else "",
+                "sub_params": sub_params,
+                "values": vals
+            })
         out.append({"id": c["id"], "code": c["code"], "name": c["name"],
                     "parent": c["parent"], "params": params})
     return out
@@ -1150,8 +1372,13 @@ def save_param_values(conn: sqlite3.Connection, param_id: str, values: list[dict
                 seq = i
         except (ValueError, TypeError):
             seq = i
-        conn.execute("INSERT INTO param_value(param_id, seq, sym, val) VALUES (?,?,?,?)",
-                     (param_id, seq, v.get("sym", ""), v.get("val", "")))
+        conn.execute(
+            "INSERT INTO param_value(param_id, seq, sym, val, coord1_val, coord2_val, coord3_val, coord4_val)"
+            " VALUES (?,?,?,?,?,?,?,?)",
+            (param_id, seq, v.get("sym", ""), v.get("val", ""),
+             v.get("coord1_val", ""), v.get("coord2_val", ""),
+             v.get("coord3_val", ""), v.get("coord4_val", ""))
+        )
     conn.commit()
     return len(values)
 
@@ -1159,3 +1386,436 @@ def save_param_values(conn: sqlite3.Connection, param_id: str, values: list[dict
 def delete_class(conn: sqlite3.Connection, cid: str) -> None:
     conn.execute("DELETE FROM product_class WHERE id=?", (cid,))
     conn.commit()
+
+
+# ------------------------------------------------------------------ 拆分模式库 (table_split_mode)
+DEFAULT_SPLIT_MODES: list[dict[str, Any]] = [
+    {
+        "id": "mode-1-single",
+        "code": "single_indicator",
+        "seq": 1,
+        "name": "模式 1：单指标简单表",
+        "short_name": "单指标简单表",
+        "output_ratio": "1 张原表 → 按 Min / Max / Avg 等特征值拆分为对应限值表（表格标题+特征值）",
+        "complexity": "简单",
+        "badge_color": "#0284c7",
+        "scenario": "整张表格只描述某 1 个检验项目/物理指标的限值（如表面渗碳层深度、镀层厚度、单项公差），左侧列为规格自变量（如螺纹公称直径 d），右侧列为 min、max、avg（平均值）、nom（公称值）等特征列。",
+        "rule_summary": "1. 提取左侧第 1 列（或前 N 列）作为公共自变量参数（如 d_nom 公称直径）；\n2. 动态识别右侧所有特征列（如 Min、Max、Avg、Nom、Typ 等），按特征列拆分为独立限值主表，名称为「表格标题+Min」、「表格标题+Max」、「表格标题+Avg」等；\n3. 将各列数值分别填入对应限值主表的明细行。",
+        "std_examples": [
+            {"std": "GB/T 3098.7—2000", "table": "表4 表面渗碳层深度", "desc": "左列为螺纹公称直径 (2~12)，按 min、max 拆分为「表面渗碳层深度Min」与「表面渗碳层深度Max」两张限值表"},
+            {"std": "涂镀层 / 冲击试验标准", "table": "单指标多统计特征表", "desc": "含 min、max、avg 三列时，自动拆分为「表格标题+Min」、「表格标题+Max」、「表格标题+Avg」三张限值表"}
+        ],
+        "sample_before": {
+            "caption": "表4 表面渗碳层深度 (单位: mm)",
+            "headers": ["螺纹公称直径", "min", "max"],
+            "rows": [
+                ["2、2.5", "0.04", "0.12"],
+                ["3、3.5", "0.05", "0.18"],
+                ["4、5", "0.10", "0.25"],
+                ["6、8", "0.15", "0.28"],
+                ["10、12", "0.15", "0.32"]
+            ]
+        },
+        "sample_after": [
+            {
+                "no": "1",
+                "name": "表面渗碳层深度Min",
+                "unit": "mm",
+                "common_dims": ["螺纹公称直径 d (d_nom)"],
+                "extra_dims": [],
+                "preview_rows": [
+                    {"key": "d_nom=2", "lower": "0.04", "upper": "—"},
+                    {"key": "d_nom=2.5", "lower": "0.04", "upper": "—"},
+                    {"key": "d_nom=4", "lower": "0.10", "upper": "—"}
+                ]
+            },
+            {
+                "no": "2",
+                "name": "表面渗碳层深度Max",
+                "unit": "mm",
+                "common_dims": ["螺纹公称直径 d (d_nom)"],
+                "extra_dims": [],
+                "preview_rows": [
+                    {"key": "d_nom=2", "lower": "—", "upper": "0.12"},
+                    {"key": "d_nom=2.5", "lower": "—", "upper": "0.12"},
+                    {"key": "d_nom=4", "lower": "—", "upper": "0.25"}
+                ]
+            }
+        ],
+        "config": {"header_dir": "col", "target_tables": "single_min_max"}
+    },
+    {
+        "id": "mode-2-parallel",
+        "code": "multi_col_parallel",
+        "seq": 2,
+        "name": "模式 2：多指标并列表（按列拆分）",
+        "short_name": "多指标按列拆分",
+        "output_ratio": "1 张原表 → 按指标列及 Min / Max / Avg 等特征值拆分为 N 张限值表（指标名称+特征值）",
+        "complexity": "中等",
+        "badge_color": "#0d9488",
+        "scenario": "表格左侧第 1~2 列是公共规格参数（如螺纹公称直径 d、螺距 P、分析类型），右侧并列了多个不同检项/指标列，每列可能是单特征（如 min、max、avg、nom）或双层子列/区间（如同一指标下分 min、max、avg）。",
+        "rule_summary": "1. 左侧规格列提取为表头公共参数池（common_dims），所有子表自动继承；\n2. 右侧每个指标列按极值/统计特征（Min、Max、Avg、Nom、Typ、Ref 等）拆分为独立限值主表，名称为「指标名称+Min」、「指标名称+Max」、「指标名称+Avg」等；\n3. 自动识别各列的物理单位（如 N·m、N、mm、%），分别填入各主表明细行。",
+        "std_examples": [
+            {"std": "GB/T 3098.7—2000", "table": "表3 机械和工作性能要求", "desc": "拆分为 3 张限值表：破坏扭矩Min、拧入扭矩Max、破坏拉力载荷Min"},
+            {"std": "GB/T 3098.7—2000", "table": "表1 化学成分", "desc": "碳 C 与锰 Mn 均含上下限，拆分为 4 张限值表：碳含量 CMin、碳含量 CMax、锰含量 MnMin、锰含量 MnMax"},
+            {"std": "多指标含平均值表", "table": "几何尺寸 / 涂镀层并列表", "desc": "若某列或子列为 avg（平均值），自动生成「指标名称+Avg」限值表"}
+        ],
+        "sample_before": {
+            "caption": "表3 机械和工作性能要求",
+            "headers": ["螺纹公称直径 (mm)", "破坏扭矩 min (N·m)", "拧入扭矩 max (N·m)", "破坏拉力载荷 min (N)"],
+            "rows": [
+                ["2", "0.5", "0.3", "1940"],
+                ["2.5", "1.2", "0.6", "3150"],
+                ["3", "2.1", "1.1", "4680"],
+                ["4", "4.9", "2.5", "8170"]
+            ]
+        },
+        "sample_after": [
+            {
+                "no": "1",
+                "name": "破坏扭矩Min",
+                "unit": "N·m",
+                "common_dims": ["螺纹公称直径 d (d_nom)"],
+                "extra_dims": [],
+                "preview_rows": [{"key": "d_nom=2", "lower": "0.5", "upper": "—"}, {"key": "d_nom=3", "lower": "2.1", "upper": "—"}]
+            },
+            {
+                "no": "2",
+                "name": "拧入扭矩Max",
+                "unit": "N·m",
+                "common_dims": ["螺纹公称直径 d (d_nom)"],
+                "extra_dims": [],
+                "preview_rows": [{"key": "d_nom=2", "lower": "—", "upper": "0.3"}, {"key": "d_nom=3", "lower": "—", "upper": "1.1"}]
+            },
+            {
+                "no": "3",
+                "name": "破坏拉力载荷Min",
+                "unit": "N",
+                "common_dims": ["螺纹公称直径 d (d_nom)"],
+                "extra_dims": [],
+                "preview_rows": [{"key": "d_nom=2", "lower": "1940", "upper": "—"}, {"key": "d_nom=3", "lower": "4680", "upper": "—"}]
+            }
+        ],
+        "config": {"header_dir": "col", "target_tables": "multi_col_min_max_avg"}
+    },
+    {
+        "id": "mode-3-cross2d",
+        "code": "matrix_2d_cross",
+        "seq": 3,
+        "name": "模式 3：二维矩阵交叉表（行列正交）",
+        "short_name": "二维矩阵交叉表",
+        "output_ratio": "行参数 × 列参数 → 按 Min / Max / Avg 等特征值生成二维正交限值表（表格标题+特征值）",
+        "complexity": "中等",
+        "badge_color": "#2563eb",
+        "scenario": "表格的「行」是一个规格参数（如螺纹规格 M3~M39），表格的「列」是另一个规格参数（如性能等级 4.6~12.9），行列交叉处的单元格是同一个检项指标的 min、max、avg、nom 等特征限值。",
+        "rule_summary": "1. 自动将纵轴行头参数（如 thread_spec 螺纹规格）与横轴列头参数（如 property_class 性能等级）共同纳入公共参数池（2 维正交）；\n2. 按表格或行项目的特征属性（Min、Max、Avg、Nom 等）生成「表格标题+特征值」二维限值主表；\n3. 将每个交叉单元格 (row_i, col_j) 展开为一条二维坐标明细行：{thread_spec: M_i, property_class: C_j} => 对应特征限值。",
+        "std_examples": [
+            {"std": "GB/T 3098.1—2010", "table": "表4 最小拉力载荷（粗牙螺纹）", "desc": "纵轴为螺纹规格 M3~M39，横轴为性能等级 4.6~12.9，生成「最小拉力载荷（粗牙螺纹）Min」二维限值表"},
+            {"std": "GB/T 3098.1—2010", "table": "表5 保证载荷（粗牙螺纹）", "desc": "纵轴为螺纹规格 M3~M39，横轴为性能等级 4.6~12.9，生成二维正交限值表"},
+            {"std": "GB/T 3098.1—2010", "table": "表6/表7 细牙螺纹载荷表", "desc": "纵轴为细牙规格 M8×1~M39×3，横轴为性能等级"}
+        ],
+        "sample_before": {
+            "caption": "表4 最小拉力载荷（粗牙螺纹） (单位: N)",
+            "headers": ["螺纹规格 (d)", "4.6", "4.8", "5.6", "8.8", "10.9", "12.9"],
+            "rows": [
+                ["M3", "2010", "2110", "2510", "4020", "5230", "6140"],
+                ["M4", "3510", "3690", "4390", "7020", "9130", "10700"],
+                ["M6", "8040", "8440", "10000", "16100", "20900", "24500"]
+            ]
+        },
+        "sample_after": [
+            {
+                "no": "1",
+                "name": "最小拉力载荷Min",
+                "unit": "N",
+                "common_dims": ["螺纹规格 (thread_spec)", "性能等级 (property_class)"],
+                "extra_dims": [],
+                "preview_rows": [
+                    {"key": "thread_spec=M3 × property_class=8.8", "lower": "4020", "upper": "—"},
+                    {"key": "thread_spec=M6 × property_class=10.9", "lower": "20900", "upper": "—"}
+                ]
+            }
+        ],
+        "config": {"header_dir": "both_2d", "target_tables": "cross_product_min_max_avg"}
+    },
+    {
+        "id": "mode-4-composite",
+        "code": "composite_no_master",
+        "seq": 4,
+        "name": "模式 4：No. 复合大表（主从向导拆解）",
+        "short_name": "No.复合大表主从向导",
+        "output_ratio": "1 张复合母表 → 按 No. 及 Min / Max / Avg 等特征值拆分为 N 张多维主从限值表（指标名称+特征值）",
+        "complexity": "高阶",
+        "badge_color": "#7c3aed",
+        "scenario": "标准中最复杂的复合大表：表头具有跨列嵌套参数（如性能等级 4.6~12.9 下再分 d≤16mm 与 d>16mm），表体纵向按 No. 序号排列十余个不同物理指标（抗拉强度、屈服强度、硬度、脱碳层、冲击功等），且指标内部包含 min、max、avg（平均值）、nom（公称值）等不同子行。",
+        "rule_summary": "采用 4 步主从向导：\n1. 按纵向 No. 序号及各指标包含的特征值（Min、Max、Avg、Nom 等）拆分为对应笔数的「限值主表」，命名为「指标名称+Min」、「指标名称+Max」、「指标名称+Avg」等；\n2. 每笔主表自动继承表头公共参数（如性能等级 + 公称直径区间）；\n3. 针对含公称子行或特殊试验条件的 No. 主表，由人工确认加入「专属增量参数」（如公称抗拉强度 rm_nom、试验温度等）；\n4. 展开生成每笔主表在 (公共参数 × 专属参数) 完整维度下的明细行，并一键切分编译。",
+        "std_examples": [
+            {"std": "GB/T 3098.1—2010", "table": "表3 螺栓、螺钉和螺柱的机械和物理性能", "desc": "No.1 拆为「抗拉强度 RmMin」，No.10 维氏硬度含 min/max 自动拆为「维氏硬度 HV (F≥98N)Min」与「维氏硬度 HV (F≥98N)Max」"},
+            {"std": "GB/T 3098.2—2015", "table": "螺母机械性能总表", "desc": "跨性能等级与螺纹直径分段的多指标主从复合表"}
+        ],
+        "sample_before": {
+            "caption": "表3 螺栓、螺钉和螺柱的机械和物理性能",
+            "headers": ["No.", "机械或物理性能", "子项", "4.6", "8.8 (d≤16)", "8.8 (d>16)", "10.9"],
+            "rows": [
+                ["1", "抗拉强度 Rm / MPa", "公称", "400", "800", "800", "1000"],
+                ["1", "抗拉强度 Rm / MPa", "min", "400", "800", "830", "1040"],
+                ["10", "维氏硬度 HV (F≥98N)", "min", "120", "250", "255", "320"],
+                ["10", "维氏硬度 HV (F≥98N)", "max", "220", "320", "335", "380"]
+            ]
+        },
+        "sample_after": [
+            {
+                "no": "1",
+                "name": "抗拉强度 RmMin",
+                "unit": "MPa",
+                "common_dims": ["性能等级 (property_class)", "公称直径 d (d_nom)"],
+                "extra_dims": ["⭐ 公称抗拉强度 (rm_nom)"],
+                "preview_rows": [
+                    {"key": "8.8 × 0~16 × rm_nom=800", "lower": "800", "upper": "—"},
+                    {"key": "8.8 × 16~39 × rm_nom=800", "lower": "830", "upper": "—"}
+                ]
+            },
+            {
+                "no": "10-Min",
+                "name": "维氏硬度 HV (F≥98N)Min",
+                "unit": "HV",
+                "common_dims": ["性能等级 (property_class)", "公称直径 d (d_nom)"],
+                "extra_dims": [],
+                "preview_rows": [
+                    {"key": "8.8 × 0~16", "lower": "250", "upper": "—"},
+                    {"key": "8.8 × 16~39", "lower": "255", "upper": "—"}
+                ]
+            },
+            {
+                "no": "10-Max",
+                "name": "维氏硬度 HV (F≥98N)Max",
+                "unit": "HV",
+                "common_dims": ["性能等级 (property_class)", "公称直径 d (d_nom)"],
+                "extra_dims": [],
+                "preview_rows": [
+                    {"key": "8.8 × 0~16", "lower": "—", "upper": "320"},
+                    {"key": "8.8 × 16~39", "lower": "—", "upper": "335"}
+                ]
+            }
+        ],
+        "config": {"header_dir": "nested_col_no_row", "target_tables": "master_detail_no_min_max_avg"}
+    },
+    {
+        "id": "mode-5-skip",
+        "code": "ignore_skip",
+        "seq": 5,
+        "name": "模式 5：非判定表 / 忽略跳过",
+        "short_name": "非判定表/跳过",
+        "output_ratio": "0 张限值表（仅归档备查）",
+        "complexity": "忽略",
+        "badge_color": "#64748b",
+        "scenario": "标准文本中出现的符号与缩略语表、条款索引导览表、试验夹具/试板工装尺寸表、引用标准对照表等，不属于被检产品本身的合格判定限值。",
+        "rule_summary": "1. 将该原表标记为「⏭️ 已跳过（非产品判定限值表）」；\n2. 不生成限值子表，保留原表网格供查阅标准时参考；\n3. 若后续需要提取其中数据，可随时切换回模式 1~4 重新拆解。",
+        "std_examples": [
+            {"std": "GB/T 3098.7—2000", "table": "表2 机械和工作性能项目", "desc": "仅列出性能项目对应的技术要求条号与试验方法条号，无具体限值"},
+            {"std": "GB/T 3098.7—2000", "table": "表5 试板的厚度和孔径", "desc": "规定试验用工装试板的厚度和孔径，非螺钉本体尺寸"},
+            {"std": "GB/T 3098.1—2010", "table": "表1 屈强比 / 表8~11 试验方法适用表", "desc": "概念示例表或试验系列导览表"}
+        ],
+        "sample_before": {
+            "caption": "表2 机械和工作性能项目（索引表）",
+            "headers": ["性能项目", "技术要求（条或表）", "试验方法（条）"],
+            "rows": [
+                ["表面硬度", "4.3", "5.2"],
+                ["渗碳层深度", "4.4、表4", "5.3"],
+                ["破坏扭矩", "4.5、表3", "5.4"]
+            ]
+        },
+        "sample_after": [],
+        "config": {"header_dir": "none", "target_tables": "skip"}
+    }
+]
+
+
+def ensure_split_modes(conn: sqlite3.Connection) -> None:
+    """确保拆分模式库中有预置的 5 种拆分模式（并自动升级旧版未含 Avg 等特征值规则的预置描述）。"""
+    row_m1 = conn.execute("SELECT output_ratio FROM table_split_mode WHERE id='mode-1-single'").fetchone()
+    if row_m1 and "Avg" in (row_m1[0] or ""):
+        return
+    for m in DEFAULT_SPLIT_MODES:
+        conn.execute(
+            """INSERT OR REPLACE INTO table_split_mode(
+                id, code, seq, name, short_name, output_ratio, complexity, badge_color,
+                scenario, rule_summary, std_examples, sample_before, sample_after, config_json
+            ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
+            (
+                m["id"], m["code"], m["seq"], m["name"], m["short_name"],
+                m["output_ratio"], m["complexity"], m["badge_color"],
+                m["scenario"], m["rule_summary"],
+                json.dumps(m["std_examples"], ensure_ascii=False),
+                json.dumps(m["sample_before"], ensure_ascii=False),
+                json.dumps(m["sample_after"], ensure_ascii=False),
+                json.dumps(m["config"], ensure_ascii=False),
+            )
+        )
+    conn.commit()
+
+
+def list_split_modes(conn: sqlite3.Connection) -> list[dict]:
+    """读取全部拆分模式（按 seq 排序）。"""
+    ensure_split_modes(conn)
+    out = []
+    for r in conn.execute("SELECT * FROM table_split_mode ORDER BY seq, id"):
+        out.append({
+            "id": r["id"],
+            "code": r["code"],
+            "seq": r["seq"],
+            "name": r["name"],
+            "short_name": r["short_name"],
+            "output_ratio": r["output_ratio"],
+            "complexity": r["complexity"],
+            "badge_color": r["badge_color"],
+            "scenario": r["scenario"],
+            "rule_summary": r["rule_summary"],
+            "std_examples": json.loads(r["std_examples"] or "[]"),
+            "sample_before": json.loads(r["sample_before"] or "{}"),
+            "sample_after": json.loads(r["sample_after"] or "[]"),
+            "config": json.loads(r["config_json"] or "{}"),
+        })
+    return out
+
+
+def save_split_mode(conn: sqlite3.Connection, mode_id: str, payload: dict) -> dict:
+    """更新或保存某个拆分模式的说明、规则与示例。"""
+    ensure_split_modes(conn)
+    existing = conn.execute("SELECT * FROM table_split_mode WHERE id=?", (mode_id,)).fetchone()
+    if not existing:
+        conn.execute(
+            """INSERT INTO table_split_mode(
+                id, code, seq, name, short_name, output_ratio, complexity, badge_color,
+                scenario, rule_summary, std_examples, sample_before, sample_after, config_json
+            ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
+            (
+                mode_id,
+                payload.get("code") or mode_id,
+                int(payload.get("seq") or 99),
+                payload.get("name") or mode_id,
+                payload.get("short_name") or "",
+                payload.get("output_ratio") or "",
+                payload.get("complexity") or "中等",
+                payload.get("badge_color") or "#0b5cab",
+                payload.get("scenario") or "",
+                payload.get("rule_summary") or "",
+                json.dumps(payload.get("std_examples") or [], ensure_ascii=False),
+                json.dumps(payload.get("sample_before") or {}, ensure_ascii=False),
+                json.dumps(payload.get("sample_after") or [], ensure_ascii=False),
+                json.dumps(payload.get("config") or {}, ensure_ascii=False),
+            )
+        )
+    else:
+        conn.execute(
+            """UPDATE table_split_mode SET
+                name=?, short_name=?, output_ratio=?, complexity=?, badge_color=?,
+                scenario=?, rule_summary=?, std_examples=?, sample_before=?, sample_after=?, config_json=?
+               WHERE id=?""",
+            (
+                payload.get("name", existing["name"]),
+                payload.get("short_name", existing["short_name"]),
+                payload.get("output_ratio", existing["output_ratio"]),
+                payload.get("complexity", existing["complexity"]),
+                payload.get("badge_color", existing["badge_color"]),
+                payload.get("scenario", existing["scenario"]),
+                payload.get("rule_summary", existing["rule_summary"]),
+                json.dumps(payload.get("std_examples", json.loads(existing["std_examples"] or "[]")), ensure_ascii=False),
+                json.dumps(payload.get("sample_before", json.loads(existing["sample_before"] or "{}")), ensure_ascii=False),
+                json.dumps(payload.get("sample_after", json.loads(existing["sample_after"] or "[]")), ensure_ascii=False),
+                json.dumps(payload.get("config", json.loads(existing["config_json"] or "{}")), ensure_ascii=False),
+                mode_id,
+            )
+        )
+    conn.commit()
+    modes = [m for m in list_split_modes(conn) if m["id"] == mode_id]
+    return modes[0] if modes else {}
+
+
+def resolve_sub_coords(val: str, conn: sqlite3.Connection | None = None) -> dict[str, Any]:
+    """从参数定值（如 'M2×0.4粗牙'）解构出其二级参数及派生别名。
+    返回字典如：{'GYZLX': '公制', 'D': 2, 'd': 2, 'd_nom': 2, 'P': 0.4, 'p_pitch': 0.4, 'p_nom': 0.4, 'YLX': '粗牙'}
+    """
+    if not val or not isinstance(val, str):
+        return {}
+    val = val.strip()
+    if not val:
+        return {}
+
+    out: dict[str, Any] = {}
+    close_conn = False
+    if conn is None:
+        try:
+            conn = connect()
+            close_conn = True
+        except Exception:
+            conn = None
+
+    c1, c2, c3, c4 = "", "", "", ""
+    sub_map = {}
+
+    if conn is not None:
+        try:
+            row = conn.execute("""
+                SELECT pv.coord1_val, pv.coord2_val, pv.coord3_val, pv.coord4_val,
+                       pn.coord1_sub_id, pn.coord2_sub_id, pn.coord3_sub_id, pn.coord4_sub_id
+                FROM param_value pv
+                JOIN param_name pn ON pn.id = pv.param_id
+                WHERE pv.val=? LIMIT 1
+            """, (val,)).fetchone()
+            if row:
+                c1, c2, c3, c4 = row[0] or "", row[1] or "", row[2] or "", row[3] or ""
+                sub_ids = [row[4], row[5], row[6], row[7]]
+                for idx, sid in enumerate(sub_ids):
+                    if sid:
+                        srow = conn.execute("SELECT code, name FROM sub_param WHERE id=?", (sid,)).fetchone()
+                        if srow:
+                            sub_map[idx + 1] = srow[0]
+        except Exception:
+            pass
+        finally:
+            if close_conn:
+                conn.close()
+
+    # 兜底正则解析螺纹规格（如 M2×0.4粗牙 或 M6×0.75细牙）
+    if not c1 and not c2 and not c3 and not c4:
+        ylx = "细牙" if "细牙" in val else "粗牙"
+        gyz = "英美制" if ("/" in val or "UNC" in val or "UNF" in val) else "公制"
+        m = re.search(r"[Mm](\d+(?:\.\d+)?)(?:[×xX*](\d+(?:\.\d+)?))?", val)
+        if m:
+            c1, c2, c3, c4 = gyz, m.group(1) or "", m.group(2) or "", ylx
+        elif re.search(r"^\d+(?:\.\d+)?$", val):
+            c1, c2, c3, c4 = gyz, val, "", ylx
+
+    code1 = sub_map.get(1, "GYZLX")
+    code2 = sub_map.get(2, "D")
+    code3 = sub_map.get(3, "P")
+    code4 = sub_map.get(4, "YLX")
+
+    def _as_num(s):
+        try:
+            f = float(s)
+            return int(f) if f.is_integer() else f
+        except (ValueError, TypeError):
+            return s
+
+    if c1:
+        out[code1] = c1
+    if c2:
+        num2 = _as_num(c2)
+        out[code2] = num2
+        out["d"] = num2
+        out["d_nom"] = num2
+        out["nominal_diameter"] = num2
+    if c3:
+        num3 = _as_num(c3)
+        out[code3] = num3
+        out["p"] = num3
+        out["p_pitch"] = num3
+        out["p_nom"] = num3
+    if c4:
+        out[code4] = c4
+
+    return out
+
+
