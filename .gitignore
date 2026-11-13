@@ -5,19 +5,14 @@ __pycache__/
 .build-cache/
 .tmp/
 
-# 运行产物（首次启动会自动生成）
-data/*.db*
-data/app.db
+# 运行产物
+data/*.db.bak
+data/app.db.bak
 data/uploads/
 data/jobs/
 
 # 编译产物（run.sh 会自动编译 OCR）
 g1/service/bin/
-
-# 生成物：可由脚本重建，不进仓库
-*.docx
-*.xlsx
-*.pdf
 
 # 系统
 .DS_Store

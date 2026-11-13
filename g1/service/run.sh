@@ -26,10 +26,16 @@ if [ ! -x "$ROOT/g1/service/bin/ocrkit" ] && command -v swiftc >/dev/null 2>&1; 
   fi
 fi
 
-# 2) 数据库（首次启动时建库并灌入样例标准）
+# 2) 数据库（首次启动时建库并灌入样例标准与参数库）
 if [ ! -f "$ROOT/data/app.db" ]; then
   echo "→ 初始化数据库…"
   "$PY" "$ROOT/g1/service/tools/load_gb3103.py"
+  if [ -f "$ROOT/data/产品目录.csv" ]; then
+    echo "→ 初始化参数库与二级参数…"
+    "$PY" "$ROOT/g1/service/tools/import_catalog_csv.py" \
+      "$ROOT/data/产品目录.csv" "$ROOT/data/产品目录_参数.csv" \
+      "$ROOT/data/产品目录_二级参数.csv" "$ROOT/data/产品目录_参数定值.csv"
+  fi
 fi
 
 export PORT="${1:-${PORT:-8022}}"
